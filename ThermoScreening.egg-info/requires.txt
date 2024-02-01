@@ -1,0 +1,12 @@
+numpy
+argparse
+scipy
+pymatgen
+beartype
+
+[docs]
+sphinx
+
+[test]
+pytest
+coverage
