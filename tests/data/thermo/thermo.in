@@ -1,6 +1,6 @@
-coord_file = /home/stk/dev/ThermoScreening/examples/geo_opt.xyz
+coord_file = geo_opt.xyz
 temperature = 298.15
 pressure = 101325
 engine = dftb+
-vibrational_file = /home/stk/dev/ThermoScreening/examples/frequency.txt
+vibrational_file = frequency.txt
 energy = -33.6052447996

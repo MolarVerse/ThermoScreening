@@ -23,6 +23,10 @@ def cell(a: float, b: float, c: float, alpha: float, beta: float, gamma: float) 
             The angle between the first and second cell vectors.
 
         """
+        alpha = np.deg2rad(alpha)
+        beta = np.deg2rad(beta)
+        gamma = np.deg2rad(gamma)
+
         volume = a*b*c*np.sqrt(1+2*np.cos(alpha)*np.cos(beta)*np.cos(gamma)-np.cos(alpha)**2-np.cos(beta)**2-np.cos(gamma)**2)
         cell_vector = np.zeros((3,3))
         cell_vector[0,0] = a
@@ -34,6 +38,9 @@ def cell(a: float, b: float, c: float, alpha: float, beta: float, gamma: float) 
         cell_vector[0,2] = c*np.cos(beta)
         cell_vector[1,2] = c*(np.cos(alpha)-np.cos(beta)*np.cos(gamma))/np.sin(gamma)
         cell_vector[2,2] = volume/(a*b*np.sin(gamma))
+        # round all values to 4 digits
+        cell_vector = np.round(cell_vector, 4)
+
         return cell_vector
 def cell_parameters_calc(cell_vector: np.ndarray) -> np.ndarray:  
     """
@@ -57,6 +64,9 @@ def cell_parameters_calc(cell_vector: np.ndarray) -> np.ndarray:
     alpha = np.arccos(np.dot(cell_vector[:,1],cell_vector[:,2])/(b*c))
     beta = np.arccos(np.dot(cell_vector[:,0],cell_vector[:,2])/(a*c))
     gamma = np.arccos(np.dot(cell_vector[:,0],cell_vector[:,1])/(a*b))
+    alpha = np.rad2deg(alpha)   
+    beta = np.rad2deg(beta)
+    gamma = np.rad2deg(gamma)
     return np.array([a, b, c, alpha, beta, gamma])
      
      
@@ -116,7 +126,7 @@ class Cell:
             self._cell_vectors = cell(self._cell_parameters[0], self._cell_parameters[1], self._cell_parameters[2], self._cell_parameters[3], self._cell_parameters[4], self._cell_parameters[5])
         
         if self._volume is None:
-            self._volume = self._cell_parameters[0]*self._cell_parameters[1]*self._cell_parameters[2]*np.sqrt(1+2*np.cos(self._cell_parameters[3])*np.cos(self._cell_parameters[4])*np.cos(self._cell_parameters[5])-np.cos(self._cell_parameters[3])**2-np.cos(self._cell_parameters[4])**2-np.cos(self._cell_parameters[5])**2)
+            self._volume = np.linalg.det(self._cell_vectors)
         
         
 

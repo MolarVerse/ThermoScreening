@@ -428,7 +428,7 @@ class System:
         self._pbc = pbc
         self._cell = cell
         if self._cell is None:
-            self._cell = Cell(a=10000, b=10000, c=10000, alpha=90, beta=90, gamma=90)
+            self._cell = None
         self._solvation = solvation
         self._solvent = solvent
         self._electronic_energy = electronic_energy
@@ -440,8 +440,12 @@ class System:
         self._center_of_mass = center_of_mass(atoms,self._mass)
         self._symmetry_number = rotational_symmetry_number(atoms)
         self._rotational_group = rotational_group_calc(atoms)
-        self._spacegroup_number = spacegroup_number(atoms,self._cell)
-        self._spacegroup = spacegroup(atoms,self._cell)
+        if self._cell is None:
+            self._spacegroup_number = None
+            self._spacegroup = None
+        else:
+            self._spacegroup_number = spacegroup_number(atoms,self._cell)
+            self._spacegroup = spacegroup(atoms,self._cell)
         self._imaginary_frequencies = imaginary_frequencies(vibrational_frequencies)
         self._has_imaginary_frequencies = check_imaginary_frequencies(self._imaginary_frequencies) 
         self._real_vibrational_frequencies = frequency_dof(self._vibrational_frequencies,self._dof)
@@ -618,27 +622,29 @@ class System:
         return self._rotational_group
     
     @property
-    def spacegroup_number(self) -> str:
+    def spacegroup_number(self):
         """
         The spacegroup of the system.
 
         Returns
         -------
-        str
+        str, None
             The spacegroup of the system.
         """
+       
         return self._spacegroup
     
     @property
-    def spacegroup(self) -> str:
+    def spacegroup(self) :
         """
         The spacegroup of the system.
 
         Returns
         -------
-        str
+        str,None    
             The spacegroup of the system.
         """
+     
         return self._spacegroup
     @property
     def center_of_mass(self) -> np.ndarray:
@@ -807,7 +813,7 @@ class System:
         np.ndarray
             The x coordinates of the system.
         """
-        return np.array([atom.position[:,0] for atom in self._atoms])
+        return np.array([atom.position[0] for atom in self._atoms])
     
     def y(self) -> np.ndarray:
         """
@@ -818,7 +824,7 @@ class System:
         np.ndarray
             The y coordinates of the system.
         """
-        return np.array([atom.position[:,1] for atom in self._atoms])
+        return np.array([atom.position[1] for atom in self._atoms])
 
     def z(self) -> np.ndarray:
         """
@@ -829,7 +835,7 @@ class System:
         np.ndarray
             The z coordinates of the system.
         """
-        return np.array([atom.position[:,2] for atom in self._atoms])
+        return np.array([atom.position[2] for atom in self._atoms])
     
 
 

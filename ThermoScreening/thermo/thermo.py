@@ -324,7 +324,7 @@ class Thermo:
         self._EeZPE = self._system.electronic_energy+ self._zpecorr/PhysicalConstants["JinHartree"]/PhysicalConstants["Na"]*PhysicalConstants["cal"]
         self._EeEtot = self._system.electronic_energy + self._total_energy/PhysicalConstants["JinHartree"]/PhysicalConstants["Na"]*PhysicalConstants["cal"]
         self._EeHtot = self._system.electronic_energy + self._total_enthalpy/PhysicalConstants["JinHartree"]/PhysicalConstants["Na"]*PhysicalConstants["cal"]
-        self._EeGtot = self._system.electronic_energy + self._total_gibbs_free_energy/PhysicalConstants["JinHartree"]/PhysicalConstants["Na"]*PhysicalConstants["cal"]
+        self._EeGtot = self._system.electronic_energy + self._total_gibbs_free_energy_Hartree_per_mol
 
         
         
@@ -347,3 +347,175 @@ class Thermo:
         print("########################################")
         print("########################################")
         print("########################################")
+
+
+
+    def total_energy(self,unit:str) -> float:
+        """
+        Returns the total energy of the system based on the unit.
+
+        Parameters
+        ----------
+        unit : str
+            The unit of the total energy.
+        
+        Returns
+        -------
+        float
+            The total energy of the system.
+        """
+        if unit =="H":
+            return self._total_energy_Hartree_per_mol
+        elif unit =="kcal":
+            return self._total_energy_kcal
+        elif unit =="cal":
+            return self._total_energy
+        else:
+            ValueError("The unit is not supported.")
+   
+
+ 
+    def total_enthalpy(self,unit:str) -> float:
+        """
+        Returns the total enthalpy of the system based on the unit.
+
+        Parameters
+        ----------
+        unit : str
+            The unit of the total enthalpy.
+        
+        Returns
+        -------
+        float
+            The total enthalpy of the system.
+        """
+        if unit =="H":
+            return self._total_enthalpy_Hartree_per_mol
+        elif unit =="kcal":
+            return self._total_enthalpy_kcal
+        elif unit =="cal":
+            return self._total_enthalpy
+        else:
+            ValueError("The unit is not supported.")
+
+
+      
+    def total_entropy(self,unit:str) -> float:
+        """
+        Returns the total entropy of the system based on the unit.
+
+        Parameters
+        ----------
+        unit : str
+            The unit of the total entropy.
+        
+        Returns
+        -------
+        float
+            The total entropy of the system.
+        """
+        if unit =="H/T":
+            return self._total_entropy_Hartree_per_mol
+        elif unit =="cal/(mol*K)":
+            return self._total_entropy
+        else:
+            ValueError("The unit is not supported.")
+    
+
+    def total_gibbs_free_energy(self,unit:str) -> float:
+        """
+        Returns the total Gibbs free energy of the system based on the unit.
+
+        Parameters
+        ----------
+        unit : str
+            The unit of the total Gibbs free energy.
+        
+        Returns
+        -------
+        float
+            The total Gibbs free energy of the system.
+        """
+        if unit =="H":
+            return self._total_gibbs_free_energy_Hartree_per_mol
+        elif unit =="kcal":
+            return self._total_gibbs_free_energy_kcal
+        elif unit =="cal":
+            return self._total_gibbs_free_energy
+        else:
+            ValueError("The unit is not supported.")
+    def total_heat_capacity(self,unit:str) -> float:
+        """
+        Returns the total heat capacity of the system based on the unit.
+        
+        Parameters
+        ----------
+        unit : str
+            The unit of the total heat capacity.
+        
+        Returns
+        -------
+        float
+            The total heat capacity of the system.
+        """
+        if unit =="cal/(mol*K)":
+            return self._total_heatcapacity
+        elif unit =="H/T":
+            return self._total_heatcapacity*PhysicalConstants["cal"]/PhysicalConstants["H"]/PhysicalConstants["Na"]
+        else:
+            ValueError("The unit is not supported.")
+    
+    def total_EeZPE(self) -> float:
+        """
+        Returns the sum of the electronic energy and the zero point energy correction.
+
+        Returns
+        -------
+        float
+            The sum of the electronic energy and the zero point energy correction in Hartree per particle.
+        """
+        return self._EeZPE
+    
+    def total_EeEtot(self) -> float:
+        """
+        Returns the sum of the electronic energy and the total energy.
+
+        Returns
+        -------
+        float
+            The sum of the electronic energy and the total energy in Hartree per particle.
+        """
+        return self._EeEtot
+    
+    def total_EeHtot(self) -> float:
+        """
+        Returns the sum of the electronic energy and the total enthalpy.
+
+        Returns
+        -------
+        float
+            The sum of the electronic energy and the total enthalpy in Hartree per particle.
+        """
+        return self._EeHtot
+
+    def total_EeGtot(self) -> float:
+        """
+        Returns the sum of the electronic energy and the total Gibbs free energy.
+
+        Returns
+        -------
+        float
+            The sum of the electronic energy and the total Gibbs free energy in Hartree per particle.
+        """
+        return self._EeGtot
+    
+    def electronic_energy(self) -> float:
+        """
+        Returns the electronic energy of the system.
+
+        Returns
+        -------
+        float
+            The electronic energy of the system in Hartree per particle.
+        """
+        return self._system.electronic_energy

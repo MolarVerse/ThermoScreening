@@ -10,7 +10,6 @@ class Atom:
     def __init__(self,
                 symbol    :  str | None = None,
                 number    : int | None = None,
-                configuration    : str | None = None,
                 position  : np.ndarray | None = None,
                 ) -> None:
 
@@ -21,12 +20,8 @@ class Atom:
         ----------
         symbol : str, optional, default=None
             The chemical symbol of the atom.
-        mass : float, optional, default=None
-            The mass of the atom.
         number : int, optional, default=None
             The atomic number of the atom.
-        configuration : str, optional, default=None
-            The electron configuration of the atom.
         position : np.ndarray, optinal, default=[0.0,0.0,0.0]
             The position of the atom.
 
@@ -36,28 +31,35 @@ class Atom:
             raise ValueError("Either symbol or number has to be given to initialize the atom.")
         
         if symbol is not None and number is not None: 
-            if number != atomicNumbers[symbol]:
-                raise ValueError("The symbol and number are not consistent.")  
+            if number != atomicNumbers[symbol.lower()]:
+                raise ValueError("The symbol and atomic number are not consistent.")  
         if number is not None:
             self._number = number
-            self._symbol = atomicNumbers[int(number)]
-            self._mass = atomicMasses[symbol.lower()]
-            self._configuration = atomicElectronConfigurations[symbol.lower()]
+            try:
+                self._symbol = atomic_Symbol[int(number)].capitalize()
+            except:
+                raise ValueError("The atomic number %s is not known." %number)
+            self._mass = atomicMasses[self._symbol.lower()]
+            self._configuration = atomicElectronConfigurations[self._symbol.lower()]
         else:
             self._symbol = symbol
-            self._number = atomicNumbers[symbol.lower()]
+            try:
+                self._number = atomicNumbers[symbol.lower()]
+            except:
+                raise ValueError("The chemical symbol %s is not known." %symbol)
             self._mass = atomicMasses[symbol.lower()]
             self._configuration = atomicElectronConfigurations[symbol.lower()]
 
 
         
         if position is None:
-            self._position = np.zeros(3)
+            raise ValueError("The position of the atom has to be given to initialize the atom.")
+
         else:
             self._position = position
 
         if len(position) != 3:
-            raise ValueError("The length of position must be 3.")
+            raise ValueError("The position of the atom has to be a 3D vector.")
        
     
     @property
@@ -94,17 +96,17 @@ class Atom:
             The atomic number of the atom.
         """
         return self._number
-    @property
-    def charge(self):
-        """
-        Charge of the atom.
+    # @property
+    # def charge(self):
+    #     """
+    #     Charge of the atom.
 
-        Returns
-        -------
-        float
-            The charge of the atom.
-        """
-        return self._charge
+    #     Returns
+    #     -------
+    #     float
+    #         The charge of the atom.
+    #     """
+    #     return self._charge
     @property
     def position(self):
         """
@@ -132,23 +134,56 @@ class Atom:
             raise ValueError("The length of position must be 3.")
         self._position = array
     
-    @charge.setter
-    def charge(self, value):
-        """
-        Sets the charge of the atom.
+    # @charge.setter
+    # def charge(self, value):
+    #     """
+    #     Sets the charge of the atom.
 
+    #     Parameters
+    #     ----------
+    #     value : float
+    #         The charge of the atom.
+    #     """
+    #     self._charge = value
+    
+    def change_atom(self, symbol: str | None = None, number: int | None = None, position: np.ndarray | None = None):
+        """
+        Changes the atom.
+        Either the symbol or the number has to be given.
+        The position can also be changed.
         Parameters
         ----------
-        value : float
-            The charge of the atom.
+        symbol : str, optional, default=None
+            The chemical symbol of the atom.
+        number : int, optional, default=None
+            The atomic number of the atom.
+        position : np.ndarray, optinal, default=None
+            The position of the atom.
+        
         """
-        self._charge = value
-    
-    def change_atom(self, _symbol=None, _mass=None, _number=None, _charge=None, _position=None):
-        """
-        Changes the atom to another atom.
-        """
-        self = Atom(_symbol=_symbol, _mass=_mass, _number=_number, _charge=_charge, _position=_position)
+        if symbol is not None:
+            self._symbol = symbol
+            try:
+                self._number = atomicNumbers[self._symbol.lower()]
+            except:
+                raise ValueError("The chemical symbol %s is not known." %symbol)
+            
+            self._mass = atomicMasses[symbol.lower()]
+            self._configuration = atomicElectronConfigurations[symbol.lower()]
+
+        if number is not None:
+            self._number = number
+            try:
+                self._symbol = atomic_Symbol[int(number)].capitalize()
+            except:
+                raise ValueError("The atomic number %s is not known." %number)
+            self._mass = atomicMasses[self._symbol.lower()]
+            self._configuration = atomicElectronConfigurations[self._symbol.lower()]
+        if position is not None:
+            if len(position) != 3:
+                raise ValueError("The position of the atom has to be a 3D vector.")
+       
+            self._position = position
 
 
 
@@ -232,6 +267,19 @@ atomicNumbers = {"h":     1,  "d":     1,  "t":    1,
                  "q":   999,  "x":   999,  "cav": 1000, 
                  "sup": 1000000, 
                  "dum": 1}
+atomic_Symbol = {
+                1: "h", 2: "he",  3: "li",  4: "be",  5: "b",  6: "c",  7: "n",  8: "o",  9: "f",  10: "ne",
+                11: "na",  12: "mg",  13: "al",  14: "si",  15: "p",  16: "s",  17: "cl",  18: "ar",  19: "k",  20: "ca",
+                21: "sc",  22: "ti",  23: "v",  24: "cr",  25: "mn",  26: "fe",  27: "co",  28: "ni",  29: "cu",  30: "zn",
+                31: "ga",  32: "ge",  33: "as",  34: "se",  35: "br",  36: "kr",  37: "rb",  38: "sr",  39: "y",  40: "zr",
+                41: "nb",  42: "mo",  43: "tc",  44: "ru",  45: "rh",  46: "pd",  47: "ag",  48: "cd",  49: "in",  50: "sn",
+                51: "sb",  52: "te",  53: "i",  54: "xe",  55: "cs",  56: "ba",  57: "la",  58: "ce",  59: "pr",  60: "nd",
+                61: "pm",  62: "sm",  63: "eu",  64: "gd",  65: "tb",  66: "dy",  67: "ho",  68: "er",  69: "tm",  70: "yb",
+                71: "lu",  72: "hf",  73: "ta",  74: "w",  75: "re",  76: "os",  77: "ir",  78: "pt",  79: "au",  80: "hg",
+                81: "tl",  82: "pb",  83: "bi",  84: "po",  85: "at",  86: "rn",  87: "fr",  88: "ra",  89: "ac",  90: "th",
+                91: "pa",  92: "u",  93: "np",  94: "pu",  95: "am",  96: "cm",  97: "bk",  98: "cf",  99: "es",  100: "fm",
+                101: "md",  102: "no",  103: "lr",  999: "q",  1000: "cav",  1000000: "sup",  1: "dum"}
+
 
 atomicElectronConfigurations = {"h":     "1s1",  "d":     "1s1",  "t":    "1s1",
                                 "he":    "1s2",  "li":    "1s2 2s1",  "be":   "1s2 2s2",

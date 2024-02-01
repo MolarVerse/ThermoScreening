@@ -96,7 +96,7 @@ def read_gen(coord_file: str):
             while True:
                 line = f.readline().strip()
                 line = line.split()
-                if len(line) == 0:
+                if i < data_N:
                     break
                 index = int(line[0])
                 symbol_number = int(line[1])
@@ -107,10 +107,14 @@ def read_gen(coord_file: str):
                 i += 1
             if pbc:
                 line = f.readline()
+                line = f.readline()
                 line = line.split()
-                cell_vector = np.array([[float(line[0]), float(line[1]), float(line[2])], [float(line[3]), float(line[4]), float(line[5])], [float(line[6]), float(line[7]), float(line[8])]])
-            else:
-                cell_vector = None
+                line2 = f.readline()
+                line2 = line2.split()
+                line3 = f.readline()
+                line3 = line3.split()
+                cell_vector = np.array([[float(line[0]), float(line[1]), float(line[2])], [float(line2[0]), float(line2[1]), float(line2[2])], [float(line3[0]), float(line3[1]), float(line3[2])]])
+            else: cell_vector = None
 
         return [data_N, data_atoms, data_xyz, cell_vector, pbc]
 def read_vib_file(vibrational_file: str):
@@ -164,8 +168,9 @@ def read_coord(coord_file: str,engine: str):
             data_N, data_atoms, data_xyz, cell, pbc = read_xyz(coord_file)
             return data_N,data_atoms,data_xyz,cell,pbc
         elif coord_file.endswith(".gen"):
-            data_N, data_atoms, data_xyz, cell_vectors, pbc = read_gen(coord_file)
-            return data_N,data_atoms,data_xyz,cell_vectors,pbc
+            # data_N, data_atoms, data_xyz, cell_vectors, pbc = read_gen(coord_file)
+            # return data_N,data_atoms,data_xyz,cell_vectors,pbc
+            raise SystemError("The gen file is not tested yet.")
         else:
             SystemError("The input file is not supported.")
         
