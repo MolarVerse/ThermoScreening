@@ -1,0 +1,23 @@
+Metadata-Version: 2.1
+Name: ThermoScreening
+Version: 0.1.dev12+g5154ab4.d20240201
+Summary: A Python package for screening molecules for their thermochemical properties.
+Author-email: Stefanie Kröll <kroell.stefanie123@gmail.com>, "Josef M. Gallmetzer" <gallmetzer.josef@gmail.com>
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: numpy
+Requires-Dist: argparse
+Requires-Dist: scipy
+Requires-Dist: pymatgen
+Requires-Dist: beartype
+Provides-Extra: test
+Requires-Dist: pytest; extra == "test"
+Requires-Dist: coverage; extra == "test"
+Provides-Extra: docs
+Requires-Dist: sphinx; extra == "docs"
+
+# ThermoScreening

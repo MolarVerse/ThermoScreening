@@ -1,0 +1,225 @@
+#####################################
+############ThermoScreening##########
+#####################################
+Input file:  thermo.in
+Output file:  output.out
+Plot file:  plot.png
+Verbose:  True
+Test:  False
+-----------------------------------------------
+Reading input file
+coord_file  =  /home/stk/dev/ThermoScreening/examples/geo_opt.xyz
+temperature  =  298.15
+pressure  =  101325
+engine  =  dftb+
+vibrational_file  =  /home/stk/dev/ThermoScreening/examples/frequency.txt
+energy  =  -33.6052447996
+Input file read
+-----------------------------------------------
+Reading coordinate file
+coord_file:  /home/stk/dev/ThermoScreening/examples/geo_opt.xyz
+engine:  dftb+
+Coordinate file read
+-----------------------------------------------
+Reading vibrational file
+Vibrational file read
+-----------------------------------------------
+Reading temperature
+Temperature read: T =  298.15  K
+-----------------------------------------------
+Reading pressure
+Pressure read: p =  101325.0  Pa
+-----------------------------------------------
+Reading energy
+Energy read: E =  -33.6052447996  H
+-----------------------------------------------
+Initializing Atom objects
+Atom objects initialized
+-----------------------------------------------
+Initializing System object
+Cell(a=10000, b=10000, c=10000, alpha=90, beta=90, gamma=90)
+0.0
+#################################################################### 
+##################### All values of system_info: ######################
+#####################################################################
+Atoms: ['O', 'O', 'C', 'C', 'C', 'C', 'C', 'C', 'C', 'C', 'C', 'C', 'C', 'H', 'C', 'C', 'C', 'H', 'H', 'H', 'H', 'H', 'H', 'H']
+Coordinates:  [[ 3.00000000e-08 -6.00000000e-07 -2.14906255e+00]
+ [-1.00000000e-08  3.20000000e-07 -7.56375986e+00]
+ [-3.70943130e+00 -4.10000000e-07 -5.55541507e+00]
+ [-2.50358224e+00  5.50000000e-07 -6.25344004e+00]
+ [-1.28152402e+00  6.40000000e-07 -5.56329596e+00]
+ [-1.28152226e+00 -4.80000000e-07 -4.14952765e+00]
+ [-2.50358591e+00 -2.18000000e-06 -3.45938372e+00]
+ [-3.70942822e+00 -1.96000000e-06 -4.15740715e+00]
+ [ 4.00000000e-08  2.35000000e-06 -6.33321909e+00]
+ [-3.00000000e-08  1.03000000e-06 -3.37960436e+00]
+ [ 1.28152286e+00  5.64000000e-06 -4.14952745e+00]
+ [ 1.28152346e+00  6.77000000e-06 -5.56329581e+00]
+ [ 2.50358346e+00  1.20000000e-05 -6.25343979e+00]
+ [ 2.48494730e+00  1.31900000e-05 -7.34030311e+00]
+ [ 3.70943026e+00  1.56900000e-05 -5.55541540e+00]
+ [ 3.70942928e+00  1.41000000e-05 -4.15740743e+00]
+ [ 2.50358473e+00  9.24000000e-06 -3.45938351e+00]
+ [-4.65151464e+00  1.50000000e-07 -6.09787561e+00]
+ [-2.48494736e+00  1.57000000e-06 -7.34030301e+00]
+ [-2.48494723e+00 -3.34000000e-06 -2.37251966e+00]
+ [-4.65151524e+00 -2.79000000e-06 -3.61494721e+00]
+ [ 4.65151483e+00  1.97300000e-05 -6.09787570e+00]
+ [ 4.65151507e+00  1.67200000e-05 -3.61494731e+00]
+ [ 2.48494732e+00  8.21000000e-06 -2.37251974e+00]] in  Angstrom
+Electronic energy:  -33.6052447996  in  Hartree
+Cell:  Cell(a=10000, b=10000, c=10000, alpha=90, beta=90, gamma=90)  in  Angstrom
+Vibrational frequencies:  [-3.57000e+01 -1.43400e+01 -3.23000e+00 -3.12000e+00 -1.40000e-01
+  2.51700e+01  4.06000e+01  1.08630e+02  1.18200e+02  1.41000e+02
+  2.09640e+02  2.19950e+02  2.76260e+02  3.58970e+02  3.77280e+02
+  3.79240e+02  3.88190e+02  4.11700e+02  4.27830e+02  4.64460e+02
+  4.85290e+02  6.18690e+02  6.35090e+02  6.44300e+02  6.61540e+02
+  6.98610e+02  6.98950e+02  7.04770e+02  7.40130e+02  7.81930e+02
+  7.82460e+02  8.05890e+02  8.61010e+02  8.66130e+02  9.09290e+02
+  9.11390e+02  9.14830e+02  9.15450e+02  9.46390e+02  9.90700e+02
+  1.07651e+03  1.07801e+03  1.11202e+03  1.11359e+03  1.14851e+03
+  1.14987e+03  1.18588e+03  1.22359e+03  1.22434e+03  1.26423e+03
+  1.30454e+03  1.31670e+03  1.43352e+03  1.44301e+03  1.52197e+03
+  1.52672e+03  1.55594e+03  1.56526e+03  1.67486e+03  1.67535e+03
+  1.71720e+03  1.73293e+03  1.73620e+03  1.75852e+03  3.00916e+03
+  3.00932e+03  3.01625e+03  3.01805e+03  3.02230e+03  3.02416e+03
+  3.02900e+03  3.03106e+03]  in  cm^-1
+Real vibrational frequencies:  [  40.6   108.63  118.2   141.    209.64  219.95  276.26  358.97  377.28
+  379.24  388.19  411.7   427.83  464.46  485.29  618.69  635.09  644.3
+  661.54  698.61  698.95  704.77  740.13  781.93  782.46  805.89  861.01
+  866.13  909.29  911.39  914.83  915.45  946.39  990.7  1076.51 1078.01
+ 1112.02 1113.59 1148.51 1149.87 1185.88 1223.59 1224.34 1264.23 1304.54
+ 1316.7  1433.52 1443.01 1521.97 1526.72 1555.94 1565.26 1674.86 1675.35
+ 1717.2  1732.93 1736.2  1758.52 3009.16 3009.32 3016.25 3018.05 3022.3
+ 3024.16 3029.   3031.06]  in  cm^-1
+Number of atoms:  24
+Dimension:  3
+Degree of freedom:  66
+Charge:  0.0
+Mass:  208.21212  in  amu
+Spin:  0.0
+Rotational symmetry number:  4
+Rotational Group:  D2h
+Spacegroup number:  P1
+Spacegroup:  P1
+Periodicity:  False
+PBC:  False
+Solvation:  False
+Solvent:  
+Center of mass:  [ 8.12422444e-09  3.87017993e-06 -4.85641153e+00]  in  Angstrom
+############################################### 
+System object initialized
+-----------------------------------------------
+Initializing Thermo object
+Thermo object initialized
+-----------------------------------------------
+Calculating thermo
+########################################
+########################################
+Rotational contribution:
+Inertia tensor:  [[ 5.36989330e+03 -2.55037257e-03  2.98895019e-05]
+ [-2.55037257e-03  6.52311528e+03  4.14643902e-03]
+ [ 2.98895019e-05  4.14643902e-03  1.15322199e+03]]
+Eigenvalues of inertia tensor:  [5369.89329594 6523.11528262 1153.22198668]  in amu * Angstrom^2  or
+ [8.91691760e-44 1.08318878e-43 1.91497016e-44]  in kg * m^2
+Eigenvectors of inertia tensor:  [[ 1.00000000e+00  2.21151919e-06 -7.08887866e-09]
+ [ 2.21151918e-06 -1.00000000e+00 -7.72164140e-07]
+ [ 7.09058631e-09 -7.72164125e-07  1.00000000e+00]]  in Angstrom
+########################################
+Rotational temperature:  [0.00451673 0.00371822 0.02103183] in K
+Rotational temperature xyz:  3.5321262259171875e-07 in K
+Rotational constant:  [0.09411342 0.0774751  0.4382322 ] in GHz
+Rotational partition function:  3838389.6348655513
+Rotational entropy:  33.10794267969091 in cal/(mol*K)  or
+ 5.276086505167894e-05  in H/T per particel
+Rotational energy:  888.7274245542662 in cal/mol  or
+ 0.0014162773014403315  in H per particle
+Rotational heat capacity:  2.9808063879063096 in cal/(mol*K)  or
+ 4.7502173450958625e-06  in H per particle
+
+
+
+
+########################################
+########################################
+Vibrational temperature:  55532.01073241853 in K
+Vibrational partition function:  1.545165916633664e-78
+Vibrational entropy:  32.563016022856814 in cal/(mol*K)  or
+ 5.189246914793942e-05  in H per particle
+Vibrational energy:  115862.12149908998 in cal  or
+ 0.1846380433890429  in H per particle  or
+ 27.69171163936185  in kcal
+Vibrational heat capacity:  40.89175342374449 in cal/(mol*K)  or
+ 6.516515704372529e-05  in H/T per particle
+######################################### 
+Zero point energy correction:  110353.4482163166 in cal  or
+ 0.17585941372612274  in H per particle  or
+ 26.3751071262707  in kcal
+Zero point vibrational energy:  110353.4482163166 in cal/mol  or
+ 0.17585941372612274  in H per particle  in cal/mol  or
+ 26.3751071262707  in kcal/mol
+
+
+
+
+########################################
+########################################
+Electronic partition function:  1.0
+Electronic entropy:  0.0 in cal/(mol*K)  or
+ 0.0  in H/T per particle
+Electronic energy:  0.0 in cal/mol  or
+ 0.0  in H per particle
+Electronic heat capacity:  0.0 in cal/(mol*K)  or
+ 0.0  in H per particle
+
+
+
+
+########################################
+########################################
+Translational partition function:  118089966.15283428
+Translational entropy:  41.904091381259384 in cal/(mol*K)  or
+ 6.67784202681992e-05  in H per particle
+Translational energy:  888.7274245542662 in cal  or
+ 0.0014162773014403315  in H per particle  or
+ 0.21241095233132556  in kcal
+Translational heat capacity:  2.9808063879063096 in cal/(mol*K)  or
+ 4.7502173450958625e-06  in H per particle
+
+
+
+
+########################################
+########################################
+#################Summary:###############
+Total energy:  117639.5763481985  in cal  or
+ 117.6395763481985  in kcal  or
+ 0.18747059799192353  in Hartree per mol
+Total entropy:  107.5750500838071 in cal/(mol*K)  or
+ 0.0001714317544678175  in Hartree per mol
+Total enthalpy:  118232.06129790135 in cal  or
+ 118.23206129790135  in kcal  or
+ 0.1884147828595504  in Hartree per mol
+Total Gibbs free energy:  85566.07516571142  in cal  or
+ 85.56607516571141  in kcal  or
+ 0.13635822039734372  in Hartree per mol
+Total heat capacity:  46.853366199557115  in cal/(mol*K)
+########################################
+########################################
+########################################
+Sum of electronic energy and zero point energy correction: 
+ -33.42938538587388 Hartree per particle
+Sum of electronic energy and total energy: 
+ -33.417774201608076 Hartree per particle
+Sum of electronic energy and total enthalpy: 
+ -33.41683001674045 Hartree per particle
+Sum of electronic energy and total Gibbs free energy: 
+ -33.46888657920266 Hartree per particle
+########################################
+########################################
+########################################
+Thermo calculated
+-----------------------------------------------
+#####################################
+
+Time elapsed:  0.07253336906433105  s

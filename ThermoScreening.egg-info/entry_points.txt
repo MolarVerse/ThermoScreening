@@ -1,0 +1,2 @@
+[console_scripts]
+thermo = ThermoScreening.cli.thermo:main
