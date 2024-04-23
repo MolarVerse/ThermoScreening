@@ -622,7 +622,7 @@ class System:
         return self._rotational_group
     
     @property
-    def spacegroup_number(self):
+    def spacegroup_number(self)  -> None | str:
         """
         The spacegroup of the system.
 
@@ -635,7 +635,7 @@ class System:
         return self._spacegroup
     
     @property
-    def spacegroup(self) :
+    def spacegroup(self)  -> None | str:
         """
         The spacegroup of the system.
 
