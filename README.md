@@ -2,13 +2,13 @@
 
 ## Description
 
-ThermoScreening is a program to calculate the thermochemical properties of given molecule. The aim is to create a framework to allow screening databases of molecules for their thermochemical properties.
+ThermoScreening is a program to calculate the thermochemical properties of given molecules. The aim is to create a framework to allow screening databases of molecules for their thermochemical properties.
 
 ## Development Guide
 
 1. Clone the repository
 ```bash
-git clone https://github.com/stkroe/ThermoScreening.git
+git clone https://github.com/MolarVerse/ThermoScreening.git
 ```
 2. Use git flow
 ```bash
