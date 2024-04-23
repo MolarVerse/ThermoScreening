@@ -1,6 +1,0 @@
-atom        mass in u
-#https://pubchem.ncbi.nlm.nih.gov/compound/Nitrogen#section=Structures
-H	1.00783
-O	15.99491
-C	12.00000
-N	14.010
