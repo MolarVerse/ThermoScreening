@@ -25,9 +25,7 @@ dependencies = [
     "argparse",
     "scipy",
     "pymatgen",
-    "beartype",
-
-
+    "beartype"
 ]
 
 [project.optional-dependencies]
@@ -40,7 +38,7 @@ docs = [
 ]
 
 [tool.setuptools_scm]
-version_file = "ThermoScreening/_version.py"
+version_file = "ThermoScreening/__version__.py"
 
 [project.scripts]
 thermo = "ThermoScreening.cli.thermo:main"

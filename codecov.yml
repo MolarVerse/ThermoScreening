@@ -1,3 +1,2 @@
 ignore:
   - "tests/*"
-  - "ThermoScreening/_version.py"
