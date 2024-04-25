@@ -1,499 +1,521 @@
-# -*- coding: utf-8 -*-
-"""
-@author: Stefanie Kroell
-"""
-### Import used libaries ###
-
 import numpy as np
-import scipy.constants as const
-import matplotlib.pyplot as plt
-import os
-from numpy import genfromtxt
-
-### Define physcical constants ###
-
-h_quer = np.double(const.hbar)
-pi = np.double(const.pi)
-c = np.double(const.c)
-kB = np.double(const.k)
-R = np.double(const.gas_constant)
-h = np.double(const.h)
-u = np.double(const.u)
-kcal = const.calorie/1000
-angstrom = np.double(const.angstrom)
-eV = np.double(const.electron_volt)
-H = const.physical_constants["Hartree energy"][0]
-amu = const.physical_constants["atomic unit of mass"][0]
-bohr_radius = 5.29177210903*10**(-1)
-Na = const.N_A
-cal = const.calorie
+from .physicalConstants import PhysicalConstants
+from .system import System
 
 
+class Thermo:
+    """
+    A class for calculating the thermochemistral properties e.g. Gibbs free energy, enthalpy, entropy, heat capacity, etc. of a system.
+    The class needs as input the temperature, pressure, system information (coordinates, degree of freedom, electronic spin, symmetry number, electronic energy and vibrational frequencies).
+    """
 
-### Define temperature and pressure of the system ###
+    def __init__(self, temperature: float, pressure: float,system: System,engine: str):
+        """
+        Parameters
+        ----------
+        temperature : float
+            The temperature of the system in Kelvin.
+        pressure : float
+            The pressure of the system in bar.
+        system : System
+            The system information of the system.
+        engine : str
+            The engine used for the calculation to compute the thermochemical properties with correct units.
+        """
+        if pressure == None:
+           ValueError("The pressure is not given.")
+        if temperature == None:
+            ValueError("The temperature is not given.")   
+        if system == None:
+            ValueError("The system is not given.")
+        if engine == None:
+            ValueError("The engine is not given.")
+        self._temperature = temperature
+        self._pressure = pressure
+        self._system = system
+        self._engine = engine
+        if self._engine != "DFTB+":
+           ValueError("The engine is not supported.")
+        if self._temperature < 0:
+           ValueError("The temperature is negative.")
+        if self._pressure < 0:
+           ValueError("The pressure is negative.")
+        self._coord = self._system.coord()
+        self._atomic_masses = self._system.atomic_masses()
 
-T = 298.15 # in unit K
-P = 101325 # in unit Pa
 
-### User input ###
+    def run(self):
+        """
+        Calculates the thermochemical properties of the system.
+        """
+        #self._transform_units()
+        self._rotational_contribution()
+        self._vibrational_contribution()
+        self._electronic_contribution()
+        self._translational_contribution()
+        
+        self._compute_thermochemical_properties()
+        self._summary()
 
-#sigma_r = 0 
+    def _transform_units(self):
+        if self._engine == "DFTB+":
+            # the originial units of DFTB+ are Hartree, Angstrom, amu
+            # the units are transformed to J, m, kg
+            self._coord = self._system.coord()[:]*PhysicalConstants["A"]
+            self._atomic_masses = self._system.atomic_masses()[:]*PhysicalConstants["u"]
+            self._system.real_vibrational_frequencies[:] = self._system.real_vibrational_frequencies[:]*PhysicalConstants["HztoGHz"]
+            self._system.electronic_energy = self._system.electronic_energy*PhysicalConstants["H"]*PhysicalConstants["Na"]
+            self._system.real_vibrational_frequencies[:] = self._system.real_vibrational_frequencies[:]*PhysicalConstants["HztoGHz"]
+      
+         
+        else:
+            ValueError("The engine is not supported.")
 
-# symmetry number for rotation by manual user input
+    def _relocate_to_cm(self):
+        """
+        Relocates the system to the center of mass.
+        """
+ 
+        coord = self._system.coord()
+        coord -= self._system.center_of_mass
+        # print("########################################")
+        # print("Relocate to center of mass: ")
+        # print(coord)
+    def _compute_inertia_tensor(self):
+        """
+        Computes the inertia tensor of the system.
+        """
+        coord = self._system.coord()
+        x = coord[:,0]
+        y = coord[:,1]
+        z = coord[:,2]
+  
+        m = self._system.atomic_masses()
+        
+       
+        
+        
+        self._inertia_tensor = np.zeros((3,3))
 
-sigma_r = int(input("Enter the symmetry number for rotation sigma_r: "))
-
-#s = 0  #2s+1
-
-# Manual user input for electronic spin multiplicity
-
-s = int(input("Enter the electronic spin multiplicity of the molecule s: "))
-
-#dof = 6
-
-# Manual user input of degree of freedom
-
-dof = int(input("If it is a linear Molecule enter 5, if it is not enter 6: "))
+        self._inertia_tensor[0,0] = np.sum(m*(y**2 + z**2))
+        self._inertia_tensor[1,1] = np.sum(m*(x**2 + z**2))
+        self._inertia_tensor[2,2] = np.sum(m*(x**2 + y**2))
+        self._inertia_tensor[0,1] = -np.sum(m*x*y)
+        self._inertia_tensor[1,0] = self._inertia_tensor[0,1]
+        self._inertia_tensor[0,2] = -np.sum(m*x*z)
+        self._inertia_tensor[2,0] = self._inertia_tensor[0,2]
+        self._inertia_tensor[1,2] = -np.sum(m*y*z)
+        self._inertia_tensor[2,1] = self._inertia_tensor[1,2]
 
 
-#E0 = -155.046208186
-
-### Import the calculated xyz-datafile for geomety and atom type ###
-
-path = os.getcwd()
-path_molecule = path+"/geo_opt.xyz"
-# number of atoms
-data_N = genfromtxt(path_molecule, delimiter='   ', \
-usecols=0,max_rows=1) 
-data_atoms = genfromtxt(path_molecule, delimiter='   ', \
-skip_header=2,usecols=0,dtype=str) # string
-data_xyz = genfromtxt(path_molecule, delimiter='     ', \
-skip_header=2,usecols=(1,2,3)) # in unit Angstrom
-
-### Import the calculated electronic energy ###
-
-pathE0 = path+"/electronic_energy.txt"
-E0 = genfromtxt(pathE0,delimiter=' ', usecols=0, max_rows=1)
-print("Total Energy: {} in H".format(E0)) # in unit Hartree
-print("\n")
-
-### Begin of thermochemical calculation ###
-
-def start():
+    def _compute_rotational_partition_function(self):
+        """
+        Computes the rotational temperature, the rotational constant and the rotational partition function of the system.
     
+        """
+        self._eigenvalues_I_SI = self._eigenvalues_I*PhysicalConstants["u"]*PhysicalConstants["A"]**2
+        self._rotational_temperature = (PhysicalConstants["h"]**2/(8*np.pi**2*PhysicalConstants["kB"]))/self._eigenvalues_I_SI
 
-    # column of the atom name
-    atoms_name = data_atoms[:]
+        self._rotational_constant = (((PhysicalConstants["hbar"]**2)/2)/self._eigenvalues_I_SI)/PhysicalConstants["h"]*PhysicalConstants["HztoGHz"]
 
-    #the coordinates converted into metre
+        self._rotational_temperature_xyz = self._rotational_temperature[0]*self._rotational_temperature[1]*self._rotational_temperature[2]
+       
+        self._rotational_partition_function = (np.pi**(1/2)/self._system.rotational_symmetry_number())*(self._temperature**(3/2) / (np.power(self._rotational_temperature_xyz,1/2)))
+        
+    def _compute_rotational_entropy(self):
+        """
+        Computes the rotational entropy of the system.
+        """
+        self._rotational_entropy = PhysicalConstants["R"]*(np.log(self._rotational_partition_function)+3/2)/PhysicalConstants["cal"]
 
-    # angstrom = 10**(-10)
-    # assign the columns of the data file to coordinates
-    x = data_xyz[:,0] # in angstrom 
-    y = data_xyz[:,1] # in angstrom 
-    z = data_xyz[:,2] # in angstrom
-
-    # check the import
-    print("Atomsorten: {}".format(atoms_name))
-    print("\n")
-    print("x-Koordinaten in Angstrom: {}".format(x))
-    print("\n")
-    print("y-Koordinaten in Angstrom: {}".format(y))
-    print("\n")
-    print("z-Koordinaten in Angstrom: {}".format(z))
-    print("\n")
-
-    # check the number of atoms
-
-    N = len(atoms_name)
-
-    # check the number of atoms
-
-    print("Anzahl der Atome: {}".format(data_N))
-    print("Anzahl der Zeilen: {}".format(N))
-    print("\n")
-
-    ### Import list of atom mass in Molar mass unit ###
-    path_mass = path+"/mass.txt"
-    m_atom_name = genfromtxt(path_mass, delimiter='	', \
-    skip_header=2,usecols=0,dtype=str)
-    m_u = genfromtxt(path_mass, delimiter='	',skip_header=2,usecols=1)
-
-    # convert into kg
-    # m = m_u*u #in unit kg
-
-    # not converted
-    m = m_u
-
-    # create an numpy array of atom masses
-    mass_atom = np.array([m_atom_name,m])
-
-    # check
-    print("Masse der Atome: {} in u".format(mass_atom))
-    print("\n")
-
-
-
-    # assign the sort of atom to the mass
-
-    def mass_assignment(atoms_name,N,mass_atom):
-        mass_pos = np.empty(0) # create an empty list mass_pos
-        # length of the data with the mass of the atomsorts
-        N_atomsorts = len(mass_atom[0][:]) 
-
-        for i in range(N):
-            for j in range(N_atomsorts):
-                #check if the atom name of the xyz file is the same name of 
-                # the atom name of the data file with the mass
-                if atoms_name[i] == mass_atom[0][j]: 
-                    mass_pos = np.append(mass_pos,mass_atom[1][j]) 
-                    # if it is truth then on that position the assosciated
-                    # mass is saved into the list mass_pos
-        # return the converted sting to the function
-        return(np.double(mass_pos)) 
+    def _compute_rotational_energy(self):
+        """
+        Computes the rotational energy of the system.
+        """
+        self._rotational_energy = ((3/2)*PhysicalConstants["R"]*self._temperature)/PhysicalConstants["cal"]
        
 
-    # the associated mass of the xyz position
-    m_pos =  mass_assignment(atoms_name,N,mass_atom) 
-
-    # check
-    print("Zudordnung der Massen (in u) zu den Atomen:{}".format(m_pos))
-    print("\n")
-    M = np.sum(m_pos)
-    print("Summe Masse (in u):{}".format(M))
-    print("\n")
-
-    ### Compute mass center position ###
-    def mass_center_position(m_pos,x,y,z,N):
-        # Sum over atoms
-        def sum_mr(m,r,N):
-            mr = np.empty(0)
-            for i in range(N):
-                mr = np.append(mr,m[i]*r[i])
-            #print("Summe Masse und Ort:{}".format(mr))
-            # Total mass
-            sum_mr = np.sum(mr)
-            # print(sum_mr)
-            return(sum_mr)
-
-        # for each direction
-        sum_mx = sum_mr(m_pos,x,N)
-        sum_my = sum_mr(m_pos,y,N)
-        sum_mz = sum_mr(m_pos,z,N)
-
-        # print(sum_mx)
-        # print(sum_my)
-        # print(sum_mz)
-
-        Rx = sum_mx/M
-        Ry= sum_my/M
-        Rz = sum_mz/M
-
-        R = [Rx,Ry,Rz]
-        # print(R)
-        # return the mass point 
-        return(R)
-
-    # call t he mass_center_position function and save return value
-    #rsp = mass_center_position(m_pos,x,y,z,N)
-    #rsp =
-    #print(rsp)
-
-    ### relocate the coordinates relative to the center of mass R ###
-
-    def relocate(x,y,z,rsp):
-        rx = np.subtract(x,rsp[0])
-        ry = np.subtract(y,rsp[1])
-        rz = np.subtract(z,rsp[2])
-
-        print(rx,"\n", ry,"\n",rz)
-        r = [rx,ry,rz]
-        return(r)
-
-    # transformed coordinates
-    #relR = relocate(x,y,z,rsp)
-    relR = [x,y,z]
-
-    #print("Koordinaten im Schwerpunkt:{}".format(relR))
-
-    ### calculate the inertia tensor ###
-    def inertia_tensor(relR,m_pos,N):
-        x = relR[0]
-        y = relR[1]
-        z = relR[2]
-        ### diagonal intertia tensor elements ###
-        def Iii_function(ri,rj,m_pos,N):
-            i_ii = np.empty(0)
-            for i in range(N):
-                mii = m_pos[i]*(ri[i]**2+rj[i]**2)
-                i_ii = np.append(i_ii, mii)
-            #print("i_ii:{}".format(i_ii))
-            Iii = np.sum(i_ii)
-            #print("Summe Iii:{}".format(Iii))
-            return(Iii)
-        ### non-diagonal intertia tensor elements ###
-        def Iij_function(ri, rj, m_pos, N):
-            i_ij = np.empty(0)
-            for i in range(N):
-                mij = m_pos[i] * (ri[i]*rj[i])
-                i_ij = np.append(i_ij, mij)
-            #print("i_ij:{}".format(i_ij))
-            Iij = -np.sum(i_ij)
-            #print("Summe Iij:{}".format(Iij))
-            return(Iij)
-        ### all tensor elements ###
-        Ixx = Iii_function(y, z ,m_pos,N)
-        Iyy = Iii_function(x, z, m_pos, N)
-        Izz = Iii_function(x, y, m_pos, N)
-        Ixy = Iij_function(x, y, m_pos, N)
-        Iyz = Iij_function(y, z, m_pos, N)
-        Ixz = Iij_function(x, z, m_pos, N)
-
-        #print(Ixx)
-
-        ### Store tensor in array ###
-
-        I = np.array([[Ixx,Ixy,Ixz],[Ixy,Iyy,Iyz],[Ixz,Iyz,Izz]])
-
-        # check
-        print("Massenträgheitstensor in u °A²: \n{}".format(I))
-        print("\n")
-        # return inertia tensor array
-        return(I)
-    # Inertia tensor initialization
-    I = inertia_tensor(relR,m_pos,N)
-
-    ### calculate the eigenvecotrs and eigenvalues ###
-
-    eigenvalues = np.linalg.eig(I) # in unit u*A^2
-    # eigenvalue
-    evl = np.abs(eigenvalues[0])
-    # eigenvector
-    evv = eigenvalues[1]
-
-    print("Eigenwerte und Eigenvektoren in u °A²: {}".format(eigenvalues))
-    print("\n")
-    print("Eigenwert berechnet in u °A²:{}".format(evl)) 
-    print("Eigenvektor in u °A²: {}".format(evv))
-    print("\n")
-
-
-    ##############################################
-    ### Computional of rotational contribution ###
-    ##############################################
-
-    # Transform eigenvalue in SI units
-    evl_SI = evl*u*(10**(-20)) # in kg*m^2
-
-    # Rotational temperatures in x-,y-,z-direction
-    rot_temp = (((h**2)/(8*pi**2*kB))/evl_SI) # in  K
-    # Rotational constants in x-,y-,z-direction
-    rot_const = ((h_quer**2/2)/evl_SI)/h*10**(-9) # in GHz
-
-    # Total rotational temperature
-    rot_temp_xyz = rot_temp[0]*rot_temp[1]*rot_temp[2] # in K
-    # Check
-    print("Rot_temp_xyz: {}".format(rot_temp_xyz))
+    def _compute_rotational_heat_capacity(self):
+        """
+        Computes the rotational heat capacity of the system.
+        """
+        self._rotational_heat_capacity = (3/2)*PhysicalConstants["R"]/PhysicalConstants["cal"]
     
-    # partition function contribution
-    q_r = (pi**(1/2)/sigma_r)*(T**(3/2)/(np.power(rot_temp_xyz,1/2)))
+    def _rotational_contribution(self):
+        self._relocate_to_cm()
+        self._compute_inertia_tensor()
+        self._eigenvalues_I, self._eigenvectors_I = np.linalg.eig(self._inertia_tensor) 
+        self._compute_rotational_partition_function()
+        self._compute_rotational_entropy()
+        self._compute_rotational_energy()
+        self._compute_rotational_heat_capacity()
 
-    # entropy contribution
-    S_r = R*(np.log(q_r)+3/2)/cal # in cal/mol K
+        # print all rotational properties
+        print("########################################")
+        print("########################################")
+        print("Rotational contribution:")
+        print("Inertia tensor: ", self._inertia_tensor)
+        print("Eigenvalues of inertia tensor: ", self._eigenvalues_I," in amu * Angstrom^2", " or\n", self._eigenvalues_I_SI, " in kg * m^2")
+        print("Eigenvectors of inertia tensor: ", self._eigenvectors_I," in Angstrom")
+        print("########################################")
+        print("Rotational temperature: ", self._rotational_temperature, "in K")
+        print("Rotational temperature xyz: ", self._rotational_temperature_xyz, "in K")
+        print("Rotational constant: ", self._rotational_constant, "in GHz")
+        print("Rotational partition function: ", self._rotational_partition_function)
+        print("Rotational entropy: ", self._rotational_entropy, "in cal/(mol*K)", " or\n", self._rotational_entropy*PhysicalConstants["cal"]/PhysicalConstants["H"]/PhysicalConstants["Na"], " in H/T per particel")
+        print("Rotational energy: ", self._rotational_energy, "in cal/mol", " or\n", self._rotational_energy*PhysicalConstants["cal"]/PhysicalConstants["H"]/PhysicalConstants["Na"], " in H per particle")
+        print("Rotational heat capacity: ", self._rotational_heat_capacity, "in cal/(mol*K)", " or\n", self._rotational_heat_capacity*PhysicalConstants["cal"]/PhysicalConstants["H"]/PhysicalConstants["Na"], " in H per particle")
+        print("\n\n\n")
+   
 
-    # energy contribution
-    E_r = ((3/2)*R*T)/H/Na # in Hartree/Particle
-    E_r_cal = E_r*H*Na/cal # in cal
+    def _compute_vibrational_partition_function(self):
+        """
+        Computes the vibrational temperature and the vibrational partition function of the system.
+        """
 
-    # heat capacity contribution
-    C_r = (3/2)*R/cal # in cal/ mol K
+        self._vib_temp_K = PhysicalConstants["h"]*self._system.real_vibrational_frequencies*PhysicalConstants["c"]*10**2/(PhysicalConstants["kB"])
 
-    # Check
-    print("Rotationsanteil: Rot_temp in K:{}, \
-     Rot_const in GHz:{}".format(rot_temp,rot_const))
-    print("\n")	
-    print("q_r: {}, E_r: {} in H/Particle, S_r: {} in cal/(mol K),\
-     C_r: {} in cal/(mol K)".format(q_r,E_r,S_r,C_r))
-    print("\n")
+        self._vibrational_temperature = np.sum(self._vib_temp_K/2)
+
+        self._vibrational_partition_function = np.prod(np.exp(-self._vib_temp_K/(2*self._temperature))/(1-np.exp(-self._vib_temp_K/self._temperature)))
+
+ 
+    def _compute_vibrational_entropy(self):
+        """
+        Computes the vibrational entropy of the system.
+        """
     
-    ### vibrational contribution (BOT) ###
+        self._vibrational_entropy = np.subtract(np.divide((self._vib_temp_K/self._temperature),(np.exp(self._vib_temp_K/self._temperature)-1)), np.log(1-np.exp(-self._vib_temp_K/self._temperature)))
 
-    # Input computed frequencies ###
-    path_nu = path + "/frequency.txt"
-    nu_K = genfromtxt(path_nu, delimiter='  ',usecols=2,skip_header=dof)
+        self._vibrational_entropy = PhysicalConstants["R"]*np.sum(self._vibrational_entropy)/PhysicalConstants["cal"]
 
-    # Check
-    print("Frequenzen in cm⁻1:{}".format(nu_K))
-    print("\n")
+    def _compute_vibrational_energy(self):
+        """
+        Computes the vibrational energy of the system and the zero point energy correction
+        """
+        self._zpecorr = PhysicalConstants["R"]*(np.sum(self._vib_temp_K/2))/PhysicalConstants["cal"]
 
-    # Vibrational temperature in x-,y-,z-direction
-    vib_temp_K = h*(nu_K*c*10**(2))/kB # in K
+        self._vibrational_energy = PhysicalConstants["R"]*(np.sum(np.multiply(self._vib_temp_K,(1/2+1/(np.exp(self._vib_temp_K/self._temperature)-1)))))/PhysicalConstants["cal"]
+
+
+        self._EZP = PhysicalConstants["R"]*(np.sum(self._vib_temp_K/2))/PhysicalConstants["cal"]
+
+    def _compute_vibrational_heat_capacity(self):
+        """
+        Computes the vibrational heat capacity of the system.
+        """
+        self._vibrational_heat_capacity = PhysicalConstants["R"]*np.sum(np.exp(-self._vib_temp_K/self._temperature)*((self._vib_temp_K/self._temperature)/(np.exp(-self._vib_temp_K/self._temperature)-1))**2)/PhysicalConstants["cal"]
+
+    def _vibrational_contribution(self):
+        self._compute_vibrational_partition_function()
+        self._compute_vibrational_entropy()
+        self._compute_vibrational_energy()
+        self._compute_vibrational_heat_capacity()
+
+        # print all vibrational properties
+        print("########################################")
+        print("########################################")
+        print("Vibrational temperature: ", self._vibrational_temperature, "in K")
+        print("Vibrational partition function: ", self._vibrational_partition_function)
+        print("Vibrational entropy: ", self._vibrational_entropy, "in cal/(mol*K)", " or\n", self._vibrational_entropy*PhysicalConstants["cal"]/PhysicalConstants["H"]/PhysicalConstants["Na"], " in H per particle")
+        print("Vibrational energy: ", self._vibrational_energy, "in cal", " or\n", self._vibrational_energy*PhysicalConstants["cal"]/PhysicalConstants["H"]/PhysicalConstants["Na"], " in H per particle", " or\n", self._vibrational_energy/PhysicalConstants["cal"]/1000, " in kcal")
+        print("Vibrational heat capacity: ", self._vibrational_heat_capacity, "in cal/(mol*K)", " or\n", self._vibrational_heat_capacity*PhysicalConstants["cal"]/PhysicalConstants["H"]/PhysicalConstants["Na"], " in H/T per particle")
+        print("######################################### ")
+        print("Zero point energy correction: ", self._zpecorr, "in cal", " or\n", self._zpecorr*PhysicalConstants["cal"]/PhysicalConstants["H"]/PhysicalConstants["Na"], " in H per particle", " or\n", self._zpecorr/PhysicalConstants["cal"]/1000, " in kcal")
+        print("Zero point vibrational energy: ", self._EZP, "in cal/mol", " or\n", self._EZP*PhysicalConstants["cal"]/PhysicalConstants["H"]/PhysicalConstants["Na"], " in H per particle", " in cal/mol", " or\n", self._EZP/PhysicalConstants["cal"]/1000, " in kcal/mol")
+        print("\n\n\n")
+
+    def _compute_electronic_partition_function(self):
+        """
+        Computes the electronic partition function of the system.
+        """
+    
+        self._electronic_partition_function = 2 * self._system._spin + 1
+
+    def _compute_electronic_entropy(self):
+        """
+        Computes the electronic entropy of the system.
+        """
+        self._electronic_entropy = PhysicalConstants["R"]*np.log(self._electronic_partition_function)/PhysicalConstants["cal"]
+    
+    def _compute_electronic_energy(self):
+        """
+        Computes the electronic energy of the system.
+        """
+        self._electronic_energy = 0/PhysicalConstants["cal"]
+    
+    def _compute_electronic_heat_capacity(self):
+        """
+        Computes the electronic heat capacity of the system.
+        """
+        self._electronic_heat_capacity = 0/PhysicalConstants["cal"]
+    
+    def _electronic_contribution(self):
+        self._compute_electronic_partition_function()
+        self._compute_electronic_entropy()
+        self._compute_electronic_energy()
+        self._compute_electronic_heat_capacity()
+
+        # print all electronic properties
+        print("########################################")
+        print("########################################")
+        print("Electronic partition function: ", self._electronic_partition_function)
+        print("Electronic entropy: ", self._electronic_entropy, "in cal/(mol*K)", " or\n", self._electronic_entropy*PhysicalConstants["cal"]/PhysicalConstants["H"]/PhysicalConstants["Na"], " in H/T per particle")
+        print("Electronic energy: ", self._electronic_energy, "in cal/mol", " or\n", self._electronic_energy*PhysicalConstants["cal"]/PhysicalConstants["H"]/PhysicalConstants["Na"], " in H per particle")
+        print("Electronic heat capacity: ", self._electronic_heat_capacity, "in cal/(mol*K)", " or\n", self._electronic_heat_capacity*PhysicalConstants["cal"]/PhysicalConstants["H"]/PhysicalConstants["Na"], " in H per particle")
+        print("\n\n\n")
+
+    def _compute_translational_partition_function(self):
+        molecular_mass = np.sum(self._system.atomic_masses())*PhysicalConstants["u"]
+
+        self._translational_partition_function = np.power((2*np.pi*molecular_mass*PhysicalConstants["kB"]*self._temperature)/(PhysicalConstants["h"]**2),(3/2))*(PhysicalConstants["kB"]*self._temperature/self._pressure)
+    
+    def _compute_translational_entropy(self):
+        self._translational_entropy = PhysicalConstants["R"]*(np.log(self._translational_partition_function)+5/2)/PhysicalConstants["cal"]
+    
+    def _compute_translational_energy(self):
+        self._translational_energy = 3/2*PhysicalConstants["R"]*self._temperature/PhysicalConstants["cal"]
+
+    def _compute_translational_heat_capacity(self):
+        self._translational_heatcapacity = 3/2*PhysicalConstants["R"]/PhysicalConstants["cal"]
+    
+    def _translational_contribution(self):
+        self._compute_translational_partition_function()
+        self._compute_translational_entropy()
+        self._compute_translational_energy()
+        self._compute_translational_heat_capacity()
+
+        # print all translational properties
+        print("########################################")
+        print("########################################")
+        print("Translational partition function: ", self._translational_partition_function)
+        print("Translational entropy: ", self._translational_entropy, "in cal/(mol*K)", " or\n", self._translational_entropy*PhysicalConstants["cal"]/PhysicalConstants["H"]/PhysicalConstants["Na"], " in H per particle")
+        print("Translational energy: ", self._translational_energy, "in cal", " or\n", self._translational_energy*PhysicalConstants["cal"]/PhysicalConstants["H"]/PhysicalConstants["Na"], " in H per particle", " or\n", self._translational_energy/PhysicalConstants["cal"]/1000, " in kcal")
+        print("Translational heat capacity: ", self._translational_heatcapacity, "in cal/(mol*K)", " or\n", self._translational_heatcapacity*PhysicalConstants["cal"]/PhysicalConstants["H"]/PhysicalConstants["Na"], " in H per particle")
+        print("\n\n\n")
+
+
+    def _compute_thermochemical_properties(self):
+        """
+        Computes the thermochemical properties of the system.
+        """
+        self._total_energy  = self._rotational_energy + self._vibrational_energy + self._electronic_energy + self._translational_energy
+        self._total_energy_kcal = self._total_energy/1000
+        self._total_energy_Hartree_per_mol = self._total_energy/PhysicalConstants["JinHartree"]/PhysicalConstants["Na"]*PhysicalConstants["cal"]
+
+       
+        self._total_entropy = self._rotational_entropy + self._vibrational_entropy + self._electronic_entropy + self._translational_entropy
+        self._total_entropy_Hartree_per_mol = self._total_entropy/PhysicalConstants["JinHartree"]/PhysicalConstants["Na"]*PhysicalConstants["cal"]
+
+
+        self._total_enthalpy = self._total_energy + (PhysicalConstants["R"]*self._temperature)/PhysicalConstants["cal"]
+        self._total_enthalpy_kcal = self._total_enthalpy/1000
+        self._total_enthalpy_Hartree_per_mol = self._total_enthalpy/PhysicalConstants["JinHartree"]/PhysicalConstants["Na"]*PhysicalConstants["cal"]
+
+
+        self._total_gibbs_free_energy = self._total_energy - self._total_entropy * self._temperature
+        self._total_gibbs_free_energy_kcal = self._total_gibbs_free_energy/1000
+        self._total_gibbs_free_energy_Hartree_per_mol = self._total_gibbs_free_energy/PhysicalConstants["JinHartree"]/PhysicalConstants["Na"]*PhysicalConstants["cal"]
+        
+        
+        self._total_heatcapacity = self._rotational_heat_capacity + self._vibrational_heat_capacity + self._electronic_heat_capacity + self._translational_heatcapacity
+
+    def _summary(self):
+        self._EeZPE = self._system.electronic_energy+ self._zpecorr/PhysicalConstants["JinHartree"]/PhysicalConstants["Na"]*PhysicalConstants["cal"]
+        self._EeEtot = self._system.electronic_energy + self._total_energy/PhysicalConstants["JinHartree"]/PhysicalConstants["Na"]*PhysicalConstants["cal"]
+        self._EeHtot = self._system.electronic_energy + self._total_enthalpy/PhysicalConstants["JinHartree"]/PhysicalConstants["Na"]*PhysicalConstants["cal"]
+        self._EeGtot = self._system.electronic_energy + self._total_gibbs_free_energy_Hartree_per_mol
+
+        
+        
+
+        print("########################################")
+        print("########################################")
+        print("#################Summary:###############")
+        print("Total energy: ", self._total_energy, " in cal", " or\n", self._total_energy_kcal, " in kcal", " or\n", self._total_energy_Hartree_per_mol, " in Hartree per mol")
+        print("Total entropy: ", self._total_entropy, "in cal/(mol*K)", " or\n", self._total_entropy_Hartree_per_mol, " in Hartree per mol")
+        print("Total enthalpy: ", self._total_enthalpy, "in cal", " or\n", self._total_enthalpy_kcal, " in kcal", " or\n", self._total_enthalpy_Hartree_per_mol, " in Hartree per mol")
+        print("Total Gibbs free energy: ", self._total_gibbs_free_energy, " in cal", " or\n", self._total_gibbs_free_energy_kcal, " in kcal", " or\n", self._total_gibbs_free_energy_Hartree_per_mol, " in Hartree per mol")
+        print("Total heat capacity: ", self._total_heatcapacity, " in cal/(mol*K)")
+        print("########################################")
+        print("########################################")
+        print("########################################")
+        print("Sum of electronic energy and zero point energy correction: \n", self._EeZPE, "Hartree per particle")
+        print("Sum of electronic energy and total energy: \n", self._EeEtot, "Hartree per particle")
+        print("Sum of electronic energy and total enthalpy: \n", self._EeHtot, "Hartree per particle")
+        print("Sum of electronic energy and total Gibbs free energy: \n", self._EeGtot, "Hartree per particle")
+        print("########################################")
+        print("########################################")
+        print("########################################")
+
+
+
+    def total_energy(self,unit:str) -> float:
+        """
+        Returns the total energy of the system based on the unit.
+
+        Parameters
+        ----------
+        unit : str
+            The unit of the total energy.
+        
+        Returns
+        -------
+        float
+            The total energy of the system.
+        """
+        if unit =="H":
+            return self._total_energy_Hartree_per_mol
+        elif unit =="kcal":
+            return self._total_energy_kcal
+        elif unit =="cal":
+            return self._total_energy
+        else:
+            ValueError("The unit is not supported.")
+   
+
+ 
+    def total_enthalpy(self,unit:str) -> float:
+        """
+        Returns the total enthalpy of the system based on the unit.
+
+        Parameters
+        ----------
+        unit : str
+            The unit of the total enthalpy.
+        
+        Returns
+        -------
+        float
+            The total enthalpy of the system.
+        """
+        if unit =="H":
+            return self._total_enthalpy_Hartree_per_mol
+        elif unit =="kcal":
+            return self._total_enthalpy_kcal
+        elif unit =="cal":
+            return self._total_enthalpy
+        else:
+            ValueError("The unit is not supported.")
+
+
+      
+    def total_entropy(self,unit:str) -> float:
+        """
+        Returns the total entropy of the system based on the unit.
+
+        Parameters
+        ----------
+        unit : str
+            The unit of the total entropy.
+        
+        Returns
+        -------
+        float
+            The total entropy of the system.
+        """
+        if unit =="H/T":
+            return self._total_entropy_Hartree_per_mol
+        elif unit =="cal/(mol*K)":
+            return self._total_entropy
+        else:
+            ValueError("The unit is not supported.")
     
 
+    def total_gibbs_free_energy(self,unit:str) -> float:
+        """
+        Returns the total Gibbs free energy of the system based on the unit.
+
+        Parameters
+        ----------
+        unit : str
+            The unit of the total Gibbs free energy.
+        
+        Returns
+        -------
+        float
+            The total Gibbs free energy of the system.
+        """
+        if unit =="H":
+            return self._total_gibbs_free_energy_Hartree_per_mol
+        elif unit =="kcal":
+            return self._total_gibbs_free_energy_kcal
+        elif unit =="cal":
+            return self._total_gibbs_free_energy
+        else:
+            ValueError("The unit is not supported.")
+    def total_heat_capacity(self,unit:str) -> float:
+        """
+        Returns the total heat capacity of the system based on the unit.
+        
+        Parameters
+        ----------
+        unit : str
+            The unit of the total heat capacity.
+        
+        Returns
+        -------
+        float
+            The total heat capacity of the system.
+        """
+        if unit =="cal/(mol*K)":
+            return self._total_heatcapacity
+        elif unit =="H/T":
+            return self._total_heatcapacity*PhysicalConstants["cal"]/PhysicalConstants["H"]/PhysicalConstants["Na"]
+        else:
+            ValueError("The unit is not supported.")
     
-    # total vibrational temperature
-    s_v = np.sum(vib_temp_K/2) # in K
+    def total_EeZPE(self) -> float:
+        """
+        Returns the sum of the electronic energy and the zero point energy correction.
 
-    # Check
-    print("Summe vib_temp_K:{}".format(s_v))
+        Returns
+        -------
+        float
+            The sum of the electronic energy and the zero point energy correction in Hartree per particle.
+        """
+        return self._EeZPE
     
-    # partition function contribution element
-    q_v_K = np.double(np.exp(-vib_temp_K/(2*T))/(1-np.exp(-vib_temp_K/T)))
+    def total_EeEtot(self) -> float:
+        """
+        Returns the sum of the electronic energy and the total energy.
 
-    # product of q_v_K
-    q_v = np.prod(q_v_K)
-
-    # entropy contribution element
-    S_v_sum = np.subtract(np.divide((vib_temp_K/T),(np.exp(vib_temp_K/T)-1)),\
-    np.log(1-np.exp(-vib_temp_K/T))) # in cal/mol K
+        Returns
+        -------
+        float
+            The sum of the electronic energy and the total energy in Hartree per particle.
+        """
+        return self._EeEtot
     
-    # Check
-    #print("S_v_sum:{}, len:{}".format(S_v_sum,len(S_v_sum)))
+    def total_EeHtot(self) -> float:
+        """
+        Returns the sum of the electronic energy and the total enthalpy.
 
-    # entropy contribution
-    S_v = R*np.sum(S_v_sum)/cal
+        Returns
+        -------
+        float
+            The sum of the electronic energy and the total enthalpy in Hartree per particle.
+        """
+        return self._EeHtot
 
-    # zero point energy correction 
-    E_corr= R*(np.sum(vib_temp_K/2))/H/Na # in H
+    def total_EeGtot(self) -> float:
+        """
+        Returns the sum of the electronic energy and the total Gibbs free energy.
 
-    # energy contribution
-    # in Hartree/Mol
-    E_v = R*np.sum(np.multiply(vib_temp_K,(1/2+1/(np.exp(vib_temp_K/T)-1))))/H/Na 
-    E_v_cal = E_v*H*Na/cal # in cal
-
-    # C_v = (R*np.sum(np.multiply(np.exp(vib_temp_K/T), \
-    # (np.power(np.divide((vib_temp_K/T),(np.exp(-vib_temp_K/T)-1)), 2)))))
-    #vib_temp_K_C = h*(nu_K*c)/kB # in K
+        Returns
+        -------
+        float
+            The sum of the electronic energy and the total Gibbs free energy in Hartree per particle.
+        """
+        return self._EeGtot
     
-    # heat capacity contriubtion
-    C_v = R*np.sum(np.exp(-vib_temp_K/T)*((vib_temp_K/T)/ \
-    (np.exp(-vib_temp_K/T)-1))**2)/cal # in in cal/ mol K
-    EZP = R*(np.sum(vib_temp_K/2))/cal #in cal
-    
-    # Check
-    print("vib_temp: {} in K,len:{}".format(vib_temp_K,len(vib_temp_K)))
-    print("\n")
-    print("q_v: {}, E_v: {} in H/Particle, S_v: {} in cal/(mol K), \
-    C_v: {} in cal/(mol K)".format(q_v,E_v,S_v, C_v))
-    print("\n")
-    print("Zero Point correction: {} in H/Particle".format(E_corr))
-    print("\n")
-    print("Zero Point vibrational energy: {} in cal/mol".format(EZP))
-    print("\n")
-    
-    ### translation contribution ###
-    m_M = np.sum(m_pos)*u #Molecule mass in kg
-    
-    #print("m_M:{}".format(m_M))
-    
-    # partition function contribution
-    q_t = np.power((2*pi*m_M*kB*T)/(h**2),(3/2))*(kB*T/P) 
+    def electronic_energy(self) -> float:
+        """
+        Returns the electronic energy of the system.
 
-    # entropy contribution
-    S_t = R*(np.log(q_t)+5/2)/cal # in cal / mol K
-
-    # energy contribution
-    E_t = (3/2*R*T)/H/Na # in H/Particle
-    E_t_cal = E_t*H*Na/cal # in cal
-
-    # heat capacity contribution 
-    C_t = 3/2*R/cal # in cal/ mol K
-
-    # Check
-    print("q_t: {}, E_t: {} in H/Particle, S_t: {} in cal/(mol K),  \
-     C_t: {} in cal/(mol K)".format(q_t,E_t,S_t,C_t))
-    print("\n")
-
-
-    ### electronic contribution ###
-
-    # spin multiplicity
-    omega_0 = 2*s+1 # s=> spin: user input
-
-    # partition function contribution
-    q_e = omega_0
-
-    # energy contribution
-    E_e = 0/H/Na
-
-    # entropy contribution
-    S_e = R*(np.log(q_e))/cal # in cal
-    
-    # heat capacity contribution
-    C_e = 0
-
-    # Check
-    print("q_e: {}, E_e: {} in H/Particle, S_e: {} in cal/(mol K), \
-     C_e: {} in cal/(mol K)".format(q_e,E_e,S_e, C_e))
-
-    ### total internal thermal energy ###
-
-    E_tot = E_t+E_r+E_v+E_e #thermal correction to energy
-    E_tot_cal = E_tot*H*Na/cal # in cal
-
-    # Check
-    print("E_corr: {} in H/particle, \
-     E_corr_cal:{} in cal/mol".format(E_tot,E_tot_cal))
-    print("\n")
-
-    ### total entropy ###
-
-    S_tot = (S_t+S_r+S_v+S_e) # in cal / mol K
-
-    # Check 
-    print("S_corr: {} in cal/(mol K)".format(S_tot))
-    print("\n")
-
-    ### Total enthalpy ###
-
-    H_corr = E_tot+(R*T)/H/Na # in Hartree/Particle
-
-    # Check 
-    print("H_corr: {} in H/Particle".format(H_corr))
-    print("\n")
-
-
-    ### Gibss Free energy ###
-
-    G_corr = H_corr-(S_tot*cal/Na/H)*T # in Hartree/Particle
-
-    # Check 
-    print("G_corr: {} in H/Particle".format(G_corr))
-    print("\n")
-
-
-    ### heat capacity ###
-
-    C_tot = (C_t+C_r+C_v+C_e) #in cal/mol K
-
-    # Check
-    print("C_corr: {} in cal/(mol K)".format(C_tot))
-    print("\n")
-
-    ### Summmarize ###
-
-    EeZP = (E0+E_corr)
-
-    print("Sum of electronic and zero-point Energies: \
-    {} in H/Particle".format(EeZP))
-
-    EeEtot = (E0+E_tot)
-
-    print("Sum of electronic and thermal Energies: \
-    {} in H/Particle".format(EeEtot))
-    print("\n")
-    
-    EeHcorr = (E0+H_corr)
-
-    print("Sum of electronic and thermal Enthalpies: \
-    {} in H/Particle".format(EeHcorr))
-    print("\n")
-     
-    EeGcorr = (E0+G_corr)
-
-    print("Sum of electronic and thermal Free Energies: \
-    {} in H/Particle".format(EeGcorr))
-    print("\n")
-    
-	
-start()
+        Returns
+        -------
+        float
+            The electronic energy of the system in Hartree per particle.
+        """
+        return self._system.electronic_energy

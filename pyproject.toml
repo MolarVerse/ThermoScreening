@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=42", "setuptools_scm>=8"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ThermoScreening"
+dynamic = [
+    "version"
+]
+authors = [
+  { name="Stefanie Kröll", email="kroell.stefanie123@gmail.com" },
+  { name="Josef M. Gallmetzer", email="gallmetzer.josef@gmail.com" },
+]
+description = "A Python package for screening molecules for their thermochemical properties."
+requires-python = ">=3.10"
+readme = "README.md"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+dependencies = [
+    "numpy",
+    "argparse",
+    "scipy",
+    "pymatgen",
+    "beartype"
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest",
+    "coverage",
+]
+docs = [
+    "sphinx",
+]
+
+[tool.setuptools_scm]
+version_file = "ThermoScreening/__version__.py"
+
+[project.scripts]
+thermo = "ThermoScreening.cli.thermo:main"
