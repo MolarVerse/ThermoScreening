@@ -27,7 +27,7 @@ def main():
     and executes the program. Execution is timed and the time elapsed is printed.
 
     Example:
-    python thermo.py input.in output.out -p plot.png -v -t
+    python thermo.py input.in -v
 
     Returns:
     None

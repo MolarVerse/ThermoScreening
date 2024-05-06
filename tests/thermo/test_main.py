@@ -17,15 +17,11 @@ path = "/home/stk/dev/ThermoScreening/tests/data/thermo/"
 
 class TestMain(unittest.TestCase):
     def test_parse_args(self):
-        test_args = ['thermo', '-i', 'input_file', '-o', 'output_file', '-p', 'plot_file', '-v', '-t']
+        test_args = ['thermo', 'input_file', '-v']
         with patch.object(sys, 'argv', test_args):
             args = thermo.parse_args()
-            self.assertEqual(args.input, 'input_file')
-            self.assertEqual(args.output, 'output_file')
-            self.assertEqual(args.plot, 'plot_file')
+            self.assertEqual(args.input_file, 'input_file')
             self.assertTrue(args.verbose)
-            self.assertTrue(args.test)
-
 
 if __name__ == '__main__':
     unittest.main()
