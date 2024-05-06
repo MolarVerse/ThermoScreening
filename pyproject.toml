@@ -25,7 +25,8 @@ dependencies = [
     "argparse",
     "scipy",
     "pymatgen",
-    "beartype"
+    "beartype",
+    "ase"
 ]
 
 [project.optional-dependencies]
