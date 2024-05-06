@@ -74,7 +74,7 @@ class Thermo:
         self._system = system
         self._engine = engine
 
-        if self._engine != "DFTB+":
+        if self._engine != "dftb+":
             raise ValueError("The engine is not supported.")
         if self._temperature < 0:
             raise ValueError("The temperature is negative.")
@@ -148,6 +148,7 @@ class Thermo:
         None
         """
 
+        # ? Resolving the issue with the center of mass calculation
         coord = self._system.coord()
         coord -= self._system.center_of_mass
 
@@ -190,6 +191,8 @@ class Thermo:
         -------
         None
         """
+
+        #TODO: resolve with naming pylint issue
         self._eigenvalues_I_SI = (
             self._eigenvalues_I * PhysicalConstants["u"] * PhysicalConstants["A"] ** 2
         )
