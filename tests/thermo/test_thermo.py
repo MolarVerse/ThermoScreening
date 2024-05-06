@@ -26,13 +26,13 @@ class TestThermo(unittest.TestCase):
         
         system = System(atoms=atom_list,cell=cell,periodicity=False,solvation=None,solvent=None,charge=0,electronic_energy=-33.6052447996,vibrational_frequencies=frequencies)
 
-        thermo = Thermo(system=system,temperature=298.15,pressure=101325,engine="DFTB+")
+        thermo = Thermo(system=system,temperature=298.15,pressure=101325,engine="dftb+")
 
         assert thermo._temperature == 298.15
 
         assert thermo._pressure == 101325
 
-        assert thermo._engine == "DFTB+"
+        assert thermo._engine == "dftb+"
 
         thermo.run()
 
