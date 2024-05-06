@@ -33,7 +33,7 @@ def main():
     None
     """
     parser_args = parse_args()
-    input_file = parser_args.input
+    input_file = parser_args.input_file
     verbose = parser_args.verbose
 
     if verbose:
