@@ -61,6 +61,8 @@ def main():
         print("#####################################\n")
         print("Time elapsed: ", end - start, " s")
 
+    return None
+
 
 if __name__ == "__main__":
     main()
