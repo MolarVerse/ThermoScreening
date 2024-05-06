@@ -10,8 +10,11 @@ def parse_args():
     Parse command line arguments
 
     Returns:
-    args: argparse.Namespace: command line arguments
+    --------
+    args : argparse.Namespace
+        Command line arguments
     """
+    
     parser = ArgumentParser(description="ThermoScreening")
     parser.add_argument("input_file", type=str, help="Input file")
     parser.add_argument(
@@ -26,12 +29,15 @@ def main():
     Main function to run the thermo cli. It parses the command line arguments
     and executes the program. Execution is timed and the time elapsed is printed.
 
-    Example:
-    python thermo.py input.in -v
-
     Returns:
+    --------
     None
+
+    Examples:
+    ---------
+    >>> python thermo.py input_file.txt -v
     """
+
     parser_args = parse_args()
     input_file = parser_args.input_file
     verbose = parser_args.verbose
@@ -39,16 +45,21 @@ def main():
     if verbose:
         print("Input file: ", input_file)
         print("Verbose: ", verbose)
+        
+        # start timer
+        start = time.time()
 
-    # start timer
-    start = time.time()
-    # Execute
+    #################################
+    # Main execution of the program #
+    #################################
     execute(input_file)
 
-    # end timer
-    end = time.time()
-    print("#####################################\n")
-    print("Time elapsed: ", end - start, " s")
+    if verbose:
+        # end timer
+        end = time.time()
+
+        print("#####################################\n")
+        print("Time elapsed: ", end - start, " s")
 
 
 if __name__ == "__main__":
