@@ -186,10 +186,10 @@ def read_coord(coord_file: str, engine: str):
             # return data_N,data_atoms,data_xyz,cell_vectors,pbc
             raise SystemError("The gen file is not tested yet.")
         else:
-            SystemError("The input file is not supported.")
+            raise SystemError("The input file is not supported.")
 
     else:
-        SystemError("The engine is not supported.")
+        raise SystemError("The engine is not supported.")
 
 
 def read_vibrational(vibrational_file: str, engine: str):
@@ -254,7 +254,7 @@ def unit_energy(engine: str):
     if engine == "dftb+":
         return "Hartree"
     else:
-        SystemError("The engine is not supported.")
+        raise SystemError("The engine is not supported.")
 
 
 def unit_mass(engine: str):
@@ -274,7 +274,7 @@ def unit_mass(engine: str):
     if engine == "dftb+":
         return "amu"
     else:
-        SystemError("The engine is not supported.")
+        raise SystemError("The engine is not supported.")
 
 
 def unit_frequency(engine: str):
@@ -294,7 +294,7 @@ def unit_frequency(engine: str):
     if engine == "dftb+":
         return "cm^-1"
     else:
-        SystemError("The engine is not supported.")
+        raise SystemError("The engine is not supported.")
 
 
 def run_thermo(
