@@ -127,7 +127,7 @@ class Thermo:
             self._system.electronic_energy = (
                 self._system.electronic_energy
                 * PhysicalConstants["H"]
-                * PhysicalConstants["Na"]
+                * PhysicalConstants["N_A"]
             )
             self._system.real_vibrational_frequencies[:] = (
                 self._system.real_vibrational_frequencies[:]
@@ -576,8 +576,8 @@ class Thermo:
         self._total_energy_kcal = self._total_energy / 1000
         self._total_energy_Hartree_per_mol = (
             self._total_energy
-            / PhysicalConstants["JinHartree"]
-            / PhysicalConstants["Na"]
+            / PhysicalConstants["H"]
+            / PhysicalConstants["N_A"]
             * PhysicalConstants["cal"]
         )
 
@@ -589,8 +589,8 @@ class Thermo:
         )
         self._total_entropy_Hartree_per_mol = (
             self._total_entropy
-            / PhysicalConstants["JinHartree"]
-            / PhysicalConstants["Na"]
+            / PhysicalConstants["H"]
+            / PhysicalConstants["N_A"]
             * PhysicalConstants["cal"]
         )
 
@@ -601,8 +601,8 @@ class Thermo:
         self._total_enthalpy_kcal = self._total_enthalpy / 1000
         self._total_enthalpy_Hartree_per_mol = (
             self._total_enthalpy
-            / PhysicalConstants["JinHartree"]
-            / PhysicalConstants["Na"]
+            / PhysicalConstants["H"]
+            / PhysicalConstants["N_A"]
             * PhysicalConstants["cal"]
         )
 
@@ -612,8 +612,8 @@ class Thermo:
         self._total_gibbs_free_energy_kcal = self._total_gibbs_free_energy / 1000
         self._total_gibbs_free_energy_Hartree_per_mol = (
             self._total_gibbs_free_energy
-            / PhysicalConstants["JinHartree"]
-            / PhysicalConstants["Na"]
+            / PhysicalConstants["H"]
+            / PhysicalConstants["N_A"]
             * PhysicalConstants["cal"]
         )
 
@@ -638,22 +638,22 @@ class Thermo:
         self._EeZPE = (
             self._system.electronic_energy
             + self._zpecorr
-            / PhysicalConstants["JinHartree"]
-            / PhysicalConstants["Na"]
+            / PhysicalConstants["H"]
+            / PhysicalConstants["N_A"]
             * PhysicalConstants["cal"]
         )
         self._EeEtot = (
             self._system.electronic_energy
             + self._total_energy
-            / PhysicalConstants["JinHartree"]
-            / PhysicalConstants["Na"]
+            / PhysicalConstants["H"]
+            / PhysicalConstants["N_A"]
             * PhysicalConstants["cal"]
         )
         self._EeHtot = (
             self._system.electronic_energy
             + self._total_enthalpy
-            / PhysicalConstants["JinHartree"]
-            / PhysicalConstants["Na"]
+            / PhysicalConstants["H"]
+            / PhysicalConstants["N_A"]
             * PhysicalConstants["cal"]
         )
         self._EeGtot = (
@@ -804,7 +804,7 @@ class Thermo:
                 self._total_heatcapacity
                 * PhysicalConstants["cal"]
                 / PhysicalConstants["H"]
-                / PhysicalConstants["Na"]
+                / PhysicalConstants["N_A"]
             )
         else:
             raise ValueError("The unit is not supported.")
