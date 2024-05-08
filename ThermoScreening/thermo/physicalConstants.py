@@ -1,6 +1,6 @@
 import numpy as np
 """
-Physical constants and conversion factor that is used in the program.
+Physical constants and conversion factors that is used in the program.
 The values are taken from the CODATA 2018 recommended values.
 
 Attributes:
