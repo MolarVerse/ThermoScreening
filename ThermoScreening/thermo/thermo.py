@@ -1,5 +1,5 @@
 import numpy as np
-from .physicalConstants import PhysicalConstants
+from ..utils.physicalConstants import PhysicalConstants
 from .system import System
 
 
