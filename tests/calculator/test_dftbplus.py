@@ -10,6 +10,9 @@ from ThermoScreening.calculator.dftbplus import dftb_3ob_parameters
 
 # --------------------------------------------------------------------------- #
 
+os.environ['OMP_NUM_THREADS'] = '1'
+
+# --------------------------------------------------------------------------- #
 
 def test_dftb():
     # Test the DFTB+ calculator
