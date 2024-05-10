@@ -39,6 +39,9 @@ docs = [
     "sphinx",
 ]
 
+[tool.setuptools.packages.find]
+exclude = ["external"]
+
 [tool.setuptools_scm]
 version_file = "ThermoScreening/__version__.py"
 
