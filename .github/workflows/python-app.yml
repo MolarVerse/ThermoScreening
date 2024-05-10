@@ -38,7 +38,8 @@ jobs:
     - name: Test with pytest
       run: |
         pip install '.[test]'
-        pytest --cov=ThermoScreening --cov-report=xml
+        python -m pytest --cov=ThermoScreening --cov-report=xml 
+      shell: bash
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
