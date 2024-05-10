@@ -32,7 +32,7 @@ jobs:
         echo $CONDA/bin >> $GITHUB_PATH
     - name: Install dependencies
       run: |
-        sudo apt-get install libgsl -y
+        sudo apt install libgsl -y
         conda install conda-forge::dftbplus
         python -m pip install --upgrade pip
         pip install . 
