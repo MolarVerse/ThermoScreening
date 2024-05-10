@@ -3,6 +3,9 @@ from ase.calculators.dftb import Dftb
 from ase.io import read
 import numpy as np
 
+from ..utils.physicalConstants import PhysicalConstants
+from ThermoScreening import BASE_PATH
+
 # --------------------------------------------------------------------------- #
 
 
@@ -24,7 +27,7 @@ class Geoopt(Dftb):
         Path to the Slater-Koster files. If None, it will look for
         the DFTB_PREFIX environment variable.
     max_force : float
-        Maximum force component. Default is 1.0e-5.
+        Maximum force component. Default is 1.0e-6.
 
     Other Parameters:
     -----------------
@@ -38,7 +41,7 @@ class Geoopt(Dftb):
         label="geo_opt",
         charge=0,
         slako_dir=None,
-        max_force=1.0e-5,
+        max_force=1.0e-6,
         **kwargs,
     ):
         """
@@ -54,9 +57,9 @@ class Geoopt(Dftb):
             Charge of the system. Default is 0.
         slako_dir : str
             Path to the Slater-Koster files. If None, it will look
-            for the DFTB_PREFIX environment variable.
+            for the DFTB_PREFIX environment variable. Default is 3ob-3-1.
         max_force : float
-            Maximum force component. Default is 1.0e-5.
+            Maximum force component. Default is 1.0e-6.
 
         Other Parameters:
         -----------------
@@ -67,7 +70,7 @@ class Geoopt(Dftb):
         super().__init__(
             atoms=atoms,
             label=label,
-            slako_dir=slako_dir,
+            slako_dir=BASE_PATH + "../external/slakos/3ob-3-1/",
             Hamiltonian_Charge=charge,
             Driver_="LBFGS",
             Driver_MaxForceComponent=max_force,
@@ -78,6 +81,22 @@ class Geoopt(Dftb):
         self.calculate(atoms)
 
         return None
+
+    def potential_energy(self):
+        """
+        Get the potential energy of the optimized geometry. in Hartree.
+
+        Returns:
+        --------
+        float
+            Potential energy of the optimized geometry.
+        """
+        self.atoms.set_calculator(self)
+        return (
+            self.atoms.get_potential_energy()
+            * PhysicalConstants["eV"]
+            / PhysicalConstants["H"]
+        )
 
     def read(self):
         """
@@ -126,7 +145,7 @@ class Hessian(Dftb):
         label="second_derivative",
         charge=0,
         delta=1.0e-4,
-        slako_dir=None,
+        slako_dir=BASE_PATH + "../external/slakos/3ob-3-1/",
         **kwargs,
     ):
         """
@@ -144,7 +163,7 @@ class Hessian(Dftb):
             Finite difference step. Default is 1.0e-4.
         slako_dir : str
             Path to the Slater-Koster files. If None, it will look
-            for the DFTB_PREFIX environment variable.
+            for the DFTB_PREFIX environment variable. Default is 3ob-3-1.
 
         Other Parameters:
         -----------------
@@ -318,3 +337,45 @@ class Modes:
 
 
 # --------------------------------------------------------------------------- #
+
+"""
+DFTB+ parameters for the 3ob-3-1 Slater-Koster files.
+"""
+
+dftb_3ob_parameters = dict(
+    # SCC 
+    Hamiltonian_SCC="Yes",
+    Hamiltonian_MaxSCCIterations=250,
+    Hamiltonian_SCCTolerance='1.0e-7',
+    Hamiltonian_ReadInitialCharges="No",
+
+    # Convergence helper
+    Hamiltonian_Mixer="DIIS{}",
+
+    # Are guessed by ase
+    Hamiltonian_MaxAngularMomentum_="",
+
+    # Hubbard derivatives
+    Hamiltonian_ThirdOrderFull="Yes",
+    Hamiltonian_hubbardderivs_="",
+    Hamiltonian_hubbardderivs_C=-0.1492,
+    Hamiltonian_hubbardderivs_N=-0.1535,
+    Hamiltonian_hubbardderivs_O=-0.1575,
+    Hamiltonian_hubbardderivs_H=-0.1857,
+    Hamiltonian_hubbardderivs_S=-0.11,
+    Hamiltonian_hubbardderivs_P=-0.14,
+    Hamiltonian_hubbardderivs_F=-0.1623,
+    Hamiltonian_hubbardderivs_Cl=-0.0697,
+    Hamiltonian_hubbardderivs_Br=-0.0573,
+    Hamiltonian_hubbardderivs_I=-0.0433,
+    Hamiltonian_hubbardderivs_Zn=-0.03,
+    Hamiltonian_hubbardderivs_Mg=-0.02,
+    Hamiltonian_hubbardderivs_Ca=-0.0340,
+    Hamiltonian_hubbardderivs_K=-0.0339,
+    Hamiltonian_hubbardderivs_Na=-0.0454,
+
+    # Analysis
+    Analysis_="",
+    Analysis_CalculateForces="Yes",
+    Analysis_MullikenAnalysis="Yes",
+)

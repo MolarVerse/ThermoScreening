@@ -3,6 +3,7 @@ from .system import System
 from .thermo import Thermo
 from .atoms import Atom
 import numpy as np
+from ..calculator import Geoopt, Hessian, Modes
 
 
 def read_xyz(coord_file: str):
@@ -418,3 +419,61 @@ def execute(input_file: str) -> Thermo:
         energy=energy,
         engine=engine,
     )
+
+def dftbplus_thermo(
+        atoms, 
+        temperature=298.15,
+        pressure=101325,
+        charge=0.0,
+        **kwargs
+    ):
+    """
+    Run the thermo calculation with geometry optimization. Returns thermo calculation object.
+
+    Parameters
+    ----------
+    atoms : ase.Atoms
+        Atoms object. The initial geometry.
+    temperature : float
+        The temperature in K. Default is 298.15.
+    pressure : float
+        The pressure in Pa. Default is 101325.
+    charge : float
+        The system charge. Default is 0.0.
+
+    Other Parameters
+    ----------------
+    **kwargs : dict
+        Additional keyword arguments to pass to the Geoopt and Hessian classes.
+
+    Returns
+    -------
+    Thermo
+        The thermo calculation object.
+    """
+    
+    # run geometry optimization
+    geoopt = Geoopt(atoms=atoms, charge=charge, **kwargs)
+    potential_energy = geoopt.potential_energy()
+    optimized_atoms = geoopt.read()
+    
+    # run hessian calculation
+    Hessian(atoms=optimized_atoms, charge=charge, **kwargs)
+
+    # run normal mode calculation
+    modes = Modes()
+    frequencies = modes.wave_numbers
+
+    # TODO: rewrite run_thermo function to include ase atoms object
+    # run thermo calculation
+    thermo = run_thermo(
+        frequencies,
+        coord_file="geo_opt.xyz",
+        temperature=temperature,
+        pressure=pressure,
+        energy=potential_energy,
+        engine='dftb+',
+        charge=charge,
+    )
+
+    return thermo
