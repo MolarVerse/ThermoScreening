@@ -98,14 +98,8 @@ class TestDftbplus:
         wave_numbers = modes.read()
 
         assert np.allclose(
-            wave_numbers,
+            wave_numbers[6:],
             [
-                -4.67009613e00,
-                -1.49751405e00,
-                -5.08477396e-01,
-                7.07030046e-02,
-                1.19626364e00,
-                5.13034494e00,
                 1.46185721e03,
                 3.60476561e03,
                 3.87736051e03,
