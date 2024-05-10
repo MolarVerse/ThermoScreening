@@ -37,6 +37,8 @@ jobs:
         pip install . 
     - name: Test with pytest
       run: |
+        which dftb+
+        which modes
         pip install '.[test]'
         pytest --cov=ThermoScreening --cov-report=xml
 
