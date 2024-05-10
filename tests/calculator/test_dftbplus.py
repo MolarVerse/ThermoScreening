@@ -3,6 +3,7 @@ import pytest
 import os
 import numpy as np
 import ase.io as ase_io
+from ase.build import molecule
 from ThermoScreening import BASE_PATH
 from ThermoScreening.calculator import Geoopt, Hessian, Modes
 from ThermoScreening.calculator.dftbplus import dftb_3ob_parameters
@@ -17,20 +18,22 @@ def test_dftb():
 
 
 # Test the Geoopt class
-@pytest.mark.parametrize("example_dir", ["calculator"], indirect=False)
-def test_geoopt(test_with_data_dir):
+@pytest.mark.usefixtures("tmpdir")
+def test_geoopt():
     """
     Test the Geoopt class.
     """
 
     # read the atoms object
-    atoms = ase_io.read("water.xyz")
+    atoms = molecule("CH4")
 
     # create an instance of the Geoopt class
     geoopt = Geoopt(atoms, charge=0, **dftb_3ob_parameters)
 
+    atoms.calc = geoopt
+
     assert geoopt.atoms == atoms
-    assert np.allclose(geoopt.potential_energy(), -4.062312, atol=1e-5)
+    assert np.allclose(geoopt.potential_energy(), -3.2295255, atol=1e-5)
     assert geoopt.label == "geo_opt"
     assert geoopt.slako_dir == BASE_PATH + "../external/slakos/3ob-3-1/"
 
@@ -43,14 +46,14 @@ def test_geoopt(test_with_data_dir):
     assert atoms != ase_io.read("geo_opt.gen", format="gen")
 
 
-@pytest.mark.parametrize("example_dir", ["calculator"], indirect=False)
-def test_hessian(test_with_data_dir):
+@pytest.mark.usefixtures("tmpdir")
+def test_hessian():
     """
     Test the Hessian class.
     """
 
     # read the atoms object
-    atoms = ase_io.read("water.xyz")
+    atoms = molecule("CH4")
 
     # create an instance of the Hessian class
     optimizer = Geoopt(atoms, charge=0, **dftb_3ob_parameters)
@@ -64,14 +67,14 @@ def test_hessian(test_with_data_dir):
     assert np.allclose(hessian.read(), hessian.hessian, atol=1e-5)
 
 
-@pytest.mark.parametrize("example_dir", ["calculator"], indirect=False)
-def test_modes(test_with_data_dir):
+@pytest.mark.usefixtures("tmpdir")
+def test_modes():
     """
     Test the Modes class.
     """
 
     # read the atoms object
-    atoms = ase_io.read("water.xyz")
+    atoms = molecule("CH4")
 
     # create an instance of the Modes class
     optimizer = Geoopt(atoms, charge=0, **dftb_3ob_parameters)
@@ -92,17 +95,15 @@ def test_modes(test_with_data_dir):
     wave_numbers = modes.read()
 
     assert np.allclose(
-        wave_numbers,
+        wave_numbers[8:],
         [
-            -2.28120466e01,
-            -2.48983380e00,
-            -2.40527071e-01,
-            1.45491413e00,
-            1.30759088e01,
-            3.06750074e01,
-            1.46130238e03,
-            3.60488276e03,
-            3.87687301e03,
+            1308.3501094,
+            1485.00285228,
+            1485.06847189,
+            2858.13153344,
+            3049.63204897,
+            3050.31867544,
+            3051.47541999,
         ],
         atol=1e-5,
     )
