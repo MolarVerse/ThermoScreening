@@ -1,8 +1,7 @@
 import numpy as np
-import scipy.constants as const
-
 """
-Physical constants used in the program.
+Physical constants and conversion factors that is used in the program.
+The values are taken from the CODATA 2018 recommended values.
 
 Attributes:
 -----------
@@ -16,29 +15,21 @@ Examples:
 1.0545718001391127e-34
 """
 PhysicalConstants = {
-    "hbar": np.double(const.hbar),
-    "h": np.double(const.h),
-    "pi": np.double(const.pi),
-    "c": np.double(const.c),
-    "kB": np.double(const.k),
-    "R": np.double(const.gas_constant),
-    "h": np.double(const.h),
-    "u": np.double(const.u),
-    "kcal": const.calorie / 1000,
-    "angstrom": np.double(const.angstrom),
-    "eV": np.double(const.electron_volt),
-    "H": const.physical_constants["Hartree energy"][0],
-    "amu": const.physical_constants["atomic unit of mass"][0],
-    "bohr_radius": 5.29177210903 * 10 ** (-1),
-    "Na": const.N_A,
-    "cal": const.calorie,
-    "A": 10 ** (-10),
-    "angstrom_to_meter": 10 ** (-10),
-    "u_to_kg": 1.66053906660 * 10 ** (-27),
-    "kcal_to_kJ": 4.184,
-    "kcal_to_kJ_mol": 0.239005736,
-    "kcal_to_J": 4184,
-    "kcal_to_J_mol": 239.005736,
-    "HztoGHz": 10 ** (-9),
-    "JinHartree": 4.3597447222071 * 10 ** (-18),
+    "h": 6.62607015 * 10**(-34), # J s
+    "hbar": 1.054571817 * 10**(-34), # J s
+    "c": 299792458, # m/s
+    "kB": 1.380649 * 10**(-23), # J K^-1
+    "R": 8.314462618, # J mol^-1 K^-1
+    "N_A": 6.02214076 * 10**(23), # mol^-1 
+    "u": 1.66053906660 * 10**(-27), # kg
+    "H": 4.3597447222071 * 10**(-18), # J
+    "cal": 4.184, # J
+    "A": 10**(-10), # m
+    "HztoGHz": 10**(-9), # GHz
+    # NOT USED:
+    # "pi": 3.14159265358979323846,  
+    # "kcal": 4184, # J  
+    # "angstrom": 10**(-10), # m
+    # "eV": 1.602176634 * 10**(-19), # J 
+    # "bohr_radius": 5.29177210903 * 10**(-11), # m
 }
