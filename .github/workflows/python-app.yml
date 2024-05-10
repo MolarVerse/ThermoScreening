@@ -28,6 +28,7 @@ jobs:
         python-version: "3.10"
     - name: Install dependencies
       run: |
+        $CONDA/bin/conda activate
         $CONDA/bin/conda install conda-forge::dftbplus
         python -m pip install --upgrade pip
         pip install . 
