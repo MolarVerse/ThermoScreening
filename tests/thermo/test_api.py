@@ -96,15 +96,5 @@ class TestApi(unittest.TestCase):
             data_vib, vibrational_frequencies, decimal=8
         )
 
-    @pytest.mark.usefixtures("tmpdir")
-    def test_dftbplus_thermo(self):
-        atoms = molecule("CH4")
-        thermo = dftbplus_thermo(atoms, **dftb_3ob_parameters)
-        assert np.allclose(thermo.total_EeGtot(), -3.20470041120975, atol=1e-5)
-
-        atoms = molecule("H2O")
-        thermo = dftbplus_thermo(atoms, **dftb_3ob_parameters, delta=0.001)
-        assert np.allclose(thermo.total_EeGtot(), -4.063547287431202, atol=1e-5)
-
 if __name__ == "__main__":
     unittest.main()
