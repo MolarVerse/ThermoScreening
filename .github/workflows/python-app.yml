@@ -29,7 +29,7 @@ jobs:
     - name: Activate conda
       run: |
         $CONDA/bin/conda init
-        conda activate
+        $CONDA/bin/conda activate
         conda install conda-forge::dftbplus
     - name: Install dependencies
       run: |
