@@ -10,9 +10,6 @@ from ThermoScreening.calculator.dftbplus import dftb_3ob_parameters
 
 # --------------------------------------------------------------------------- #
 
-os.environ['OMP_NUM_THREADS'] = '1'
-
-# --------------------------------------------------------------------------- #
 
 def test_dftb():
     # Test the DFTB+ calculator
@@ -28,7 +25,7 @@ def test_geoopt():
     """
 
     # read the atoms object
-    atoms = molecule("CH4")
+    atoms = molecule("H2O")
 
     # create an instance of the Geoopt class
     geoopt = Geoopt(atoms, charge=0, **dftb_3ob_parameters)
@@ -36,7 +33,7 @@ def test_geoopt():
     atoms.calc = geoopt
 
     assert geoopt.atoms == atoms
-    assert np.allclose(geoopt.potential_energy(), -3.2295255, atol=1e-5)
+    assert np.allclose(geoopt.potential_energy(), -4.06231229, atol=1e-5)
     assert geoopt.label == "geo_opt"
     assert geoopt.slako_dir == BASE_PATH + "../external/slakos/3ob-3-1/"
 
@@ -56,11 +53,11 @@ def test_hessian():
     """
 
     # read the atoms object
-    atoms = molecule("CH4")
+    atoms = molecule("H2O")
 
     # create an instance of the Hessian class
     optimizer = Geoopt(atoms, charge=0, **dftb_3ob_parameters)
-    hessian = Hessian(optimizer.read(), charge=0, **dftb_3ob_parameters)
+    hessian = Hessian(optimizer.read(), charge=0, **dftb_3ob_parameters, delta=0.001)
 
     assert hessian.atoms == optimizer.read()
     assert hessian.label == "second_derivative"
@@ -77,11 +74,11 @@ def test_modes():
     """
 
     # read the atoms object
-    atoms = molecule("CH4")
+    atoms = molecule("H2O")
 
     # create an instance of the Modes class
     optimizer = Geoopt(atoms, charge=0, **dftb_3ob_parameters)
-    hessian = Hessian(optimizer.read(), charge=0, **dftb_3ob_parameters)
+    hessian = Hessian(optimizer.read(), charge=0, **dftb_3ob_parameters, delta=0.001)
 
     assert os.path.exists("hessian.out")
     assert os.path.exists("geo_opt.gen")
@@ -98,15 +95,17 @@ def test_modes():
     wave_numbers = modes.read()
 
     assert np.allclose(
-        wave_numbers[8:],
+        wave_numbers,
         [
-            1308.3501094,
-            1485.00285228,
-            1485.06847189,
-            2858.13153344,
-            3049.63204897,
-            3050.31867544,
-            3051.47541999,
+            -9.59971762e00,
+            -8.58386111e00,
+            -2.50130203e00,
+            1.37799719e-01,
+            4.48566805e00,
+            8.42985145e00,
+            1.46181960e03,
+            3.60482906e03,
+            3.87719263e03,
         ],
         atol=1e-5,
     )

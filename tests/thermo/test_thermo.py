@@ -1,11 +1,13 @@
+import pytest
+import sys, os
+
 import unittest
 import numpy as np
+
 from ThermoScreening.thermo.system import System
 from ThermoScreening.thermo.atoms import Atom
 from ThermoScreening.thermo.cell import Cell
 from ThermoScreening.thermo.thermo import Thermo
-import pytest
-import sys, os
 
 class TestThermo(unittest.TestCase):
     def test_thermo(self):
@@ -54,14 +56,7 @@ class TestThermo(unittest.TestCase):
 
         assert thermo.total_EeHtot() == -33.41683001674045 
 
-        assert thermo.total_EeGtot() == -33.46888657920266  # -33.46794021246214 
+        assert thermo.total_EeGtot() == -33.46888657920266  # -33.46794021246214    
       
-
-        
-
-
-
-
-
 if __name__ == '__main__':
     unittest.main()
