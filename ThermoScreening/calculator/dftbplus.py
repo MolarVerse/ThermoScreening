@@ -91,7 +91,7 @@ class Geoopt(Dftb):
         float
             Potential energy of the optimized geometry.
         """
-        self.atoms.set_calculator(self)
+        self.atoms.calc = self
         return (
             self.atoms.get_potential_energy()
             * PhysicalConstants["eV"]
@@ -297,14 +297,6 @@ class Modes:
         None
         """
 
-        # check if the modes executable is in the PATH
-        if os.system("which modes > /dev/null") != 0:
-            raise FileNotFoundError("modes executable not found in PATH")
-
-        # check if the modes_in.hsd file is in the current directory
-        if not os.path.isfile("modes_in.hsd"):
-            raise FileNotFoundError("modes_in.hsd file not found")
-
         # run the modes executable
         os.system("modes > modes.out")
 
@@ -346,7 +338,7 @@ dftb_3ob_parameters = dict(
     # SCC 
     Hamiltonian_SCC="Yes",
     Hamiltonian_MaxSCCIterations=250,
-    Hamiltonian_SCCTolerance='1.0e-7',
+    Hamiltonian_SCCTolerance='1.0e-6',
     Hamiltonian_ReadInitialCharges="No",
 
     # Convergence helper
