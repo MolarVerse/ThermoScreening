@@ -23,13 +23,13 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Set up Python 3.10 with conda
-      uses: conda-incubator/setup-miniconda@v2
+      uses: conda-incubator/setup-miniconda@v3
       with:
         auto-activate-base: true
-        python-version: "3.10"
+        activate-environment: ""
+        python-version: 3.10
     - name: Install dependencies
       run: |
-        conda activate test
         python -m pip install --upgrade pip
         pip install . 
         conda install conda-forge::dftbplus
