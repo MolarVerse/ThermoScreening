@@ -28,7 +28,7 @@ jobs:
         python-version: "3.10"
     - name: Activate conda
       run: |
-        conda init
+        $CONDA/bin/conda init
         conda activate
         conda install conda-forge::dftbplus
     - name: Install dependencies
