@@ -27,7 +27,7 @@ class Geoopt(Dftb):
         Path to the Slater-Koster files. If None, it will look for
         the DFTB_PREFIX environment variable.
     max_force : float
-        Maximum force component. Default is 1.0e-5.
+        Maximum force component. Default is 1.0e-6.
 
     Other Parameters:
     -----------------
@@ -41,7 +41,7 @@ class Geoopt(Dftb):
         label="geo_opt",
         charge=0,
         slako_dir=None,
-        max_force=1.0e-5,
+        max_force=1.0e-6,
         **kwargs,
     ):
         """
@@ -59,7 +59,7 @@ class Geoopt(Dftb):
             Path to the Slater-Koster files. If None, it will look
             for the DFTB_PREFIX environment variable. Default is 3ob-3-1.
         max_force : float
-            Maximum force component. Default is 1.0e-5.
+            Maximum force component. Default is 1.0e-6.
 
         Other Parameters:
         -----------------
@@ -338,7 +338,7 @@ dftb_3ob_parameters = dict(
     # SCC 
     Hamiltonian_SCC="Yes",
     Hamiltonian_MaxSCCIterations=250,
-    Hamiltonian_SCCTolerance='1.0e-6',
+    Hamiltonian_SCCTolerance='1.0e-7',
     Hamiltonian_ReadInitialCharges="No",
 
     # Fermi smearing

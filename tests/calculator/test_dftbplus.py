@@ -58,7 +58,7 @@ class TestDftbplus:
         # create an instance of the Hessian class
         optimizer = Geoopt(atoms, charge=0, **dftb_3ob_parameters)
         hessian = Hessian(
-            optimizer.read(), charge=0, **dftb_3ob_parameters, delta=0.001
+            optimizer.read(), charge=0, **dftb_3ob_parameters, delta=0.0005
         )
 
         assert hessian.atoms == optimizer.read()
@@ -80,7 +80,7 @@ class TestDftbplus:
         # create an instance of the Modes class
         optimizer = Geoopt(atoms, charge=0, **dftb_3ob_parameters)
         hessian = Hessian(
-            optimizer.read(), charge=0, **dftb_3ob_parameters, delta=0.001
+            optimizer.read(), charge=0, **dftb_3ob_parameters, delta=0.0005
         )
 
         assert os.path.exists("hessian.out")
@@ -100,15 +100,15 @@ class TestDftbplus:
         assert np.allclose(
             wave_numbers,
             [
-                -6.41014176e00,
-                -1.47911312e00,
-                2.29688885e-01,
-                1.72059738e00,
-                4.83495634e00,
-                9.94216984e00,
-                1.46180014e03,
-                3.60479010e03,
-                3.87716176e03,
+                -4.67009613e00,
+                -1.49751405e00,
+                -5.08477396e-01,
+                7.07030046e-02,
+                1.19626364e00,
+                5.13034494e00,
+                1.46185721e03,
+                3.60476561e03,
+                3.87736051e03,
             ],
             atol=1e-5,
         )
@@ -116,5 +116,5 @@ class TestDftbplus:
     @pytest.mark.parametrize("example_dir", ["calculator"])
     def test_dftbplus_thermo(self, test_with_data_dir):
         atoms = ase_io.read("water.xyz")
-        thermo = dftbplus_thermo(atoms, **dftb_3ob_parameters, delta=0.001)
-        assert np.allclose(thermo.total_EeGtot(), -4.06435847880927, atol=1e-5)
+        thermo = dftbplus_thermo(atoms, **dftb_3ob_parameters, delta=0.0005)
+        assert np.allclose(thermo.total_EeGtot(), -4.064982703661, atol=1e-5)
