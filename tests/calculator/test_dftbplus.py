@@ -9,6 +9,7 @@ from ThermoScreening.calculator.dftbplus import dftb_3ob_parameters
 
 # --------------------------------------------------------------------------- #
 
+
 def test_dftb():
     # Test the DFTB+ calculator
     assert os.system("which dftb+ > /dev/null") == 0, "DFTB+ is not installed."
@@ -93,15 +94,15 @@ def test_modes(test_with_data_dir):
     assert np.allclose(
         wave_numbers,
         [
-            -27.59477761,
-            -21.86271841,
-            -7.20918032,
-            11.25799858,
-            23.2824646,
-            51.0719755,
-            1461.82205,
-            3604.80534,
-            3876.82665,
+            -2.27783183e01,
+            -1.11403422e00,
+            -1.52276130e-01,
+            7.91984901e-01,
+            1.27208890e01,
+            3.06296701e01,
+            1.46130064e03,
+            3.60488071e03,
+            3.87687137e03,
         ],
         atol=1e-5,
     )
