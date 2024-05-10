@@ -3,7 +3,6 @@ import pytest
 import os
 import numpy as np
 import ase.io as ase_io
-from ase.build import molecule
 from ThermoScreening import BASE_PATH
 from ThermoScreening.calculator import Geoopt, Hessian, Modes
 from ThermoScreening.calculator.dftbplus import dftb_3ob_parameters
@@ -11,24 +10,23 @@ from ThermoScreening.thermo.api import dftbplus_thermo
 
 # --------------------------------------------------------------------------- #
 
-@pytest.mark.skip(reason="Issues with the DFTB+ calculator.")
+
 class TestDftbplus:
 
+    # Test the DFTB+ calculator
     def test_dftb(self):
-        # Test the DFTB+ calculator
         assert os.system("which dftb+ > /dev/null") == 0, "DFTB+ is not installed."
         assert os.system("which modes > /dev/null") == 0, "Modes is not installed."
 
-
     # Test the Geoopt class
-    @pytest.mark.usefixtures("tmpdir")
-    def test_geoopt(self):
+    @pytest.mark.parametrize("example_dir", ["calculator"])
+    def test_geoopt(self, test_with_data_dir):
         """
         Test the Geoopt class.
         """
 
         # read the atoms object
-        atoms = molecule("H2O")
+        atoms = ase_io.read("water.xyz")
 
         # create an instance of the Geoopt class
         geoopt = Geoopt(atoms, charge=0, **dftb_3ob_parameters)
@@ -48,19 +46,20 @@ class TestDftbplus:
         assert atoms != geoopt.atoms
         assert atoms != ase_io.read("geo_opt.gen", format="gen")
 
-
-    @pytest.mark.usefixtures("tmpdir")
-    def test_hessian(self):
+    @pytest.mark.parametrize("example_dir", ["calculator"])
+    def test_hessian(self, test_with_data_dir):
         """
         Test the Hessian class.
         """
 
         # read the atoms object
-        atoms = molecule("H2O")
+        atoms = ase_io.read("water.xyz")
 
         # create an instance of the Hessian class
         optimizer = Geoopt(atoms, charge=0, **dftb_3ob_parameters)
-        hessian = Hessian(optimizer.read(), charge=0, **dftb_3ob_parameters, delta=0.001)
+        hessian = Hessian(
+            optimizer.read(), charge=0, **dftb_3ob_parameters, delta=0.001
+        )
 
         assert hessian.atoms == optimizer.read()
         assert hessian.label == "second_derivative"
@@ -69,19 +68,20 @@ class TestDftbplus:
         assert os.path.exists("hessian.out")
         assert np.allclose(hessian.read(), hessian.hessian, atol=1e-5)
 
-
-    @pytest.mark.usefixtures("tmpdir")
-    def test_modes(self):
+    @pytest.mark.parametrize("example_dir", ["calculator"])
+    def test_modes(self, test_with_data_dir):
         """
         Test the Modes class.
         """
 
         # read the atoms object
-        atoms = molecule("H2O")
+        atoms = ase_io.read("water.xyz")
 
         # create an instance of the Modes class
         optimizer = Geoopt(atoms, charge=0, **dftb_3ob_parameters)
-        hessian = Hessian(optimizer.read(), charge=0, **dftb_3ob_parameters, delta=0.001)
+        hessian = Hessian(
+            optimizer.read(), charge=0, **dftb_3ob_parameters, delta=0.001
+        )
 
         assert os.path.exists("hessian.out")
         assert os.path.exists("geo_opt.gen")
@@ -100,25 +100,21 @@ class TestDftbplus:
         assert np.allclose(
             wave_numbers,
             [
-                -9.59971762e00,
-                -8.58386111e00,
-                -2.50130203e00,
-                1.37799719e-01,
-                4.48566805e00,
-                8.42985145e00,
-                1.46181960e03,
-                3.60482906e03,
-                3.87719263e03,
+                -6.41014176e00,
+                -1.47911312e00,
+                2.29688885e-01,
+                1.72059738e00,
+                4.83495634e00,
+                9.94216984e00,
+                1.46180014e03,
+                3.60479010e03,
+                3.87716176e03,
             ],
             atol=1e-5,
         )
 
-    @pytest.mark.usefixtures("tmpdir")
-    def test_dftbplus_thermo(self):
-        atoms = molecule("CH4")
-        thermo = dftbplus_thermo(atoms, **dftb_3ob_parameters)
-        assert np.allclose(thermo.total_EeGtot(), -3.20470041120975, atol=1e-5)
-
-        atoms = molecule("H2O")
+    @pytest.mark.parametrize("example_dir", ["calculator"])
+    def test_dftbplus_thermo(self, test_with_data_dir):
+        atoms = ase_io.read("water.xyz")
         thermo = dftbplus_thermo(atoms, **dftb_3ob_parameters, delta=0.001)
-        assert np.allclose(thermo.total_EeGtot(), -4.063547287431202, atol=1e-5)
+        assert np.allclose(thermo.total_EeGtot(), -4.06435847880927, atol=1e-5)
