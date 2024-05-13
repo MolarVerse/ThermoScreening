@@ -1,4 +1,11 @@
 import numpy as np
+
+import logging
+
+from ThermoScreening.exceptions import TSValueError
+from ThermoScreening.utils.custom_logging import setup_logger
+from ThermoScreening import __package_name__
+
 from .physicalConstants import PhysicalConstants
 from .system import System
 
@@ -27,6 +34,9 @@ class Thermo:
     run()
         Calculates the thermochemical properties of the system.
     """
+    
+    logger = logging.getLogger(__package_name__).getChild(__name__)
+    logger = setup_logger(logger)
 
     def __init__(
         self, temperature: float, pressure: float, system: System, engine: str
@@ -48,7 +58,7 @@ class Thermo:
 
         Raises
         ------
-        ValueError
+        TSValueError
             If the pressure is not given.
             If the temperature is not given.
             If the system is not given.
@@ -61,13 +71,25 @@ class Thermo:
         None
         """
         if pressure == None:
-            raise ValueError("The pressure is not given.")
+            self.logger.error(
+                "The pressure is not given.",
+                exception=TSValueError
+            )
         if temperature == None:
-            raise ValueError("The temperature is not given.")
+            self.logger.error(
+                "The temperature is not given.",
+                exception=TSValueError
+            )
         if system == None:
-            raise ValueError("The system is not given.")
+            self.logger.error(
+                "The system is not given.",
+                exception=TSValueError
+            )
         if engine == None:
-            raise ValueError("The engine is not given.")
+            self.logger.error(
+                "The engine is not given.",
+                exception=TSValueError
+            )
 
         self._temperature = temperature
         self._pressure = pressure
@@ -75,11 +97,20 @@ class Thermo:
         self._engine = engine
 
         if self._engine != "dftb+":
-            raise ValueError("The engine is not supported.")
+            self.logger.error(
+                "The engine is not supported.",
+                exception=TSValueError
+            )
         if self._temperature < 0:
-            raise ValueError("The temperature is negative.")
+            self.logger.error(
+                "The temperature is negative.",
+                exception=TSValueError
+            )
         if self._pressure < 0:
-            raise ValueError("The pressure is negative.")
+            self.logger.error(
+                "The pressure is negative.",
+                exception=TSValueError
+            )
 
         self._coord = self._system.coord()
         self._atomic_masses = self._system.atomic_masses()
