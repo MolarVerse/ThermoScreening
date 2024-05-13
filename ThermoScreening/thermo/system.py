@@ -1,10 +1,18 @@
+import logging
 import numpy as np
+
 from beartype.typing import List
-from .atoms import Atom
-from .cell import Cell
+
 from pymatgen.core import Molecule, Structure
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from pymatgen.symmetry.analyzer import PointGroupAnalyzer
+
+from ThermoScreening.utils.custom_logging import setup_logger
+from ThermoScreening.exceptions import TSValueError
+from ThermoScreening import __package_name__
+
+from .atoms import Atom
+from .cell import Cell
 
 
 def linearity(atoms: List[Atom]) -> bool:
@@ -483,6 +491,9 @@ class System:
     >>> system.atoms
     [Atom(symbol='H', position=[0.0, 0.0, 0.0], mass=1.0), Atom(symbol='H', position=[0.0, 0.0, 1.0], mass=1.0)]
     """
+    
+    logger = logging.getLogger(__package_name__).getChild(__name__)
+    logger = setup_logger(logger)
 
     def __init__(
         self,
@@ -522,9 +533,15 @@ class System:
 
         Raises
         ------
-        ValueError
+        TSValueError
             If the number of atoms does not match the length of the atoms list.
         """
+        
+        if atoms is None:
+            self.logger.error(
+                "Atoms must be provided.",
+                exception=TSValueError
+            )
 
         self._atoms = atoms
         self._charge = charge
@@ -560,9 +577,6 @@ class System:
         self._check_frequency_length = check_frequency_length(
             self._real_vibrational_frequencies, self._dof
         )
-
-        if atoms is None:
-            raise ValueError("Atoms must be provided")
 
         if charge is None:
             self._charge = 0.0

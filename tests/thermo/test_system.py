@@ -3,9 +3,15 @@ import numpy as np
 from ThermoScreening.thermo.system import System
 from ThermoScreening.thermo.atoms import Atom
 from ThermoScreening.thermo.cell import Cell
+from ThermoScreening.exceptions import TSValueError
 import pytest
 
 class TestSystem(unittest.TestCase):
+    def test_invalid_init(self):
+        with pytest.raises(TSValueError) as e:
+            System(atoms=None,periodicity=False,cell=None,solvation=None,solvent=None,charge=0,electronic_energy=-33.6052447996,vibrational_frequencies=np.array([-1,-2,0.1,1,2,3,4,5,6]))
+        assert str(e.value) == "Atoms must be provided."
+        
     def test_system(self):
         atoms = [
                 Atom(symbol='H', position=np.array([0, 0, 0])),
