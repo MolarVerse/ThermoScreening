@@ -2,6 +2,5 @@ from .api import read_xyz, read_gen, read_vib_file, read_coord, read_vibrational
 from .atoms import Atom
 from .cell import Cell
 from .inputFileReader import InputFileReader
-from .physicalConstants import PhysicalConstants
 from .system import System
 from .thermo import Thermo

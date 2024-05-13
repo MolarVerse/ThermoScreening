@@ -4,9 +4,9 @@ import logging
 
 from ThermoScreening.exceptions import TSValueError
 from ThermoScreening.utils.custom_logging import setup_logger
+from ThermoScreening.utils.physicalConstants import PhysicalConstants
 from ThermoScreening import __package_name__
 
-from .physicalConstants import PhysicalConstants
 from .system import System
 
 
@@ -226,7 +226,7 @@ class Thermo:
         None
         """
 
-        #TODO: resolve with naming pylint issue
+        # TODO: resolve with naming pylint issue 
         self._eigenvalues_I_SI = (
             self._eigenvalues_I * PhysicalConstants["u"] * PhysicalConstants["A"] ** 2
         )

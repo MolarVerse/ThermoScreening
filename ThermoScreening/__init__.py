@@ -8,6 +8,7 @@ import ThermoScreening.config as config  # pylint: disable=consider-using-from-i
 
 from ThermoScreening.utils.custom_logging import CustomLogger
 
+BASE_PATH = os.path.dirname(os.path.abspath(__file__)) + "/"
 __base_path__ = Path(__file__).parent
 __package_name__ = __name__
 
