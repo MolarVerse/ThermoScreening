@@ -63,6 +63,14 @@ class TestThermo(unittest.TestCase):
             thermo.total_energy("J")
         assert str(e.value) == "The unit is not supported."
         
+        with pytest.raises(TSValueError) as e:
+            thermo.total_enthalpy("J")
+        assert str(e.value) == "The unit is not supported."
+        
+        with pytest.raises(TSValueError) as e:
+            thermo.total_entropy("J")
+        assert str(e.value) == "The unit is not supported."
+        
         
     def test_thermo(self):
         

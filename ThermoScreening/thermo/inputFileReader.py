@@ -1,3 +1,9 @@
+import logging
+
+from ThermoScreening.exceptions import TSValueError
+from ThermoScreening.utils.custom_logging import setup_logger
+from ThermoScreening import __package_name__
+
 class InputFileReader:
     """
     Class for Reading the Input File. It reads the input file and checks if all required keys are set.
@@ -8,6 +14,9 @@ class InputFileReader:
         The input file.
 
     """
+    
+    logger = logging.getLogger(__package_name__).getChild(__qualname__)
+    logger = setup_logger(logger)
 
     # required keys
     required_keys = [
@@ -33,7 +42,7 @@ class InputFileReader:
 
         Raises
         ------
-        ValueError
+        TSValueError
             If the input file is not given.
 
         Returns
@@ -41,8 +50,9 @@ class InputFileReader:
         None
         """
         if input_file is None:
-            raise ValueError(
-                "The input file has to be given to initialize the InputFileReader."
+            self.logger.error(
+                "The input file has to be given to initialize the InputFileReader.",
+                exception=TSValueError,
             )
         self._input_file = input_file
         self._read()
@@ -93,7 +103,7 @@ class InputFileReader:
 
         Raises
         ------
-        ValueError
+        TSValueError
             If a required key is not set.
 
         Returns
@@ -102,7 +112,10 @@ class InputFileReader:
         """
         for key in self.required_keys:
             if key not in self._dictionary.keys():
-                raise ValueError("The key {} is not set in the input file.".format(key))
+                self.logger.error(
+                    "The key {} is not set in the input file.".format(key),
+                    exception=TSValueError
+                )
             
         return None
 
@@ -112,7 +125,7 @@ class InputFileReader:
 
         Raises
         ------
-        ValueError
+        TSValueError
             If an unknown key is set.
 
         Returns
@@ -121,6 +134,9 @@ class InputFileReader:
         """
         for key in self._dictionary.keys():
             if key not in self.required_keys:
-                raise ValueError("The key {} is not known.".format(key))
+                self.logger.error(
+                    "The key {} is not known.".format(key),
+                    exception=TSValueError
+                )
 
         return None
