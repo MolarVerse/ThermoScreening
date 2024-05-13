@@ -1,8 +1,11 @@
+import logging
+
+import numpy as np
+
 from .inputFileReader import InputFileReader
 from .system import System
 from .thermo import Thermo
 from .atoms import Atom
-import numpy as np
 
 
 def read_xyz(coord_file: str):
