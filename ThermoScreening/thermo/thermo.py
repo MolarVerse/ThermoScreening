@@ -1,5 +1,5 @@
 import numpy as np
-from .physicalConstants import PhysicalConstants
+from ..utils.physicalConstants import PhysicalConstants
 from .system import System
 
 
@@ -192,7 +192,7 @@ class Thermo:
         None
         """
 
-        #TODO: resolve with naming pylint issue
+        # TODO: resolve with naming pylint issue 
         self._eigenvalues_I_SI = (
             self._eigenvalues_I * PhysicalConstants["u"] * PhysicalConstants["A"] ** 2
         )
