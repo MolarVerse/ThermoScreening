@@ -166,7 +166,10 @@ class Thermo:
             )
 
         else:
-            raise ValueError("The engine is not supported.")
+            self.logger.error(
+                "The engine is not supported.",
+                exception=TSValueError
+            )
 
         return None
 
@@ -705,7 +708,7 @@ class Thermo:
 
         Raises
         ------
-        ValueError
+        TSValueError
             If the unit is not supported.
 
         Returns
@@ -721,7 +724,10 @@ class Thermo:
         elif unit == "cal":
             return self._total_energy
         else:
-            raise ValueError("The unit is not supported.")
+            self.logger.error(
+                "The unit is not supported.",
+                exception=TSValueError
+            )
 
     def total_enthalpy(self, unit: str) -> float:
         """
@@ -734,7 +740,7 @@ class Thermo:
 
         Raises
         ------
-        ValueError
+        TSValueError
             If the unit is not supported.
 
         Returns
@@ -750,7 +756,10 @@ class Thermo:
         elif unit == "cal":
             return self._total_enthalpy
         else:
-            raise ValueError("The unit is not supported.")
+            self.logger.error(
+                "The unit is not supported.",
+                exception=TSValueError
+            )
 
     def total_entropy(self, unit: str) -> float:
         """
@@ -763,7 +772,7 @@ class Thermo:
 
         Raises
         ------
-        ValueError
+        TSValueError
             If the unit is not supported.
 
         Returns
@@ -777,7 +786,10 @@ class Thermo:
         elif unit == "cal/(mol*K)":
             return self._total_entropy
         else:
-            raise ValueError("The unit is not supported.")
+            self.logger.error(
+                "The unit is not supported.",
+                exception=TSValueError
+            )
 
     def total_gibbs_free_energy(self, unit: str) -> float:
         """
@@ -790,7 +802,7 @@ class Thermo:
 
         Raises
         ------
-        ValueError
+        TSValueError
             If the unit is not supported.
 
         Returns
@@ -806,7 +818,10 @@ class Thermo:
         elif unit == "cal":
             return self._total_gibbs_free_energy
         else:
-            raise ValueError("The unit is not supported.")
+            self.logger.error(
+                "The unit is not supported.",
+                exception=TSValueError
+            )
 
     def total_heat_capacity(self, unit: str) -> float:
         """
@@ -819,7 +834,7 @@ class Thermo:
 
         Raises
         ------
-        ValueError
+        TSValueError
             If the unit is not supported.
 
         Returns
@@ -838,7 +853,10 @@ class Thermo:
                 / PhysicalConstants["N_A"]
             )
         else:
-            raise ValueError("The unit is not supported.")
+            self.logger.error(
+                "The unit is not supported.",
+                exception=TSValueError
+            )
 
     def total_EeZPE(self) -> float:
         """
