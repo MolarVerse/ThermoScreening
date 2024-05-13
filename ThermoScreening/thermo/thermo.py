@@ -81,7 +81,7 @@ class Thermo:
         if self._pressure < 0:
             raise ValueError("The pressure is negative.")
 
-        self._coord = self._system.coord()
+        self._reloc_coord = None
         self._atomic_masses = self._system.atomic_masses()
 
         return None
@@ -116,7 +116,7 @@ class Thermo:
         if self._engine == "DFTB+":
             # the originial units of DFTB+ are Hartree, Angstrom, amu
             # the units are transformed to J, m, kg
-            self._coord = self._system.coord()[:] * PhysicalConstants["A"]
+            self._reloc_coord = self._system.coord()[:] * PhysicalConstants["A"]
             self._atomic_masses = (
                 self._system.atomic_masses()[:] * PhysicalConstants["u"]
             )
@@ -149,8 +149,10 @@ class Thermo:
         """
 
         # ? Resolving the issue with the center of mass calculation
-        coord = self._system.coord()
-        coord -= self._system.center_of_mass
+        # TODO: check if coord is correct because it is not returning the relocate coordinates
+        # DONE: solved the issue with the center of mass calculation
+        self._reloc_coord = self._system.coord()
+        self._reloc_coord -= self._system.center_of_mass
 
         return None
 
@@ -162,7 +164,9 @@ class Thermo:
         -------
         None
         """
-        coord = self._system.coord()
+        # TODO: coord is not relocated to the center of mass
+        # DONE: solved the issue with the center of mass calculation
+        coord = self._reloc_coord
         x = coord[:, 0]
         y = coord[:, 1]
         z = coord[:, 2]
@@ -538,7 +542,7 @@ class Thermo:
         None
         """
 
-        self._translational_heatcapacity = (
+        self._translational_heat_capacity = (
             3 / 2 * PhysicalConstants["R"] / PhysicalConstants["cal"]
         )
 
@@ -621,7 +625,7 @@ class Thermo:
             self._rotational_heat_capacity
             + self._vibrational_heat_capacity
             + self._electronic_heat_capacity
-            + self._translational_heatcapacity
+            + self._translational_heat_capacity
         )
 
         return None
