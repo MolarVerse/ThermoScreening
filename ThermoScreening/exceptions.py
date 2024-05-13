@@ -7,3 +7,6 @@ class ThermoScreeningException(Exception):
     
 class TSValueError(ThermoScreeningException):
     """Exception raised for errors in the input value."""
+    
+class TSNotImplementedError(ThermoScreeningException):
+    """Exception raised for not implemented methods."""

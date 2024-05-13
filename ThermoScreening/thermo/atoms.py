@@ -220,8 +220,8 @@ class Atom:
                 self._number = atomicNumbers[self._symbol.lower()]
             except:
                 self.logger.error(
-                    "The chemical symbol %s is not known." % symbol
-                    error=TSValueError
+                    "The chemical symbol %s is not known." % symbol,
+                    exception=TSValueError
                 )
 
             self._mass = atomicMasses[symbol.lower()]
@@ -233,8 +233,8 @@ class Atom:
                 self._symbol = atomic_Symbol[int(number)].capitalize()
             except:
                 self.logger.error(
-                    "The atomic number %s is not known." % number
-                    error=TSValueError
+                    "The atomic number %s is not known." % number,
+                    exception=TSValueError
                 )
             self._mass = atomicMasses[self._symbol.lower()]
             self._configuration = atomicElectronConfigurations[self._symbol.lower()]
