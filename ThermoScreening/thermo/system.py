@@ -1,10 +1,18 @@
+import logging
 import numpy as np
+
 from beartype.typing import List
-from .atoms import Atom
-from .cell import Cell
+
 from pymatgen.core import Molecule, Structure
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from pymatgen.symmetry.analyzer import PointGroupAnalyzer
+
+from ThermoScreening.utils.custom_logging import setup_logger
+from ThermoScreening.exceptions import TSValueError
+from ThermoScreening import __package_name__
+
+from .atoms import Atom
+from .cell import Cell
 
 
 def linearity(atoms: List[Atom]) -> bool:
@@ -15,9 +23,22 @@ def linearity(atoms: List[Atom]) -> bool:
     ----------
     atoms : List[Atom]
         A list of Atom objects.
+        
+    Return
+    ------
+    bool
+        True if the system is linear, False otherwise.
+        
+    Raises
+    ------
+    TSValueError
+        If the number of atoms is 1.
     """
     if len(atoms) == 1:
-        raise ValueError("Number of atoms must be greater than 1. The system is monoatomic.")
+        System.logger.error(
+            "Number of atoms must be greater than 1. The system is monoatomic.",
+            exception=TSValueError
+        )
     elif len(atoms) == 2:
         return True
     else:
@@ -79,22 +100,6 @@ def dimensionality(atoms: List[Atom]) -> int:
         return 3
 
 
-def number_of_atoms(atoms: List[Atom]) -> int:
-    """
-    The number of atoms in the system.
-
-    Parameters
-    ----------
-    atoms : List[Atom]
-
-    Returns
-    -------
-    int
-        The number of atoms in the system.
-    """
-    return len(atoms)
-
-
 def dim(atoms: List[Atom]) -> int:
     """
     Calculates the dimension of the system.
@@ -104,10 +109,15 @@ def dim(atoms: List[Atom]) -> int:
     atoms : List[Atom]
         A list of Atom objects.
 
-    return
+    Return
     ------
     int
         The dimension of the system.
+        
+    Raises
+    ------
+    TSValueError
+        If the number of atoms is less than 1.
     """
     number_of_atoms = len(atoms)
     if number_of_atoms == 1:
@@ -115,21 +125,31 @@ def dim(atoms: List[Atom]) -> int:
     elif number_of_atoms > 1:
         return dimensionality(atoms)
     else:
-        raise ValueError("Number of atoms must be greater than 0")
+        System.logger.error(
+            "The number of atoms must be greater than 0.",
+            exception=TSValueError
+        )
 
 
 def dof(atoms: List[Atom]) -> int:
     """
     Calculates the degree of freedom of the system.
     Check if the system is monoatomic, linear or non-linear.
+    
     Parameters
     ----------
     atoms : List[Atom]
         A list of Atom objects.
-    return
+        
+    Return
     ------
     int
         The degree of freedom of the system.
+        
+    Raises
+    ------
+    TSValueError
+        If the number of atoms is less than 1.
     """
     number_of_atoms = len(atoms)
     if number_of_atoms == 1:
@@ -139,7 +159,10 @@ def dof(atoms: List[Atom]) -> int:
             (3 * number_of_atoms - 5) if linearity(atoms) else (3 * number_of_atoms - 6)
         )
     else:
-        raise ValueError("Number of atoms must be greater than 0")
+        System.logger.error(
+            "The number of atoms must be greater than 0.",
+            exception=TSValueError
+        )
 
 
 def spin(charge: float) -> float:
@@ -483,6 +506,9 @@ class System:
     >>> system.atoms
     [Atom(symbol='H', position=[0.0, 0.0, 0.0], mass=1.0), Atom(symbol='H', position=[0.0, 0.0, 1.0], mass=1.0)]
     """
+    
+    logger = logging.getLogger(__package_name__).getChild(__name__)
+    logger = setup_logger(logger)
 
     def __init__(
         self,
@@ -522,9 +548,29 @@ class System:
 
         Raises
         ------
-        ValueError
+        TSValueError
             If the number of atoms does not match the length of the atoms list.
+            If the number of atoms is less than 1.
+            If the vibrational frequencies are not provided.
         """
+        
+        if atoms is None:
+            self.logger.error(
+                "Atoms must be provided.",
+                exception=TSValueError
+            )
+            
+        if len(atoms) == 0:
+            self.logger.error(
+                "The number of atoms must be greater than 0.",
+                exception=TSValueError
+            )
+            
+        if vibrational_frequencies is None:
+            self.logger.error(
+                "Vibrational frequencies must be provided.",
+                exception=TSValueError
+            )
 
         self._atoms = atoms
         self._charge = charge
@@ -539,7 +585,6 @@ class System:
         self._vibrational_frequencies = vibrational_frequencies
         self._dof = dof(atoms)
         self._dim = dim(atoms)
-        self._number_of_atoms = number_of_atoms(atoms)
         self._mass = mass(atoms)
         self._center_of_mass = center_of_mass(atoms, self._mass)
         self._symmetry_number = rotational_symmetry_number(atoms)
@@ -561,9 +606,6 @@ class System:
             self._real_vibrational_frequencies, self._dof
         )
 
-        if atoms is None:
-            raise ValueError("Atoms must be provided")
-
         if charge is None:
             self._charge = 0.0
 
@@ -581,12 +623,6 @@ class System:
 
         if electronic_energy is None:
             self._electronic_energy = 0.0
-
-        if vibrational_frequencies is None:
-            raise ValueError("Vibrational frequencies must be provided")
-
-        if len(self._atoms) != self._number_of_atoms:
-            raise ValueError("Number of atoms must match length of atoms list")
 
         self._spin = spin(self._charge)
 
@@ -645,7 +681,7 @@ class System:
         int
             The number of atoms in the system.
         """
-        return self._number_of_atoms
+        return len(self.atoms)
 
     @property
     def dim(self) -> int:

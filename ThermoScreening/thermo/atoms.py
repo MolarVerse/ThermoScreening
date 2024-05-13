@@ -1,5 +1,10 @@
+import logging
+
 import numpy as np
 
+from ThermoScreening.exceptions import TSValueError
+from ThermoScreening.utils.custom_logging import setup_logger
+from ThermoScreening import __package_name__
 
 class Atom:
     """
@@ -35,6 +40,9 @@ class Atom:
     >>> atom.position
     array([0., 0., 0.])
     """
+    
+    logger = logging.getLogger(__package_name__).getChild(__qualname__)
+    logger = setup_logger(logger)
 
     def __init__(
         self,
@@ -56,7 +64,7 @@ class Atom:
 
         Raises
         ------
-        ValueError
+        TSValueError
             If neither symbol nor number is given.
             If the symbol and atomic number are not consistent.
             If the position of the atom is not given.
@@ -66,19 +74,26 @@ class Atom:
         """
 
         if symbol is None and number is None:
-            raise ValueError(
-                "Either symbol or number has to be given to initialize the atom."
+            self.logger.error(
+                "Either symbol or number has to be given to initialize the atom.",
+                exception=TSValueError
             )
 
         if symbol is not None and number is not None:
             if number != atomicNumbers[symbol.lower()]:
-                raise ValueError("The symbol and atomic number are not consistent.")
+                self.logger.error(
+                    "The symbol and atomic number are not consistent.",
+                    exception=TSValueError
+                )
         if number is not None:
             self._number = number
             try:
                 self._symbol = atomic_Symbol[int(number)].capitalize()
             except:
-                raise ValueError("The atomic number %s is not known." % number)
+                self.logger.error(
+                    "The atomic number %s is not known." % number,
+                    exception=TSValueError
+                )
             self._mass = atomicMasses[self._symbol.lower()]
             self._configuration = atomicElectronConfigurations[self._symbol.lower()]
         else:
@@ -86,20 +101,27 @@ class Atom:
             try:
                 self._number = atomicNumbers[symbol.lower()]
             except:
-                raise ValueError("The chemical symbol %s is not known." % symbol)
+                self.logger.error(
+                    "The chemical symbol %s is not known." % symbol,
+                    exception=TSValueError
+                )
             self._mass = atomicMasses[symbol.lower()]
             self._configuration = atomicElectronConfigurations[symbol.lower()]
 
         if position is None:
-            raise ValueError(
-                "The position of the atom has to be given to initialize the atom."
+            self.logger.error(
+                "The position of the atom has to be given to initialize the atom.",
+                exception=TSValueError
             )
 
         else:
             self._position = position
 
         if len(position) != 3:
-            raise ValueError("The position of the atom has to be a 3D vector.")
+            self.logger.error(
+                "The position of the atom has to be a 3D vector.",
+                exception=TSValueError
+            )
 
     @property
     def symbol(self):
@@ -158,9 +180,17 @@ class Atom:
         ----------
         value : np.ndarray
             The position of the atom.
+            
+        Raises
+        ------
+        TSValueError
+            If the length of the position is not 3.
         """
         if len(array) != 3:
-            raise ValueError("The length of position must be 3.")
+            self.logger.error(
+                "The position of the atom has to be a 3D vector.",
+                exception=TSValueError
+            )
         self._position = array
 
     def change_atom(
@@ -189,7 +219,10 @@ class Atom:
             try:
                 self._number = atomicNumbers[self._symbol.lower()]
             except:
-                raise ValueError("The chemical symbol %s is not known." % symbol)
+                self.logger.error(
+                    "The chemical symbol %s is not known." % symbol,
+                    exception=TSValueError
+                )
 
             self._mass = atomicMasses[symbol.lower()]
             self._configuration = atomicElectronConfigurations[symbol.lower()]
@@ -199,14 +232,15 @@ class Atom:
             try:
                 self._symbol = atomic_Symbol[int(number)].capitalize()
             except:
-                raise ValueError("The atomic number %s is not known." % number)
+                self.logger.error(
+                    "The atomic number %s is not known." % number,
+                    exception=TSValueError
+                )
             self._mass = atomicMasses[self._symbol.lower()]
             self._configuration = atomicElectronConfigurations[self._symbol.lower()]
         if position is not None:
-            if len(position) != 3:
-                raise ValueError("The position of the atom has to be a 3D vector.")
-
-            self._position = position        
+            
+            self.position = position        
 
 
 atomicMasses = {

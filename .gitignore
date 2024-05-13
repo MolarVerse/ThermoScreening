@@ -1,4 +1,3 @@
-
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -163,6 +162,8 @@ cython_debug/
 
 # Ignore dynamic version file
 __version__.py
+
+.vscode
 
 # Ignore temporary files
 tmp/
