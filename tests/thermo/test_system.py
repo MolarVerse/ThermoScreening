@@ -7,19 +7,26 @@ from ThermoScreening.exceptions import TSValueError
 import pytest
 
 class TestSystem(unittest.TestCase):
+    atoms = [
+                Atom(symbol='H', position=np.array([0, 0, 0])),
+                Atom(symbol='H', position=np.array([1, 0, 0])),
+                Atom(symbol='H', position=np.array([2, 0, 0]))
+            ]
+    
     def test_invalid_init(self):
         with pytest.raises(TSValueError) as e:
             System(atoms=None,periodicity=False,cell=None,solvation=None,solvent=None,charge=0,electronic_energy=-33.6052447996,vibrational_frequencies=np.array([-1,-2,0.1,1,2,3,4,5,6]))
         assert str(e.value) == "Atoms must be provided."
         
+        with pytest.raises(TSValueError) as e:
+            System(atoms=self.atoms,periodicity=False,cell=None,solvation=None,solvent=None,charge=0,electronic_energy=-33.6052447996,vibrational_frequencies=None)
+        assert str(e.value) == "Vibrational frequencies must be provided."
+        
+        
     def test_system(self):
-        atoms = [
-                Atom(symbol='H', position=np.array([0, 0, 0])),
-                Atom(symbol='H', position=np.array([1, 0, 0])),
-                Atom(symbol='H', position=np.array([2, 0, 0]))
-                ]
+        
             
-        system = System(atoms,periodicity=False,cell=None,solvation=None,solvent=None,charge=0,electronic_energy=-33.6052447996,vibrational_frequencies=np.array([-1,-2,0.1,1,2,3,4,5,6]))
+        system = System(self.atoms,periodicity=False,cell=None,solvation=None,solvent=None,charge=0,electronic_energy=-33.6052447996,vibrational_frequencies=np.array([-1,-2,0.1,1,2,3,4,5,6]))
 
         np.testing.assert_array_equal(system.atom_names(), ['H', 'H', 'H'])
         
@@ -45,11 +52,11 @@ class TestSystem(unittest.TestCase):
 
         assert system.rotational_group == 'D*h'
 
-        assert system._spacegroup_number == None
+        assert system._spacegroup_number is None
 
-        assert system._spacegroup == None
+        assert system._spacegroup is None
 
-        assert system.periodicity == False
+        assert system.periodicity is False
 
         np.testing.assert_array_equal(system.center_of_mass,[1, 0, 0])
 

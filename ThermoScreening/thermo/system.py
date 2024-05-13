@@ -542,6 +542,12 @@ class System:
                 "Atoms must be provided.",
                 exception=TSValueError
             )
+            
+        if vibrational_frequencies is None:
+            self.logger.error(
+                "Vibrational frequencies must be provided.",
+                exception=TSValueError
+            )
 
         self._atoms = atoms
         self._charge = charge
@@ -596,11 +602,12 @@ class System:
         if electronic_energy is None:
             self._electronic_energy = 0.0
 
-        if vibrational_frequencies is None:
-            raise ValueError("Vibrational frequencies must be provided")
-
+        #: NOTE: can this ever happen? If not I would suggest to calculate the number of atoms on the fly in the property method
         if len(self._atoms) != self._number_of_atoms:
-            raise ValueError("Number of atoms must match length of atoms list")
+            self.logger.error(
+                "Number of atoms must match length of atoms list.",
+                exception=TSValueError
+            )
 
         self._spin = spin(self._charge)
 
