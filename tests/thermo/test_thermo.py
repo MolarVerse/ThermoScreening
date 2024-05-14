@@ -1,5 +1,4 @@
 import pytest
-import sys
 import os
 
 import unittest
@@ -9,6 +8,7 @@ from ThermoScreening.thermo.system import System
 from ThermoScreening.thermo.atoms import Atom
 from ThermoScreening.thermo.cell import Cell
 from ThermoScreening.thermo.thermo import Thermo
+
 
 
 class TestThermo(unittest.TestCase):

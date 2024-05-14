@@ -1,9 +1,20 @@
+import logging
+
+import numpy as np
+
+from ThermoScreening.exceptions import TSNotImplementedError, TSValueError
+from ThermoScreening.utils.custom_logging import setup_logger
+from ThermoScreening import __package_name__
+
 from .inputFileReader import InputFileReader
 from .system import System
 from .thermo import Thermo
 from .atoms import Atom
-import numpy as np
 from ..calculator import Geoopt, Hessian, Modes
+
+
+logger = logging.getLogger(__package_name__).getChild("api")
+logger = setup_logger(logger)
 
 
 def read_xyz(coord_file: str):
@@ -175,6 +186,13 @@ def read_coord(coord_file: str, engine: str):
     -------
     List
         number of atoms, chemical symbols of atoms, coordinates of atoms
+        
+    Raises
+    ------
+    TSNotImplementedError
+        If the engine is not supported.
+        If the input file is not supported.
+        If the gen file is not tested yet.
     """
 
     data_N, data_atoms, data_xyz, cell = None, None, None, None
@@ -185,12 +203,21 @@ def read_coord(coord_file: str, engine: str):
         elif coord_file.endswith(".gen"):
             # data_N, data_atoms, data_xyz, cell_vectors, pbc = read_gen(coord_file)
             # return data_N,data_atoms,data_xyz,cell_vectors,pbc
-            raise SystemError("The gen file is not tested yet.")
+            logger.error(
+                "The gen file is not tested yet.",
+                exception=TSNotImplementedError
+            )
         else:
-            raise SystemError("The input file is not supported.")
+            logger.error(
+                "The input file is not supported.",
+                exception=TSNotImplementedError
+            )
 
     else:
-        raise SystemError("The engine is not supported.")
+        logger.error(
+            "The engine is not supported.",
+            exception=TSNotImplementedError
+        )
 
 
 def read_vibrational(vibrational_file: str, engine: str):
@@ -207,13 +234,21 @@ def read_vibrational(vibrational_file: str, engine: str):
     -------
     np.ndarray
         The vibrational frequencies as a numpy array.
+        
+    Raises
+    ------
+    TSNotImplementedError
+        If the engine is not supported.
     """
     vibrational_frequencies = None
     if engine == "dftb+":
         vibrational_frequencies = read_vib_file(vibrational_file)
     else:
         # throw error
-        SystemError("The engine is not supported.")
+        logger.error(
+            "The engine is not supported.",
+            exception=TSNotImplementedError
+        )
 
     return vibrational_frequencies
 
@@ -231,11 +266,19 @@ def unit_length(engine: str):
     --------
     str
         The unit of length.
+        
+    Raises:
+    -------
+    TSNotImplementedError
+        If the engine is not supported.
     """
     if engine == "dftb+":
         return "Angstrom"
     else:
-        SystemError("The engine is not supported.")
+        logger.error(
+            "The engine is not supported.",
+            exception=TSNotImplementedError
+        )
 
 
 def unit_energy(engine: str):
@@ -251,11 +294,19 @@ def unit_energy(engine: str):
     --------
     str
         The unit of energy.
+        
+    Raises:
+    -------
+    TSNotImplementedError
+        If the engine is not supported.
     """
     if engine == "dftb+":
         return "Hartree"
     else:
-        raise SystemError("The engine is not supported.")
+        logger.error(
+            "The engine is not supported.",
+            exception=TSNotImplementedError
+        )
 
 
 def unit_mass(engine: str):
@@ -271,11 +322,19 @@ def unit_mass(engine: str):
     --------
     str
         The unit of mass.
+        
+    Raises:
+    -------
+    TSNotImplementedError
+        If the engine is not supported.
     """
     if engine == "dftb+":
         return "amu"
     else:
-        raise SystemError("The engine is not supported.")
+        logger.error(
+            "The engine is not supported.",
+            exception=TSNotImplementedError
+        )
 
 
 def unit_frequency(engine: str):
@@ -291,11 +350,19 @@ def unit_frequency(engine: str):
     --------
     str
         The unit of frequency.
+        
+    Raises:
+    -------
+    TSNotImplementedError
+        If the engine is not supported.
     """
     if engine == "dftb+":
         return "cm^-1"
     else:
-        raise SystemError("The engine is not supported.")
+        logger.error(
+            "The engine is not supported.",
+            exception=TSNotImplementedError
+        )
 
 
 def run_thermo(
@@ -334,6 +401,11 @@ def run_thermo(
     -------
     Thermo
         The thermo calculation object.
+        
+    Raises
+    ------
+    TSValueError
+        If the number of vibrational frequencies does not match with the degree of freedom.
     """
     # Read coordinate file
     _, atom_symbol, xyz, cell, pbc = read_coord(coord_file, engine)
@@ -353,8 +425,9 @@ def run_thermo(
     )
 
     if system_info._check_frequency_length == False:
-        raise ValueError(
-            "The number of vibrational frequencies does not match with the degree of freedom."
+        logger.error(
+            "The number of vibrational frequencies does not match with the degree of freedom.",
+            exception=TSValueError
         )
 
     thermo_setup = Thermo(

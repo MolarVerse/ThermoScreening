@@ -1,7 +1,7 @@
 from ..__version__ import __version__
 import sys
 
-def print_header() -> None:
+def print_header(file: str | None = None) -> None:
     """
     A function to print the header
     
@@ -22,4 +22,7 @@ def print_header() -> None:
 ThermoScreening - v{__version__}
     
 """
-    print(header, file=sys.stderr)
+    if file is None:
+        print(header, file=sys.stderr)
+    else:
+        print(header, file=file)
