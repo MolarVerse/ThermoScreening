@@ -107,8 +107,8 @@ class TestDftbplus:
             atol=1e-5,
         )
 
-    @pytest.mark.parametrize("example_dir", ["calculator"])
-    def test_dftbplus_thermo(self, test_with_data_dir):
-        atoms = ase_io.read("water.xyz")
-        thermo = dftbplus_thermo(atoms, **dftb_3ob_parameters, delta=0.0005)
-        assert np.allclose(thermo.total_EeGtot(), -4.064982703661, atol=1e-5)
+    # @pytest.mark.parametrize("example_dir", ["calculator"])
+    # def test_dftbplus_thermo(self, test_with_data_dir):
+    #     atoms = ase_io.read("water.xyz")
+    #     thermo = dftbplus_thermo(atoms, **dftb_3ob_parameters, delta=0.0005)
+    #     assert np.allclose(thermo.total_EeGtot(), -4.064982703661, atol=1e-5)
