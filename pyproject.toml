@@ -26,7 +26,9 @@ dependencies = [
     "scipy",
     "pymatgen",
     "beartype",
-    "ase"
+    "ase",
+    "rdkit",
+    "wfl@git+https://github.com/libAtoms/workflow.git",
 ]
 
 [project.optional-dependencies]
