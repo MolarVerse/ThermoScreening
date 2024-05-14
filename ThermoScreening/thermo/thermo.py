@@ -611,8 +611,9 @@ class Thermo:
         )
 
         self._total_gibbs_free_energy = (
-            self._total_energy - self._total_entropy * self._temperature
+            self._total_enthalpy - self._total_entropy * self._temperature
         )
+        # changed  from total_energy to total_enthalpy
         self._total_gibbs_free_energy_kcal = self._total_gibbs_free_energy / 1000
         self._total_gibbs_free_energy_Hartree_per_mol = (
             self._total_gibbs_free_energy
