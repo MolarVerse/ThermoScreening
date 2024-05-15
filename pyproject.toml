@@ -25,7 +25,10 @@ dependencies = [
     "argparse",
     "scipy",
     "pymatgen",
-    "beartype"
+    "beartype",
+    "ase",
+    "rdkit",
+    "wfl@git+https://github.com/libAtoms/workflow.git",
 ]
 
 [project.optional-dependencies]
@@ -37,6 +40,9 @@ test = [
 docs = [
     "sphinx",
 ]
+
+[tool.setuptools.packages.find]
+exclude = ["external"]
 
 [tool.setuptools_scm]
 version_file = "ThermoScreening/__version__.py"

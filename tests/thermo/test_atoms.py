@@ -1,8 +1,9 @@
 import unittest
 import numpy as np
-from unittest.mock import patch, mock_open
-from  ThermoScreening.thermo.atoms import Atom 
 import pytest
+from unittest.mock import patch, mock_open
+from ThermoScreening.thermo.atoms import Atom 
+from ThermoScreening.exceptions import TSValueError
 
 class TestAtoms(unittest.TestCase):
 
@@ -35,18 +36,29 @@ class TestAtoms(unittest.TestCase):
         assert atom.mass == mass
         np.testing.assert_array_equal(atom.position,position)
 
-        with pytest.raises(ValueError) as exception:
+        with pytest.raises(TSValueError) as exception:
             atom = Atom(position=position)
         assert str(exception.value) == "Either symbol or number has to be given to initialize the atom."
 
-        with pytest.raises(ValueError) as exception:
+        with pytest.raises(TSValueError) as exception:
             atom = Atom(symbol=symbol,number=7)
         assert str(exception.value) == "The symbol and atomic number are not consistent."
 
-        with pytest.raises(ValueError) as exception:
+        with pytest.raises(TSValueError) as exception:
             atom = Atom(symbol=symbol)
         assert str(exception.value) == "The position of the atom has to be given to initialize the atom."
+        
+        with pytest.raises(TSValueError) as exception:
+            atom = Atom(number=-2)
+        assert str(exception.value) == "The atomic number -2 is not known."
+        
+        with pytest.raises(TSValueError) as exception:
+            atom = Atom(symbol='ZZZ')
+        assert str(exception.value) == "The chemical symbol ZZZ is not known."
 
+        with pytest.raises(TSValueError) as exception:
+            atom = Atom(symbol=symbol,position=None)
+        assert str(exception.value) == "The position of the atom has to be given to initialize the atom."
 
 
         atom.change_atom(symbol="O")
@@ -65,16 +77,20 @@ class TestAtoms(unittest.TestCase):
         assert atom.mass == 12.0107
 
 
-        with pytest.raises(ValueError) as exception:
+        with pytest.raises(TSValueError) as exception:
             atom.change_atom(symbol='ZZZ')
         assert str(exception.value) == "The chemical symbol ZZZ is not known."
 
-        with pytest.raises(ValueError) as exception:
+        with pytest.raises(TSValueError) as exception:
             atom.change_atom(number=999999)
         assert str(exception.value) == "The atomic number 999999 is not known."
 
-        with pytest.raises(ValueError) as exception:
+        with pytest.raises(TSValueError) as exception:
             atom = Atom(symbol=symbol,position=np.array([0.1,0.1,0.1,0.1])) 
+        assert str(exception.value) == "The position of the atom has to be a 3D vector."
+        
+        with pytest.raises(TSValueError) as exception:
+            atom.change_atom(position=np.array([0.1,0.1,0.1,0.1]))
         assert str(exception.value) == "The position of the atom has to be a 3D vector."
 
 
