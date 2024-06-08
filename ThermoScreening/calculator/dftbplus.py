@@ -92,11 +92,8 @@ class Geoopt(Dftb):
             Potential energy of the optimized geometry.
         """
         self.atoms.calc = self
-        return (
-            self.atoms.get_potential_energy()
-            * PhysicalConstants["eV"]
-            / PhysicalConstants["H"]
-        )
+        return (self.atoms.get_potential_energy() * PhysicalConstants["eV"] /
+                PhysicalConstants["H"])
 
     def read(self):
         """
@@ -263,18 +260,16 @@ class Modes:
         """
 
         # use f-strings to write the modes_in.hsd file
-        string = (
-            "Geometry = GenFormat {\n"
-            f"    <<< {self.geometry}\n"
-            "}\n"
-            "\n"
-            "Hessian = {\n"
-            f"    <<< {self.hessian}\n"
-            "}\n"
-            "\n"
-            "Atoms = 1:-1\n"
-            "\n"
-        )
+        string = ("Geometry = GenFormat {\n"
+                  f"    <<< {self.geometry}\n"
+                  "}\n"
+                  "\n"
+                  "Hessian = {\n"
+                  f"    <<< {self.hessian}\n"
+                  "}\n"
+                  "\n"
+                  "Atoms = 1:-1\n"
+                  "\n")
 
         with open("modes_in.hsd", "w") as f:
             f.write(string)
@@ -329,13 +324,12 @@ class Modes:
 
 
 # --------------------------------------------------------------------------- #
-
 """
 DFTB+ parameters for the 3ob-3-1 Slater-Koster files.
 """
 
 dftb_3ob_parameters = dict(
-    # SCC 
+    # SCC
     Hamiltonian_SCC="Yes",
     Hamiltonian_MaxSCCIterations=250,
     Hamiltonian_SCCTolerance='1.0e-7',
@@ -374,4 +368,7 @@ dftb_3ob_parameters = dict(
     Analysis_="",
     Analysis_CalculateForces="Yes",
     Analysis_MullikenAnalysis="Yes",
+
+    # Parser options
+    ParserOptions_ParserVersion=12,
 )
