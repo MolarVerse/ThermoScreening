@@ -28,7 +28,7 @@ dependencies = [
     "beartype",
     "ase",
     "rdkit",
-    "wfl@git+https://github.com/libAtoms/workflow.git",
+    "wfl",
 ]
 
 [project.optional-dependencies]
