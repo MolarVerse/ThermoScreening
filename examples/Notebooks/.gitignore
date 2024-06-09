@@ -1,0 +1,8 @@
+# Ignore dftbplus output files
+*.out
+*.xyz
+*.gen
+*.hsd
+*.bin
+*.cosmo
+*.tag
