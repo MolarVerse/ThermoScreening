@@ -21,7 +21,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "numpy",
+    "numpy < 2.0",
     "argparse",
     "scipy",
     "pymatgen",
