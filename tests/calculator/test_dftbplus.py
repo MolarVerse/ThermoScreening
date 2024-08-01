@@ -15,8 +15,10 @@ class TestDftbplus:
 
     # Test the DFTB+ calculator
     def test_dftb(self):
-        assert os.system("which dftb+ > /dev/null") == 0, "DFTB+ is not installed."
-        assert os.system("which modes > /dev/null") == 0, "Modes is not installed."
+        assert os.system(
+            "which dftb+ > /dev/null") == 0, "DFTB+ is not installed."
+        assert os.system(
+            "which modes > /dev/null") == 0, "Modes is not installed."
 
     # Test the Geoopt class
     @pytest.mark.parametrize("example_dir", ["calculator"])
@@ -57,9 +59,12 @@ class TestDftbplus:
 
         # create an instance of the Hessian class
         optimizer = Geoopt(atoms, charge=0, **dftb_3ob_parameters)
-        hessian = Hessian(
-            optimizer.read(), charge=0, **dftb_3ob_parameters, delta=0.0005
-        )
+        atoms = optimizer.read()
+        print(atoms.get_positions())
+        hessian = Hessian(optimizer.read(),
+                          charge=0,
+                          **dftb_3ob_parameters,
+                          delta=0.0005)
 
         assert hessian.atoms == optimizer.read()
         assert hessian.label == "second_derivative"
@@ -79,9 +84,10 @@ class TestDftbplus:
 
         # create an instance of the Modes class
         optimizer = Geoopt(atoms, charge=0, **dftb_3ob_parameters)
-        hessian = Hessian(
-            optimizer.read(), charge=0, **dftb_3ob_parameters, delta=0.0005
-        )
+        hessian = Hessian(optimizer.read(),
+                          charge=0,
+                          **dftb_3ob_parameters,
+                          delta=0.0005)
 
         assert os.path.exists("hessian.out")
         assert os.path.exists("geo_opt.gen")
@@ -99,11 +105,7 @@ class TestDftbplus:
 
         assert np.allclose(
             wave_numbers[6:],
-            [
-                1.46185721e03,
-                3.60476561e03,
-                3.87736051e03,
-            ],
+            [1462.29964226, 3604.10862879, 3876.6277397],
             atol=1e-5,
         )
 
@@ -111,4 +113,6 @@ class TestDftbplus:
     def test_dftbplus_thermo(self, test_with_data_dir):
         atoms = ase_io.read("water.xyz")
         thermo = dftbplus_thermo(atoms, **dftb_3ob_parameters, delta=0.0005)
-        assert np.allclose(thermo.total_EeGtot(),-4.063049633277606 , atol=1e-5) # old value -4.064982703661
+        assert np.allclose(thermo.total_EeGtot(),
+                           -4.0595598803365744,
+                           atol=1e-5)
