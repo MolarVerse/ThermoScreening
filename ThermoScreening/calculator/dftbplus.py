@@ -11,7 +11,7 @@ from ThermoScreening import BASE_PATH
 
 class Geoopt(Dftb):
     """
-    Custom DFTB+ calculator to optimize the system with LBFGS solver.
+    Custom DFTB+ calculator to optimize the system with the 'GeometryOptimisation' driver (Rational).
     It is a subclass of ase.calculators.dftb.Dftb. It uses the
     'LBFGS' driver.
 
@@ -72,7 +72,8 @@ class Geoopt(Dftb):
             label=label,
             slako_dir=BASE_PATH + "../external/slakos/3ob-3-1/",
             Hamiltonian_Charge=charge,
-            Driver_="LBFGS",
+            Driver_="GeometryOptimisation",
+            Driver_Optimiser="Rational {}",
             Driver_MaxForceComponent=max_force,
             Driver_OutputPrefix="geo_opt",
             **kwargs,
