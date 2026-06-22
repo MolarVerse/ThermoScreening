@@ -1,0 +1,134 @@
+import io
+import tarfile
+
+import pytest
+
+from ThermoScreening.cli import dftb_setup
+from ThermoScreening.cli.dftb_setup import (
+    DEFAULT_PARAMETER_SET,
+    REQUIRED_PARAMETER_FILE,
+    Diagnostic,
+    check_dftb_setup,
+    dftb_prefix_export,
+    format_diagnostics,
+    install_slakos,
+)
+
+
+def _parameter_archive(tmp_path, files=None):
+    files = files or {REQUIRED_PARAMETER_FILE: "parameter data"}
+    source_dir = tmp_path / "source" / DEFAULT_PARAMETER_SET
+    source_dir.mkdir(parents=True)
+
+    for name, content in files.items():
+        target = source_dir / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(content, encoding="utf-8")
+
+    archive_path = tmp_path / f"{DEFAULT_PARAMETER_SET}.tar.xz"
+    with tarfile.open(archive_path, "w:xz") as archive:
+        archive.add(source_dir, arcname=DEFAULT_PARAMETER_SET)
+
+    return archive_path
+
+
+def test_install_slakos_extracts_archive(tmp_path):
+    archive_path = _parameter_archive(tmp_path)
+
+    installed_dir = install_slakos(
+        install_root=tmp_path / "install",
+        url=archive_path.as_uri(),
+    )
+
+    assert installed_dir == (tmp_path / "install" / DEFAULT_PARAMETER_SET).resolve()
+    assert (installed_dir / REQUIRED_PARAMETER_FILE).read_text(
+        encoding="utf-8"
+    ) == "parameter data"
+
+
+def test_install_slakos_reuses_existing_directory(monkeypatch, tmp_path):
+    marker_file = tmp_path / "install" / DEFAULT_PARAMETER_SET / REQUIRED_PARAMETER_FILE
+    marker_file.parent.mkdir(parents=True)
+    marker_file.write_text("existing", encoding="utf-8")
+
+    def fail_download(*args, **kwargs):
+        raise AssertionError("download should not run")
+
+    monkeypatch.setattr(dftb_setup, "_download_file", fail_download)
+
+    installed_dir = install_slakos(install_root=tmp_path / "install")
+
+    assert installed_dir == marker_file.parent.resolve()
+    assert marker_file.read_text(encoding="utf-8") == "existing"
+
+
+def test_install_slakos_requires_marker_file(tmp_path):
+    archive_path = _parameter_archive(tmp_path, files={"H-H.skf": "parameter data"})
+
+    with pytest.raises(FileNotFoundError, match=REQUIRED_PARAMETER_FILE):
+        install_slakos(install_root=tmp_path / "install", url=archive_path.as_uri())
+
+
+def test_install_slakos_rejects_unsafe_archive_member(tmp_path):
+    archive_path = tmp_path / f"{DEFAULT_PARAMETER_SET}.tar.xz"
+    data = b"unsafe"
+
+    with tarfile.open(archive_path, "w:xz") as archive:
+        member = tarfile.TarInfo("../unsafe.txt")
+        member.size = len(data)
+        archive.addfile(member, io.BytesIO(data))
+
+    with pytest.raises(ValueError, match="Unsafe archive member path"):
+        install_slakos(install_root=tmp_path / "install", url=archive_path.as_uri())
+
+    assert not (tmp_path / "unsafe.txt").exists()
+
+
+def test_dftb_prefix_export_adds_trailing_separator(tmp_path):
+    expected = f'export DFTB_PREFIX="{tmp_path.resolve()}/"'
+
+    assert dftb_prefix_export(tmp_path) == expected
+
+
+def test_check_dftb_setup_reports_ready_environment(monkeypatch, tmp_path):
+    marker_file = tmp_path / REQUIRED_PARAMETER_FILE
+    marker_file.write_text("parameter data", encoding="utf-8")
+
+    def fake_which(command):
+        return f"/usr/bin/{command}"
+
+    monkeypatch.setattr(dftb_setup.shutil, "which", fake_which)
+
+    diagnostics = check_dftb_setup({"DFTB_PREFIX": str(tmp_path)})
+
+    assert [(item.name, item.ok) for item in diagnostics] == [
+        ("dftb+", True),
+        ("modes", True),
+        ("DFTB_PREFIX", True),
+        (REQUIRED_PARAMETER_FILE, True),
+    ]
+
+
+def test_check_dftb_setup_reports_missing_environment(monkeypatch):
+    monkeypatch.setattr(dftb_setup.shutil, "which", lambda command: None)
+
+    diagnostics = check_dftb_setup({})
+
+    assert [(item.name, item.ok) for item in diagnostics] == [
+        ("dftb+", False),
+        ("modes", False),
+        ("DFTB_PREFIX", False),
+        (REQUIRED_PARAMETER_FILE, False),
+    ]
+
+
+def test_format_diagnostics_aligns_statuses():
+    output = format_diagnostics(
+        [
+            Diagnostic("dftb+", True, "/usr/bin/dftb+"),
+            Diagnostic("DFTB_PREFIX", False, "not set"),
+        ]
+    )
+
+    assert "dftb+        found" in output
+    assert "DFTB_PREFIX  missing" in output

@@ -27,6 +27,13 @@ For development and tests:
 python -m pip install -e ".[test,lint]"
 ```
 
+For a Conda-based development environment with DFTB+ included:
+
+```bash
+conda env create -f environment.yml
+conda activate thermoscreening
+```
+
 ## DFTB+ Setup
 
 DFTB+ calculations require two external pieces:
@@ -34,13 +41,31 @@ DFTB+ calculations require two external pieces:
 1. The `dftb+` and `modes` executables on `PATH`.
 2. Slater-Koster parameter files downloaded separately from DFTB.org.
 
-ThermoScreening does not vendor Slater-Koster files. Point the calculator to a parameter directory in one of two ways:
+Install DFTB+ with Conda if it is not already available:
 
 ```bash
-export DFTB_PREFIX=/path/to/3ob-3-1/
+conda install -c conda-forge dftbplus
 ```
 
-or pass `slako_dir` explicitly:
+Download the default `3ob-3-1` Slater-Koster files into a user-local directory:
+
+```bash
+thermo setup-dftb
+```
+
+The command prints the `DFTB_PREFIX` export needed by DFTB+ and ThermoScreening:
+
+```bash
+export DFTB_PREFIX="$HOME/.local/share/thermoscreening/slakos/3ob-3-1/"
+```
+
+Add that line to your shell configuration for persistent use. Verify the setup with:
+
+```bash
+thermo doctor
+```
+
+ThermoScreening does not vendor Slater-Koster files. For custom installations, point the calculator to a parameter directory with `DFTB_PREFIX` or pass `slako_dir` explicitly:
 
 ```python
 from ThermoScreening.thermo.api import dftbplus_thermo

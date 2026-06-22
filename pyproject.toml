@@ -45,7 +45,7 @@ docs = [
 ]
 
 [tool.setuptools.packages.find]
-exclude = ["external"]
+exclude = ["external", "external.*", "tests", "tests.*"]
 
 [tool.setuptools_scm]
 version_file = "ThermoScreening/__version__.py"
