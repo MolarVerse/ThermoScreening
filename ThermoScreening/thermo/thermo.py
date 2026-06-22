@@ -10,6 +10,15 @@ from ThermoScreening import __package_name__
 from .system import System
 
 
+def _real_scalar(value) -> float:
+    value = np.real_if_close(value)
+    if np.iscomplexobj(value):
+        if not np.allclose(np.imag(value), 0.0):
+            raise TypeError("Expected a real scalar value.")
+        value = np.real(value)
+    return float(value)
+
+
 class Thermo:
     """
     A class for calculating the thermochemistral properties e.g. Gibbs free energy,
@@ -723,11 +732,11 @@ class Thermo:
         """
 
         if unit == "H":
-            return self._total_energy_Hartree_per_mol
+            return _real_scalar(self._total_energy_Hartree_per_mol)
         elif unit == "kcal":
-            return self._total_energy_kcal
+            return _real_scalar(self._total_energy_kcal)
         elif unit == "cal":
-            return self._total_energy
+            return _real_scalar(self._total_energy)
         else:
             self.logger.error(
                 "The unit is not supported.",
@@ -755,11 +764,11 @@ class Thermo:
         """
 
         if unit == "H":
-            return self._total_enthalpy_Hartree_per_mol
+            return _real_scalar(self._total_enthalpy_Hartree_per_mol)
         elif unit == "kcal":
-            return self._total_enthalpy_kcal
+            return _real_scalar(self._total_enthalpy_kcal)
         elif unit == "cal":
-            return self._total_enthalpy
+            return _real_scalar(self._total_enthalpy)
         else:
             self.logger.error(
                 "The unit is not supported.",
@@ -787,9 +796,9 @@ class Thermo:
         """
 
         if unit == "H/T":
-            return self._total_entropy_Hartree_per_mol
+            return _real_scalar(self._total_entropy_Hartree_per_mol)
         elif unit == "cal/(mol*K)":
-            return self._total_entropy
+            return _real_scalar(self._total_entropy)
         else:
             self.logger.error(
                 "The unit is not supported.",
@@ -817,11 +826,11 @@ class Thermo:
         """
 
         if unit == "H":
-            return self._total_gibbs_free_energy_Hartree_per_mol
+            return _real_scalar(self._total_gibbs_free_energy_Hartree_per_mol)
         elif unit == "kcal":
-            return self._total_gibbs_free_energy_kcal
+            return _real_scalar(self._total_gibbs_free_energy_kcal)
         elif unit == "cal":
-            return self._total_gibbs_free_energy
+            return _real_scalar(self._total_gibbs_free_energy)
         else:
             self.logger.error(
                 "The unit is not supported.",
@@ -849,9 +858,9 @@ class Thermo:
         """
 
         if unit == "cal/(mol*K)":
-            return self._total_heatcapacity
+            return _real_scalar(self._total_heatcapacity)
         elif unit == "H/T":
-            return (
+            return _real_scalar(
                 self._total_heatcapacity
                 * PhysicalConstants["cal"]
                 / PhysicalConstants["H"]
@@ -873,7 +882,7 @@ class Thermo:
             The sum of the electronic energy and the zero point energy correction in Hartree per particle.
         """
 
-        return self._EeZPE
+        return _real_scalar(self._EeZPE)
 
     def total_EeEtot(self) -> float:
         """
@@ -885,7 +894,7 @@ class Thermo:
             The sum of the electronic energy and the total energy in Hartree per particle.
         """
 
-        return self._EeEtot
+        return _real_scalar(self._EeEtot)
 
     def total_EeHtot(self) -> float:
         """
@@ -897,7 +906,7 @@ class Thermo:
             The sum of the electronic energy and the total enthalpy in Hartree per particle.
         """
 
-        return self._EeHtot
+        return _real_scalar(self._EeHtot)
 
     def total_EeGtot(self) -> float:
         """
@@ -909,7 +918,7 @@ class Thermo:
             The sum of the electronic energy and the total Gibbs free energy in Hartree per particle.
         """
 
-        return self._EeGtot
+        return _real_scalar(self._EeGtot)
 
     def electronic_energy(self) -> float:
         """
@@ -921,4 +930,4 @@ class Thermo:
             The electronic energy of the system in Hartree per particle.
         """
 
-        return self._system.electronic_energy
+        return _real_scalar(self._system.electronic_energy)

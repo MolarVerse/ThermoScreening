@@ -296,7 +296,7 @@ def rotational_group_calc(atoms: List[Atom]) -> str:
     return symb
 
 
-def center_of_mass(atoms: List[Atom], mass: float) -> None:
+def center_of_mass(atoms: List[Atom], mass: float) -> np.ndarray:
     """
     Calculates the center of mass of the system.
 
@@ -518,8 +518,8 @@ class System:
         atoms: List[Atom] | None = None,
         charge: float | None = None,
         periodicity: bool | None = None,
-        pbc: List[bool] | None = None,
-        cell: Cell | None = None,
+        pbc: List[bool] | bool | None = None,
+        cell: Cell | np.ndarray | None = None,
         solvation: bool | None = None,
         solvent: str | None = None,
         electronic_energy: float | None = None,
@@ -810,7 +810,7 @@ class System:
         return self._periodicity
 
     @property
-    def pbc(self) -> List[bool]:
+    def pbc(self) -> List[bool] | bool:
         """
         The periodic boundary conditions of the system.
 
@@ -823,7 +823,7 @@ class System:
         return self._pbc
 
     @property
-    def cell(self) -> np.ndarray:
+    def cell(self) -> Cell | np.ndarray | None:
         """
         The cell of the system.
 
@@ -835,7 +835,7 @@ class System:
         return self._cell
 
     @property
-    def solvation(self) -> str:
+    def solvation(self) -> bool:
         """
         The solvation of the system.
 

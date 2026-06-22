@@ -175,13 +175,14 @@ class Cell:
         if self._cell_parameters is None:
             self._cell_parameters = cell_parameters_calc(cell_vectors)
         else:
+            cell_args = [float(value) for value in self._cell_parameters]
             self._cell_vectors = cell(
-                self._cell_parameters[0],
-                self._cell_parameters[1],
-                self._cell_parameters[2],
-                self._cell_parameters[3],
-                self._cell_parameters[4],
-                self._cell_parameters[5],
+                cell_args[0],
+                cell_args[1],
+                cell_args[2],
+                cell_args[3],
+                cell_args[4],
+                cell_args[5],
             )
 
         if self._volume is None:

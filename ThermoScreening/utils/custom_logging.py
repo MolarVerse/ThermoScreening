@@ -80,7 +80,7 @@ class CustomLogger(logging.Logger):
              level: Any,
              msg: Any,
              args: Any,
-             exception: Exception | None = None,
+             exception: type[Exception] | None = None,
              **kwargs
              ) -> None:
         """
@@ -187,7 +187,7 @@ class CustomLogger(logging.Logger):
         self,
         msg: Any,
         *args,
-        exception: Exception | None = None,
+        exception: type[Exception] | None = None,
         **kwargs
     ) -> None:
         """
@@ -237,7 +237,7 @@ class CustomLogger(logging.Logger):
         self,
         msg: Any,
         *args,
-        exception: Exception | None = None,
+        exception: type[Exception] | None = None,
         **kwargs
     ) -> None:
         """

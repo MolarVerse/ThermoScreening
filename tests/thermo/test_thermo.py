@@ -7,8 +7,85 @@ import numpy as np
 from ThermoScreening.thermo.system import System
 from ThermoScreening.thermo.atoms import Atom
 from ThermoScreening.thermo.cell import Cell
-from ThermoScreening.thermo.thermo import Thermo
+from ThermoScreening.thermo.thermo import Thermo, _real_scalar
+from ThermoScreening.exceptions import TSValueError
+from ThermoScreening.utils.physicalConstants import PhysicalConstants
 
+
+def _thermo_with_scalar_totals():
+    thermo = object.__new__(Thermo)
+    thermo._total_energy_Hartree_per_mol = np.complex128(1.0 + 0.0j)
+    thermo._total_energy_kcal = np.complex128(2.0 + 0.0j)
+    thermo._total_energy = np.complex128(3.0 + 0.0j)
+    thermo._total_enthalpy_Hartree_per_mol = np.complex128(4.0 + 0.0j)
+    thermo._total_enthalpy_kcal = np.complex128(5.0 + 0.0j)
+    thermo._total_enthalpy = np.complex128(6.0 + 0.0j)
+    thermo._total_entropy_Hartree_per_mol = np.complex128(7.0 + 0.0j)
+    thermo._total_entropy = np.complex128(8.0 + 0.0j)
+    thermo._total_gibbs_free_energy_Hartree_per_mol = np.complex128(9.0 + 0.0j)
+    thermo._total_gibbs_free_energy_kcal = np.complex128(10.0 + 0.0j)
+    thermo._total_gibbs_free_energy = np.complex128(11.0 + 0.0j)
+    thermo._total_heatcapacity = np.complex128(12.0 + 0.0j)
+    thermo._EeZPE = np.complex128(13.0 + 0.0j)
+    thermo._EeEtot = np.complex128(14.0 + 0.0j)
+    thermo._EeHtot = np.complex128(15.0 + 0.0j)
+    thermo._EeGtot = np.complex128(16.0 + 0.0j)
+    thermo._system = type("SystemStub", (), {
+        "electronic_energy": np.complex128(17.0 + 0.0j)
+    })()
+    return thermo
+
+
+def test_real_scalar_accepts_zero_imaginary_complex():
+    assert _real_scalar(np.complex128(1.25 + 0.0j)) == 1.25
+    assert _real_scalar(np.complex128(1.25 + 1e-12j)) == pytest.approx(1.25)
+
+
+def test_real_scalar_rejects_nonzero_imaginary_complex():
+    with pytest.raises(TypeError):
+        _real_scalar(np.complex128(1.25 + 0.5j))
+
+
+def test_scalar_total_accessors_return_real_floats_for_all_units():
+    thermo = _thermo_with_scalar_totals()
+
+    assert thermo.total_energy("H") == 1.0
+    assert thermo.total_energy("kcal") == 2.0
+    assert thermo.total_energy("cal") == 3.0
+    assert thermo.total_enthalpy("H") == 4.0
+    assert thermo.total_enthalpy("kcal") == 5.0
+    assert thermo.total_enthalpy("cal") == 6.0
+    assert thermo.total_entropy("H/T") == 7.0
+    assert thermo.total_entropy("cal/(mol*K)") == 8.0
+    assert thermo.total_gibbs_free_energy("H") == 9.0
+    assert thermo.total_gibbs_free_energy("kcal") == 10.0
+    assert thermo.total_gibbs_free_energy("cal") == 11.0
+    assert thermo.total_heat_capacity("cal/(mol*K)") == 12.0
+    assert thermo.total_heat_capacity("H/T") == pytest.approx(
+        12.0 * PhysicalConstants["cal"] / PhysicalConstants["H"] / PhysicalConstants["N_A"]
+    )
+    assert thermo.total_EeZPE() == 13.0
+    assert thermo.total_EeEtot() == 14.0
+    assert thermo.total_EeHtot() == 15.0
+    assert thermo.total_EeGtot() == 16.0
+    assert thermo.electronic_energy() == 17.0
+
+
+@pytest.mark.parametrize(
+    "method_name",
+    [
+        "total_energy",
+        "total_enthalpy",
+        "total_entropy",
+        "total_gibbs_free_energy",
+        "total_heat_capacity",
+    ],
+)
+def test_scalar_total_accessors_reject_unknown_units(method_name):
+    thermo = _thermo_with_scalar_totals()
+
+    with pytest.raises(TSValueError):
+        getattr(thermo, method_name)("unknown")
 
 
 class TestThermo(unittest.TestCase):
