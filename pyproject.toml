@@ -27,7 +27,7 @@ dependencies = [
     "beartype",
     "ase",
     "rdkit",
-    "PQAnalysis >= 1.2.5",
+    "PQAnalysis @ git+https://github.com/MolarVerse/PQAnalysis.git@0a951591732a6c337a536ecb5512fea353cf3344",
 ]
 
 [project.optional-dependencies]
