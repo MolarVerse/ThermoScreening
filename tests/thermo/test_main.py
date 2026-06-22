@@ -76,5 +76,68 @@ def test_main_executes_input_file_without_verbose(monkeypatch, capsys):
     assert calls == ["thermo.in"]
     assert capsys.readouterr().out == ""
 
+
+def test_parse_args_setup_dftb_command():
+    args = thermo.parse_args(
+        [
+            "setup-dftb",
+            "--install-root",
+            "/tmp/slakos",
+            "--url",
+            "file:///tmp/3ob-3-1.tar.xz",
+            "--force",
+        ]
+    )
+
+    assert args.command == "setup-dftb"
+    assert args.install_root == "/tmp/slakos"
+    assert args.url == "file:///tmp/3ob-3-1.tar.xz"
+    assert args.force is True
+
+
+def test_parse_args_doctor_command():
+    args = thermo.parse_args(["doctor"])
+
+    assert args.command == "doctor"
+
+
+def test_main_runs_setup_dftb(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(
+        thermo,
+        "parse_args",
+        lambda: argparse.Namespace(
+            command="setup-dftb",
+            install_root=str(tmp_path),
+            url="file:///tmp/3ob-3-1.tar.xz",
+            force=True,
+        ),
+    )
+    monkeypatch.setattr(
+        thermo,
+        "install_slakos",
+        lambda install_root, url, force: tmp_path / "3ob-3-1",
+    )
+
+    assert thermo.main() == 0
+
+    output = capsys.readouterr().out
+    assert "Slater-Koster files:" in output
+    assert "export DFTB_PREFIX=" in output
+
+
+def test_main_runs_doctor(monkeypatch, capsys):
+    diagnostic = type("DiagnosticStub", (), {"ok": False})()
+
+    monkeypatch.setattr(
+        thermo,
+        "parse_args",
+        lambda: argparse.Namespace(command="doctor"),
+    )
+    monkeypatch.setattr(thermo, "check_dftb_setup", lambda: [diagnostic])
+    monkeypatch.setattr(thermo, "format_diagnostics", lambda diagnostics: "not ready")
+
+    assert thermo.main() == 1
+    assert capsys.readouterr().out == "not ready\n"
+
 if __name__ == '__main__':
     unittest.main()

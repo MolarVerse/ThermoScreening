@@ -1,0 +1,9 @@
+name: thermoscreening
+channels:
+  - conda-forge
+dependencies:
+  - python>=3.12
+  - dftbplus
+  - pip
+  - pip:
+      - "-e .[test,lint]"
