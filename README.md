@@ -7,6 +7,10 @@
 
 ThermoScreening is a program to calculate the thermochemical properties of given molecules. The aim is to create a framework to allow screening databases of molecules for their thermochemical properties.
 
+## License
+
+ThermoScreening source code is licensed under the GNU Lesser General Public License v2.1 or later. See [LICENSE](LICENSE). Bundled third-party data remains under the license files in `external/`.
+
 ## Development Guide
 
 1. Clone the repository
