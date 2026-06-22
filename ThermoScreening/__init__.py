@@ -24,9 +24,10 @@ if logging_env_var and logging_env_var not in logging.getLevelNamesMapping():
         f"levels are: {logging.getLevelNamesMapping()}"
     )
 
-if 'execution_start_time' not in vars(
-) and 'execution_start_time' not in globals():
-    execution_start_time = time.strftime('%Y-%m-%d_%H-%M-%S', time.localtime())
+execution_start_time = globals().get(
+    "execution_start_time",
+    time.strftime("%Y-%m-%d_%H-%M-%S", time.localtime()),
+)
 
 logging.setLoggerClass(CustomLogger)
 logging.basicConfig(level=os.getenv("THERMOSCREENING_LOGGING_LEVEL", "INFO"))
@@ -34,7 +35,7 @@ package_logger = logging.getLogger(__name__)
 
 log_file_env_var = os.getenv("THERMOSCREENING_LOG_FILE")
 
-if log_file_env_var and logging_env_var.lower() != "off":
+if log_file_env_var and (logging_env_var or "").lower() != "off":
     config.use_log_file = True
 
     if log_file_env_var.lower() != "on" and len(log_file_env_var) > 0:

@@ -36,6 +36,10 @@ jobs:
         conda install conda-forge::dftbplus
         python -m pip install --upgrade pip
         pip install . 
+    - name: Lint with Pylint
+      run: |
+        pip install '.[lint]'
+        python -m pylint ThermoScreening
     - name: Test with pytest
       run: |
         pip install '.[test]'

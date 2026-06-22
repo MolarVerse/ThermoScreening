@@ -35,6 +35,9 @@ test = [
     "coverage",
     "pytest-cov"
 ]
+lint = [
+    "pylint >= 4.0, < 5",
+]
 docs = [
     "sphinx",
 ]
@@ -47,3 +50,11 @@ version_file = "ThermoScreening/__version__.py"
 
 [project.scripts]
 thermo = "ThermoScreening.cli.thermo:main"
+
+[tool.pylint.main]
+fail-under = 7.0
+persistent = false
+py-version = "3.10"
+
+[tool.pylint.reports]
+score = true
