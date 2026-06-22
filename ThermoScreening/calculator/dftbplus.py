@@ -6,16 +6,25 @@ from ase.io import read
 import numpy as np
 
 from ..utils.physicalConstants import PhysicalConstants
-from ThermoScreening import BASE_PATH
 
 # --------------------------------------------------------------------------- #
 
 
-DEFAULT_SLAKO_DIR = BASE_PATH + "../external/slakos/3ob-3-1/"
-
-
 def _slako_dir(slako_dir=None):
-    return slako_dir or os.getenv("DFTB_PREFIX") or DEFAULT_SLAKO_DIR
+    selected_dir = slako_dir or os.getenv("DFTB_PREFIX")
+    if not selected_dir:
+        raise FileNotFoundError(
+            "Slater-Koster files are not bundled with ThermoScreening. "
+            "Set DFTB_PREFIX or pass slako_dir to the DFTB+ calculator."
+        )
+
+    selected_dir = os.path.abspath(os.path.expanduser(selected_dir))
+    if not os.path.isdir(selected_dir):
+        raise FileNotFoundError(
+            f"Slater-Koster directory does not exist: {selected_dir}"
+        )
+
+    return selected_dir + os.sep
 
 
 class Geoopt(Dftb):
@@ -66,7 +75,7 @@ class Geoopt(Dftb):
             Charge of the system. Default is 0.
         slako_dir : str
             Path to the Slater-Koster files. If None, it will look
-            for the DFTB_PREFIX environment variable. Default is 3ob-3-1.
+            for the DFTB_PREFIX environment variable.
         max_force : float
             Maximum force component. Default is 1.0e-6.
 
@@ -170,7 +179,7 @@ class Hessian(Dftb):
             Finite difference step. Default is 1.0e-4.
         slako_dir : str
             Path to the Slater-Koster files. If None, it will look
-            for the DFTB_PREFIX environment variable. Default is 3ob-3-1.
+            for the DFTB_PREFIX environment variable.
 
         Other Parameters:
         -----------------

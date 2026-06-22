@@ -287,7 +287,6 @@ class TestThermo(unittest.TestCase):
         np.testing.assert_allclose(thermo.total_enthalpy(
             "H"),  0.185108890800, atol=1e-10)
 
-        # TODO: check the value of the total entropy
         np.testing.assert_allclose(thermo.total_entropy(
             "cal/(mol*K)"), 99.467956182779, atol=1e-10)
 

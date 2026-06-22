@@ -39,5 +39,42 @@ class TestMain(unittest.TestCase):
 
         self.assertIn("ThermoScreening - v", output.getvalue())
 
+
+def test_main_executes_input_file_with_timing(monkeypatch, capsys):
+    calls = []
+    times = iter([10.0, 12.5])
+
+    monkeypatch.setattr(
+        thermo,
+        "parse_args",
+        lambda: argparse.Namespace(input_file="thermo.in", verbose=True),
+    )
+    monkeypatch.setattr(thermo, "execute", lambda input_file: calls.append(input_file))
+    monkeypatch.setattr(thermo.time, "time", lambda: next(times))
+
+    assert thermo.main() is None
+
+    assert calls == ["thermo.in"]
+    output = capsys.readouterr().out
+    assert "Input file:  thermo.in" in output
+    assert "Verbose:  True" in output
+    assert "Time elapsed:  2.5  s" in output
+
+
+def test_main_executes_input_file_without_verbose(monkeypatch, capsys):
+    calls = []
+
+    monkeypatch.setattr(
+        thermo,
+        "parse_args",
+        lambda: argparse.Namespace(input_file="thermo.in", verbose=False),
+    )
+    monkeypatch.setattr(thermo, "execute", lambda input_file: calls.append(input_file))
+
+    assert thermo.main() is None
+
+    assert calls == ["thermo.in"]
+    assert capsys.readouterr().out == ""
+
 if __name__ == '__main__':
     unittest.main()

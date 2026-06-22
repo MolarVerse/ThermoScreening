@@ -515,7 +515,6 @@ def dftbplus_thermo(
     modes = Modes()
     frequencies = modes.wave_numbers
 
-    # TODO: rewrite run_thermo function to include ase atoms object
     # run thermo calculation
     thermo = run_thermo(
         frequencies,
