@@ -251,7 +251,7 @@ class Thermo:
         )
 
         self._rotational_partition_function = (
-            np.pi ** (1 / 2) / self._system.rotational_symmetry_number()
+            np.pi ** (1 / 2) / self._system.rotational_symmetry_number
         ) * (
             self._temperature ** (3 / 2)
             / (np.power(self._rotational_temperature_xyz, 1 / 2))

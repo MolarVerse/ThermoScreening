@@ -3,6 +3,7 @@ import pytest
 import unittest
 import numpy as np
 import pytest
+from pathlib import Path
 from unittest.mock import patch, mock_open
 from ThermoScreening.calculator.dftbplus import dftb_3ob_parameters
 from ThermoScreening.thermo.api import (
@@ -11,13 +12,14 @@ from ThermoScreening.thermo.api import (
     read_vibrational,
     read_gen,
     read_xyz, 
+    run_thermo,
     unit_length,
     unit_mass,
     unit_energy,
     unit_frequency,
 )
 from ase.build import molecule
-from ThermoScreening.exceptions import TSNotImplementedError
+from ThermoScreening.exceptions import TSNotImplementedError, TSValueError
 
 class TestApi(unittest.TestCase):
     
@@ -25,10 +27,6 @@ class TestApi(unittest.TestCase):
         with pytest.raises(TSNotImplementedError) as e:
             read_coord("test.xyz", engine="not_implemented")
         assert str(e.value) == "The engine is not supported."
-        
-        with pytest.raises(TSNotImplementedError) as e:
-            read_coord("test.gen", engine="dftb+")
-        assert str(e.value) == "The gen file is not tested yet."
         
         with pytest.raises(TSNotImplementedError) as e:
             read_coord("test.com", engine="dftb+")
@@ -142,6 +140,43 @@ class TestApi(unittest.TestCase):
     @patch(
         "builtins.open",
         new_callable=mock_open,
+        read_data=(
+            "2 10.0 11.0 12.0 90.0 90.0 90.0\n"
+            "\n"
+            "Cl 0.0 0.0 0.0\n"
+            "Na 1.0 2.0 3.0\n"
+        ),
+    )
+    def test_read_xyz_keeps_multichar_symbols(self, mock_open):
+        data_N, data_atoms, data_xyz, cell, pbc = read_xyz("test.xyz")
+
+        assert data_N == 2
+        np.testing.assert_array_equal(data_atoms, np.array(["Cl", "Na"], dtype=object))
+        np.testing.assert_allclose(data_xyz, np.array([[0.0, 0.0, 0.0], [1.0, 2.0, 3.0]]))
+        np.testing.assert_allclose(cell, np.array([10.0, 11.0, 12.0, 90.0, 90.0, 90.0]))
+        assert pbc is True
+
+    @patch(
+        "builtins.open",
+        new_callable=mock_open,
+        read_data=(
+            "1 bad 11.0 12.0 90.0 90.0 90.0\n"
+            "\n"
+            "Cl 0.0 0.0 0.0\n"
+        ),
+    )
+    def test_read_xyz_ignores_invalid_cell_header(self, mock_open):
+        data_N, data_atoms, data_xyz, cell, pbc = read_xyz("test.xyz")
+
+        assert data_N == 1
+        np.testing.assert_array_equal(data_atoms, np.array(["Cl"], dtype=object))
+        np.testing.assert_allclose(data_xyz, np.array([[0.0, 0.0, 0.0]]))
+        assert cell is None
+        assert pbc is False
+
+    @patch(
+        "builtins.open",
+        new_callable=mock_open,
         read_data="1.0  2.0\n2.0  3.0\n3.0  4.0\n4.0  5.0\n5.0  6.0\n6.0  7.0\n",
     )
     def test_read_vib_file(self, mock_open):
@@ -150,6 +185,66 @@ class TestApi(unittest.TestCase):
         np.testing.assert_array_almost_equal(
             data_vib, vibrational_frequencies, decimal=8
         )
+
+    def test_read_gen(self):
+        gen_file = Path(__file__).resolve().parents[1] / "data/thermo/geo_opt.gen"
+
+        data_N, data_atoms, data_xyz, cell, pbc = read_gen(str(gen_file))
+
+        assert data_N == 24
+        assert pbc is True
+        np.testing.assert_array_equal(data_atoms[:4], np.array(["O", "O", "C", "C"]))
+        np.testing.assert_allclose(
+            data_xyz[0],
+            np.array([3.0e-08, -6.0e-07, -2.14906255]),
+            atol=1.0e-12,
+        )
+        np.testing.assert_allclose(
+            cell,
+            np.array(
+                [
+                    [10000.0, 0.0, 0.0],
+                    [0.0, 10000.0, 0.0],
+                    [0.0, 0.0, 10000.0],
+                ]
+            ),
+        )
+
+        coord_data = read_coord(str(gen_file), engine="dftb+")
+        assert coord_data[0] == data_N
+        np.testing.assert_array_equal(coord_data[1], data_atoms)
+        np.testing.assert_allclose(coord_data[2], data_xyz)
+        np.testing.assert_allclose(coord_data[3], cell)
+        assert coord_data[4] is True
+
+    @patch(
+        "builtins.open",
+        new_callable=mock_open,
+        read_data=(
+            "2 C\n"
+            "Cl Na\n"
+            "1 1 0.0 0.0 0.0\n"
+            "2 2 1.0 2.0 3.0\n"
+        ),
+    )
+    def test_read_gen_keeps_multichar_symbols(self, mock_open):
+        data_N, data_atoms, data_xyz, cell, pbc = read_gen("test.gen")
+
+        assert data_N == 2
+        np.testing.assert_array_equal(data_atoms, np.array(["Cl", "Na"], dtype=object))
+        np.testing.assert_allclose(data_xyz, np.array([[0.0, 0.0, 0.0], [1.0, 2.0, 3.0]]))
+        assert cell is None
+        assert pbc is False
+
+    def test_run_thermo_rejects_wrong_frequency_count(self):
+        coord_file = Path(__file__).resolve().parents[1] / "data/thermo/geo_opt.xyz"
+
+        with pytest.raises(TSValueError, match="number of vibrational frequencies"):
+            run_thermo(
+                np.array([1.0]),
+                coord_file=str(coord_file),
+                engine="dftb+",
+            )
 
 if __name__ == "__main__":
     unittest.main()

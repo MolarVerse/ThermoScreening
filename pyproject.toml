@@ -21,14 +21,12 @@ classifiers = [
 ]
 
 dependencies = [
-    "numpy < 2.0",
-    "argparse",
+    "numpy >= 1.26",
     "scipy",
     "pymatgen",
     "beartype",
     "ase",
     "rdkit",
-    "wfl",
 ]
 
 [project.optional-dependencies]

@@ -69,13 +69,20 @@ class InputFileReader:
         -------
         None
         """
-        self._raw_input_file = open(self._input_file, "r").readlines()
+        with open(self._input_file, "r") as input_handle:
+            self._raw_input_file = input_handle.readlines()
         self._dictionary = {}
         for line in self._raw_input_file:
-            if line[0] != "#":
-                key, value = line.split(" = ")
-                self._dictionary[key.strip()] = value.strip()
-                print(key.strip(), " = ", value.strip())
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if "=" not in line:
+                self.logger.error(
+                    f"The line '{line}' is not a valid key-value assignment.",
+                    exception=TSValueError,
+                )
+            key, value = line.split("=", maxsplit=1)
+            self._dictionary[key.strip()] = value.strip()
 
         return None
 

@@ -1,7 +1,8 @@
 import unittest
 import numpy as np
 from ase.atoms import Atoms
-from ThermoScreening.thermo.system import System, dim, dof, linearity
+import ThermoScreening.thermo.system as system_module
+from ThermoScreening.thermo.system import System, dim, dof, linearity, rotational_symmetry_number
 from ThermoScreening.thermo.atoms import Atom
 from ThermoScreening.thermo.cell import Cell
 from ThermoScreening.exceptions import TSValueError
@@ -29,6 +30,19 @@ def test_linearity():
         linearity(atoms)
     assert str(e.value) == "Number of atoms must be greater than 1. The system is monoatomic."
              
+
+def test_rotational_symmetry_number_accepts_property(monkeypatch):
+    class FakePointGroupAnalyzer:
+        get_rotational_symmetry_number = 7
+
+        def __init__(self, molecule):
+            self.molecule = molecule
+
+    atoms = [Atom(symbol='H', position=np.array([0, 0, 0])), Atom(symbol='H', position=np.array([0, 0, 1]))]
+    monkeypatch.setattr(system_module, "PointGroupAnalyzer", FakePointGroupAnalyzer)
+
+    assert rotational_symmetry_number(atoms) == 7
+
 
 class TestSystem(unittest.TestCase):
     atoms = [
@@ -78,7 +92,7 @@ class TestSystem(unittest.TestCase):
 
         assert system.dof == 3 * 3 - 5
 
-        assert system.rotational_symmetry_number() == 1
+        assert system.rotational_symmetry_number == 2
 
         assert system.rotational_group == 'D*h'
 
@@ -214,7 +228,7 @@ class TestSystem(unittest.TestCase):
 
         assert system.dof == 3 * 24 - 6
 
-        assert system.rotational_symmetry_number() == 4
+        assert system.rotational_symmetry_number == 4
 
         assert system.rotational_group == 'D2h'
 

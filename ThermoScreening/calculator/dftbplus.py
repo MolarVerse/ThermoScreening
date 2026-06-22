@@ -1,4 +1,6 @@
 import os
+import shutil
+import subprocess
 from ase.calculators.dftb import Dftb
 from ase.io import read
 import numpy as np
@@ -7,6 +9,13 @@ from ..utils.physicalConstants import PhysicalConstants
 from ThermoScreening import BASE_PATH
 
 # --------------------------------------------------------------------------- #
+
+
+DEFAULT_SLAKO_DIR = BASE_PATH + "../external/slakos/3ob-3-1/"
+
+
+def _slako_dir(slako_dir=None):
+    return slako_dir or os.getenv("DFTB_PREFIX") or DEFAULT_SLAKO_DIR
 
 
 class Geoopt(Dftb):
@@ -70,7 +79,7 @@ class Geoopt(Dftb):
         super().__init__(
             atoms=atoms,
             label=label,
-            slako_dir=BASE_PATH + "../external/slakos/3ob-3-1/",
+            slako_dir=_slako_dir(slako_dir),
             Hamiltonian_Charge=charge,
             Driver_="GeometryOptimisation",
             Driver_Optimiser="Rational {}",
@@ -143,7 +152,7 @@ class Hessian(Dftb):
         label="second_derivative",
         charge=0,
         delta=1.0e-4,
-        slako_dir=BASE_PATH + "../external/slakos/3ob-3-1/",
+        slako_dir=None,
         **kwargs,
     ):
         """
@@ -172,7 +181,7 @@ class Hessian(Dftb):
         super().__init__(
             atoms=atoms,
             label=label,
-            slako_dir=slako_dir,
+            slako_dir=_slako_dir(slako_dir),
             Hamiltonian_Charge=charge,
             Driver_="SecondDerivatives",
             Driver_Delta=delta,
@@ -293,8 +302,11 @@ class Modes:
         None
         """
 
-        # run the modes executable
-        os.system("modes > modes.out")
+        if shutil.which("modes") is None:
+            raise FileNotFoundError("The modes executable was not found.")
+
+        with open("modes.out", "w") as output:
+            subprocess.run(["modes"], stdout=output, check=True)
 
         return None
 
