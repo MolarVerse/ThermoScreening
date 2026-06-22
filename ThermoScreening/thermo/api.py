@@ -1,6 +1,7 @@
 import logging
 
 import numpy as np
+from PQAnalysis.io import read_gen_file
 
 from ThermoScreening.exceptions import TSNotImplementedError, TSValueError
 from ThermoScreening.utils.custom_logging import setup_logger
@@ -87,40 +88,19 @@ def read_gen(coord_file: str):
     List
         number of atoms, chemical symbols of atoms, coordinates of atoms, cell vector
     """
-    with open(coord_file, "r") as f:
-        line = f.readline().strip()
-        line = line.split()
-        data_N = int(line[0])
-        system = str(line[1])
-        if system == "S":
-            pbc = True
-        else:
-            pbc = False
-        atomic_species = f.readline().strip().split()
+    system = read_gen_file(coord_file)
 
-        data_atoms = np.empty(data_N, dtype=object)
-        data_xyz = np.zeros((data_N, 3), dtype=float)
-        for i in range(data_N):
-            line = f.readline().strip().split()
-            symbol_number = int(line[1])
-            data_atoms[i] = atomic_species[symbol_number - 1]
-            data_xyz[i, 0] = float(line[2])
-            data_xyz[i, 1] = float(line[3])
-            data_xyz[i, 2] = float(line[4])
-        if pbc:
-            f.readline()
-            line = f.readline().split()
-            line2 = f.readline().split()
-            line3 = f.readline().split()
-            cell_vector = np.array(
-                [
-                    [float(line[0]), float(line[1]), float(line[2])],
-                    [float(line2[0]), float(line2[1]), float(line2[2])],
-                    [float(line3[0]), float(line3[1]), float(line3[2])],
-                ]
-            )
-        else:
-            cell_vector = None
+    data_N = system.n_atoms
+    data_atoms = np.array([atom.name for atom in system.atoms], dtype=object)
+    data_xyz = np.asarray(system.pos, dtype=float)
+
+    if system.cell.is_vacuum:
+        cell_vector = None
+        pbc = False
+    else:
+        cell_vector = np.asarray(system.cell.box_matrix, dtype=float)
+        cell_vector[np.isclose(cell_vector, 0.0, atol=1e-12)] = 0.0
+        pbc = True
 
     return [data_N, data_atoms, data_xyz, cell_vector, pbc]
 
