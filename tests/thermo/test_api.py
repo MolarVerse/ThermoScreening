@@ -3,6 +3,7 @@ import pytest
 import unittest
 import numpy as np
 import pytest
+from types import SimpleNamespace
 from pathlib import Path
 from unittest.mock import patch, mock_open
 from beartype.roar import BeartypeCallHintParamViolation
@@ -222,19 +223,18 @@ class TestApi(unittest.TestCase):
         np.testing.assert_allclose(coord_data[3], cell)
         assert coord_data[4] is True
 
-    @patch(
-        "builtins.open",
-        new_callable=mock_open,
-        read_data=(
-            "2 C\n"
-            "Cl Na\n"
-            "1 1 0.0 0.0 0.0\n"
-            "2 2 1.0 2.0 3.0\n"
-        ),
-    )
-    def test_read_gen_keeps_multichar_symbols(self, mock_open):
+    @patch("ThermoScreening.thermo.api.read_gen_file")
+    def test_read_gen_uses_pqanalysis(self, read_gen_file_mock):
+        read_gen_file_mock.return_value = SimpleNamespace(
+            n_atoms=2,
+            atoms=[SimpleNamespace(name="Cl"), SimpleNamespace(name="Na")],
+            pos=np.array([[0.0, 0.0, 0.0], [1.0, 2.0, 3.0]]),
+            cell=SimpleNamespace(is_vacuum=True),
+        )
+
         data_N, data_atoms, data_xyz, cell, pbc = read_gen("test.gen")
 
+        read_gen_file_mock.assert_called_once_with("test.gen")
         assert data_N == 2
         np.testing.assert_array_equal(data_atoms, np.array(["Cl", "Na"], dtype=object))
         np.testing.assert_allclose(data_xyz, np.array([[0.0, 0.0, 0.0], [1.0, 2.0, 3.0]]))
