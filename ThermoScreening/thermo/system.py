@@ -1,7 +1,9 @@
 import logging
+import warnings
 import numpy as np
 
 from beartype.typing import List
+from numpy.exceptions import ComplexWarning
 
 from pymatgen.core import Molecule, Structure
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
@@ -13,6 +15,48 @@ from ThermoScreening import __package_name__
 
 from .atoms import Atom
 from .cell import Cell
+
+
+def _real_position(position: np.ndarray) -> np.ndarray:
+    """
+    Return a real floating-point atom position for symmetry analysis.
+    """
+
+    real_position = np.real_if_close(np.asarray(position))
+    if np.iscomplexobj(real_position):
+        if not np.allclose(np.imag(real_position), 0.0):
+            raise TSValueError("Atom positions must be real-valued.")
+        real_position = np.real(real_position)
+
+    return np.asarray(real_position, dtype=float)
+
+
+def _molecule_from_atoms(atoms: List[Atom]) -> Molecule:
+    """
+    Build a pymatgen molecule with real-valued coordinates.
+    """
+
+    names = []
+    coordinates = []
+    for atom in atoms:
+        names.append(atom.symbol)
+        coordinates.append(_real_position(atom.position))
+
+    return Molecule(names, coordinates)
+
+
+def _point_group_analyzer(molecule):
+    """
+    Build a pymatgen point-group analyzer without surfacing benign cast warnings.
+    """
+
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            category=ComplexWarning,
+            module=r"pymatgen\.core\.operations",
+        )
+        return PointGroupAnalyzer(molecule)
 
 
 def linearity(atoms: List[Atom]) -> bool:
@@ -197,14 +241,8 @@ def rotational_symmetry_number(atoms: List[Atom]) -> int:
     int
         The symmetry number of the system.
     """
-    name = []
-    coord = []
-    for atom in atoms:
-        name.append(atom.symbol)
-        coord.append(atom.position)
-
-    mol = Molecule(name, coord)
-    symmetry_number = PointGroupAnalyzer(mol).get_rotational_symmetry_number
+    mol = _molecule_from_atoms(atoms)
+    symmetry_number = _point_group_analyzer(mol).get_rotational_symmetry_number
     if callable(symmetry_number):
         return symmetry_number()
     return symmetry_number
@@ -285,14 +323,8 @@ def rotational_group_calc(atoms: List[Atom]) -> str:
     str
         The rotational group of the system.
     """
-    name = []
-    coord = []
-    for atom in atoms:
-        name.append(atom.symbol)
-        coord.append(atom.position)
-
-    mol = Molecule(name, coord)
-    symb = PointGroupAnalyzer(mol).sch_symbol
+    mol = _molecule_from_atoms(atoms)
+    symb = _point_group_analyzer(mol).sch_symbol
     return symb
 
 
