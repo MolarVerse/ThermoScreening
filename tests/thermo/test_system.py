@@ -1,4 +1,5 @@
 import unittest
+import warnings
 import numpy as np
 from ase.atoms import Atoms
 import ThermoScreening.thermo.system as system_module
@@ -42,6 +43,69 @@ def test_rotational_symmetry_number_accepts_property(monkeypatch):
     monkeypatch.setattr(system_module, "PointGroupAnalyzer", FakePointGroupAnalyzer)
 
     assert rotational_symmetry_number(atoms) == 7
+
+
+def test_symmetry_analysis_converts_zero_imaginary_positions(monkeypatch):
+    captured_coordinates = []
+
+    class FakePointGroupAnalyzer:
+        sch_symbol = "D*h"
+
+        def __init__(self, molecule):
+            self.molecule = molecule
+            self.get_rotational_symmetry_number = 2
+            captured_coordinates.append(np.array(molecule.cart_coords))
+
+    atoms = [
+        Atom(symbol="H", position=np.array([0.0 + 0.0j, 0.0, 0.0])),
+        Atom(symbol="H", position=np.array([1.0 + 0.0j, 0.0, 0.0])),
+    ]
+    monkeypatch.setattr(system_module, "PointGroupAnalyzer", FakePointGroupAnalyzer)
+
+    assert rotational_symmetry_number(atoms) == 2
+    assert system_module.rotational_group_calc(atoms) == "D*h"
+    assert not np.iscomplexobj(captured_coordinates[0])
+    assert not np.iscomplexobj(captured_coordinates[1])
+
+
+def test_real_position_converts_near_zero_imaginary_noise():
+    position = system_module._real_position(np.array([1.0 + 1e-12j, 0.0, 0.0]))
+
+    np.testing.assert_array_equal(position, np.array([1.0, 0.0, 0.0]))
+    assert not np.iscomplexobj(position)
+
+
+def test_point_group_analyzer_suppresses_pymatgen_complex_warning(monkeypatch):
+    class FakePointGroupAnalyzer:
+        sch_symbol = "C1"
+
+        def __init__(self, molecule):
+            self.molecule = molecule
+            warnings.warn_explicit(
+                "Casting complex values to real discards the imaginary part",
+                system_module.ComplexWarning,
+                filename="operations.py",
+                lineno=1,
+                module="pymatgen.core.operations",
+            )
+
+    monkeypatch.setattr(system_module, "PointGroupAnalyzer", FakePointGroupAnalyzer)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", system_module.ComplexWarning)
+        analyzer = system_module._point_group_analyzer(object())
+
+    assert analyzer.sch_symbol == "C1"
+
+
+def test_symmetry_analysis_rejects_imaginary_positions():
+    atoms = [
+        Atom(symbol="H", position=np.array([0.0 + 1.0j, 0.0, 0.0])),
+        Atom(symbol="H", position=np.array([1.0, 0.0, 0.0])),
+    ]
+
+    with pytest.raises(TSValueError, match="Atom positions must be real-valued"):
+        rotational_symmetry_number(atoms)
 
 
 class TestSystem(unittest.TestCase):
