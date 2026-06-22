@@ -191,9 +191,6 @@ class Thermo:
         None
         """
 
-        # ? Resolving the issue with the center of mass calculation
-        # TODO: check if coord is correct because it is not returning the relocate coordinates
-        # DONE: solved the issue with the center of mass calculation
         self._reloc_coord = self._system.coord()
         self._reloc_coord -= self._system.center_of_mass
 
@@ -207,8 +204,6 @@ class Thermo:
         -------
         None
         """
-        # TODO: coord is not relocated to the center of mass
-        # DONE: solved the issue with the center of mass calculation
         coord = self._reloc_coord
         x = coord[:, 0]
         y = coord[:, 1]
@@ -239,7 +234,6 @@ class Thermo:
         None
         """
 
-        # TODO: resolve with naming pylint issue 
         self._eigenvalues_I_SI = (
             self._eigenvalues_I * PhysicalConstants["u"] * PhysicalConstants["A"] ** 2
         )
