@@ -1,9 +1,11 @@
 import sys
 
+from beartype.typing import Any
+
 from ThermoScreening.version import __version__
 
 
-def print_header(file: str | None = None) -> None:
+def print_header(file: Any = None) -> None:
     """
     A function to print the header
     

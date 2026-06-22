@@ -5,6 +5,7 @@ import numpy as np
 import pytest
 from pathlib import Path
 from unittest.mock import patch, mock_open
+from beartype.roar import BeartypeCallHintParamViolation
 from ThermoScreening.calculator.dftbplus import dftb_3ob_parameters
 from ThermoScreening.thermo.api import (
     dftbplus_thermo,
@@ -64,6 +65,10 @@ class TestApi(unittest.TestCase):
         assert str(e.value) == "The engine is not supported."
         
         assert unit_frequency(engine="dftb+") == "cm^-1"
+
+    def test_public_api_rejects_wrong_argument_type(self):
+        with pytest.raises(BeartypeCallHintParamViolation):
+            unit_length(engine=object())
             
    
     @patch(

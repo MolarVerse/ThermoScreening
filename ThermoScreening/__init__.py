@@ -4,9 +4,15 @@ import time
 
 from pathlib import Path
 
-import ThermoScreening.config as config  # pylint: disable=consider-using-from-import
+from beartype import BeartypeConf
+from beartype.claw import beartype_this_package
 
-from ThermoScreening.utils.custom_logging import CustomLogger
+beartype_this_package(conf=BeartypeConf(is_pep484_tower=True))
+
+# The type-checking import hook must be installed before package submodules load.
+import ThermoScreening.config as config  # pylint: disable=consider-using-from-import,wrong-import-position
+
+from ThermoScreening.utils.custom_logging import CustomLogger  # pylint: disable=wrong-import-position
 
 BASE_PATH = os.path.dirname(os.path.abspath(__file__)) + "/"
 __base_path__ = Path(__file__).parent
