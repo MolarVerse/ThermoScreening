@@ -7,7 +7,7 @@ from ThermoScreening.utils.custom_logging import setup_logger
 from ThermoScreening import __package_name__
 
 from .inputFileReader import InputFileReader
-from .system import System
+from .system import System, dof
 from .thermo import Thermo
 from .atoms import Atom
 from ..calculator import Geoopt, Hessian, Modes
@@ -46,25 +46,18 @@ def read_xyz(coord_file: str):
         line = line.split()
         data_N = int(line[0])
 
-        # if len(line) > 1 and line[1:] is containing only numbers
-        if len(line) > 1 and all([x.replace(".", "", 1).isdigit() for x in line[1:]]):
-
-            cell = np.array(
-                [
-                    float(line[1]),
-                    float(line[2]),
-                    float(line[3]),
-                    float(line[4]),
-                    float(line[5]),
-                    float(line[6]),
-                ]
-            )
-            pbc = True
+        if len(line) >= 7:
+            try:
+                cell = np.array([float(value) for value in line[1:7]])
+            except ValueError:
+                cell = None
+            else:
+                pbc = True
 
         line = f.readline().strip()
 
         i = 0
-        data_atoms = np.zeros(data_N, dtype=str)
+        data_atoms = np.empty(data_N, dtype=object)
         data_xyz = np.zeros((data_N, 3), dtype=float)
         while True:
             line = f.readline().strip()
@@ -103,34 +96,22 @@ def read_gen(coord_file: str):
             pbc = True
         else:
             pbc = False
-        line = f.readline().strip()
-        atomic_species = str(line.split())
-        data_xyz = np.zeros((data_N, 3))
-        data_atoms = np.array([])
-        i = 0
+        atomic_species = f.readline().strip().split()
 
-        data_atoms = np.zeros(data_N, dtype=str)
+        data_atoms = np.empty(data_N, dtype=object)
         data_xyz = np.zeros((data_N, 3), dtype=float)
-        while True:
-            line = f.readline().strip()
-            line = line.split()
-            if i < data_N:
-                break
-            index = int(line[0])
+        for i in range(data_N):
+            line = f.readline().strip().split()
             symbol_number = int(line[1])
+            data_atoms[i] = atomic_species[symbol_number - 1]
             data_xyz[i, 0] = float(line[2])
             data_xyz[i, 1] = float(line[3])
             data_xyz[i, 2] = float(line[4])
-            data_atoms = np.append(str(data_atoms), atomic_species[symbol_number - 1])
-            i += 1
         if pbc:
-            line = f.readline()
-            line = f.readline()
-            line = line.split()
-            line2 = f.readline()
-            line2 = line2.split()
-            line3 = f.readline()
-            line3 = line3.split()
+            f.readline()
+            line = f.readline().split()
+            line2 = f.readline().split()
+            line3 = f.readline().split()
             cell_vector = np.array(
                 [
                     [float(line[0]), float(line[1]), float(line[2])],
@@ -201,12 +182,8 @@ def read_coord(coord_file: str, engine: str):
             data_N, data_atoms, data_xyz, cell, pbc = read_xyz(coord_file)
             return data_N, data_atoms, data_xyz, cell, pbc
         elif coord_file.endswith(".gen"):
-            # data_N, data_atoms, data_xyz, cell_vectors, pbc = read_gen(coord_file)
-            # return data_N,data_atoms,data_xyz,cell_vectors,pbc
-            logger.error(
-                "The gen file is not tested yet.",
-                exception=TSNotImplementedError
-            )
+            data_N, data_atoms, data_xyz, cell_vectors, pbc = read_gen(coord_file)
+            return data_N, data_atoms, data_xyz, cell_vectors, pbc
         else:
             logger.error(
                 "The input file is not supported.",
@@ -415,6 +392,13 @@ def run_thermo(
     for i, symbol in enumerate(atom_symbol):
         atom_list.append(Atom(symbol=symbol, position=xyz[i, :]))
 
+    expected_dof = dof(atom_list)
+    if len(vibrational_frequencies) < expected_dof:
+        logger.error(
+            "The number of vibrational frequencies does not match with the degree of freedom.",
+            exception=TSValueError
+        )
+
     system_info = System(
         atoms=atom_list,
         electronic_energy=energy,
@@ -423,12 +407,6 @@ def run_thermo(
         pbc=pbc,
         charge=charge,
     )
-
-    if system_info._check_frequency_length == False:
-        logger.error(
-            "The number of vibrational frequencies does not match with the degree of freedom.",
-            exception=TSValueError
-        )
 
     thermo_setup = Thermo(
         system=system_info, temperature=temperature, pressure=pressure, engine=engine

@@ -1,6 +1,7 @@
 import pytest
 
 import os
+import subprocess
 import numpy as np
 import ase.io as ase_io
 from ThermoScreening import BASE_PATH
@@ -11,14 +12,42 @@ from ThermoScreening.thermo.api import dftbplus_thermo
 # --------------------------------------------------------------------------- #
 
 
+def executable_starts(command):
+    try:
+        result = subprocess.run(
+            [command, "--help"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return False
+    output = result.stdout + result.stderr
+    return "DFTB+" in output and "Library not loaded" not in output
+
+
+dftbplus_ready = executable_starts("dftb+") and executable_starts("modes")
+
+
+def test_modes_missing_executable(monkeypatch):
+    monkeypatch.setattr("ThermoScreening.calculator.dftbplus.shutil.which", lambda command: None)
+    modes = Modes.__new__(Modes)
+
+    with pytest.raises(FileNotFoundError, match="modes executable"):
+        modes.calculate()
+
+
+@pytest.mark.skipif(
+    not dftbplus_ready,
+    reason="DFTB+ executables are not installed or cannot start.",
+)
 class TestDftbplus:
 
     # Test the DFTB+ calculator
     def test_dftb(self):
-        assert os.system(
-            "which dftb+ > /dev/null") == 0, "DFTB+ is not installed."
-        assert os.system(
-            "which modes > /dev/null") == 0, "Modes is not installed."
+        assert executable_starts("dftb+")
+        assert executable_starts("modes")
 
     # Test the Geoopt class
     @pytest.mark.parametrize("example_dir", ["calculator"])

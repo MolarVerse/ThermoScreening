@@ -1,5 +1,7 @@
-from ..__version__ import __version__
 import sys
+
+from ThermoScreening.version import __version__
+
 
 def print_header(file: str | None = None) -> None:
     """
@@ -8,7 +10,7 @@ def print_header(file: str | None = None) -> None:
     The header is printed to standard error stream. 
     """
 
-    header = f"""
+    header = rf"""
  ________   ______  
 |        \ /      \  
  \$$$$$$$$|  $$$$$$\ 

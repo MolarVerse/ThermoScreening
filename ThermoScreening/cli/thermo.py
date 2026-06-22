@@ -1,8 +1,7 @@
-import numpy as np
 from argparse import ArgumentParser
 from ThermoScreening.thermo.api import execute
 import time
-from ..__version__ import __version__
+from ThermoScreening.version import __version__
 
 
 def parse_args():

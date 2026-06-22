@@ -6,6 +6,8 @@ It is responsible for calling the main function in the thermo module.
 Example:
     $ python -m ThermoScreening
 """
-from cli import main
+from .cli import main
 
-main()
+
+if __name__ == "__main__":
+    main()

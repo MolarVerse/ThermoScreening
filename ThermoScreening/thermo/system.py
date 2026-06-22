@@ -204,7 +204,10 @@ def rotational_symmetry_number(atoms: List[Atom]) -> int:
         coord.append(atom.position)
 
     mol = Molecule(name, coord)
-    return PointGroupAnalyzer(mol).get_rotational_symmetry_number
+    symmetry_number = PointGroupAnalyzer(mol).get_rotational_symmetry_number
+    if callable(symmetry_number):
+        return symmetry_number()
+    return symmetry_number
 
 
 def spacegroup_number(atoms: List[Atom], cell: Cell) -> int:
