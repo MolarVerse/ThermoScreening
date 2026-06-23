@@ -73,11 +73,10 @@ class TestApi(unittest.TestCase):
             
    
     @patch(
-        "builtins.open",
-        new_callable=mock_open,
-        read_data="24\n\nO     0.00000003     -0.00000060     -2.14906255      6.45170211\n    O     -0.00000001      0.00000032     -7.56375986      6.45170117\n    C     -3.70943130     -0.00000041     -5.55541507      4.06573254\n    C     -2.50358224      0.00000055     -6.25344004      4.05635404\n    C     -1.28152402      0.00000064     -5.56329596      4.05319169\n    C     -1.28152226     -0.00000048     -4.14952765      4.05319299\n    C     -2.50358591     -0.00000218     -3.45938372      4.05635329\n    C     -3.70942822     -0.00000196     -4.15740715      4.06573042\n    C      0.00000004      0.00000235     -6.33321909      3.57768382\n    C     -0.00000003      0.00000103     -3.37960436      3.57768340\n    C      1.28152286      0.00000564     -4.14952745      4.05319251\n    C      1.28152346      0.00000677     -5.56329581      4.05319217\n    C      2.50358346      0.00001200     -6.25343979      4.05635377\n    H      2.48494730      0.00001319     -7.34030311      0.89492446\n    C      3.70943026      0.00001569     -5.55541540      4.06573185\n    C      3.70942928      0.00001410     -4.15740743      4.06573112\n    C      2.50358473      0.00000924     -3.45938351      4.05635352\n    H     -4.65151464      0.00000015     -6.09787561      0.91510467\n    H     -2.48494736      0.00000157     -7.34030301      0.89492435\n    H     -2.48494723     -0.00000334     -2.37251966      0.89492456\n    H     -4.65151524     -0.00000279     -3.61494721      0.91510621\n    H      4.65151483      0.00001973     -6.09787570      0.91510518\n    H      4.65151507      0.00001672     -3.61494731      0.91510569\n    H      2.48494732      0.00000821     -2.37251974      0.89492448",
+        "pathlib.Path.read_text",
+        return_value="24\n\nO     0.00000003     -0.00000060     -2.14906255      6.45170211\n    O     -0.00000001      0.00000032     -7.56375986      6.45170117\n    C     -3.70943130     -0.00000041     -5.55541507      4.06573254\n    C     -2.50358224      0.00000055     -6.25344004      4.05635404\n    C     -1.28152402      0.00000064     -5.56329596      4.05319169\n    C     -1.28152226     -0.00000048     -4.14952765      4.05319299\n    C     -2.50358591     -0.00000218     -3.45938372      4.05635329\n    C     -3.70942822     -0.00000196     -4.15740715      4.06573042\n    C      0.00000004      0.00000235     -6.33321909      3.57768382\n    C     -0.00000003      0.00000103     -3.37960436      3.57768340\n    C      1.28152286      0.00000564     -4.14952745      4.05319251\n    C      1.28152346      0.00000677     -5.56329581      4.05319217\n    C      2.50358346      0.00001200     -6.25343979      4.05635377\n    H      2.48494730      0.00001319     -7.34030311      0.89492446\n    C      3.70943026      0.00001569     -5.55541540      4.06573185\n    C      3.70942928      0.00001410     -4.15740743      4.06573112\n    C      2.50358473      0.00000924     -3.45938351      4.05635352\n    H     -4.65151464      0.00000015     -6.09787561      0.91510467\n    H     -2.48494736      0.00000157     -7.34030301      0.89492435\n    H     -2.48494723     -0.00000334     -2.37251966      0.89492456\n    H     -4.65151524     -0.00000279     -3.61494721      0.91510621\n    H      4.65151483      0.00001973     -6.09787570      0.91510518\n    H      4.65151507      0.00001672     -3.61494731      0.91510569\n    H      2.48494732      0.00000821     -2.37251974      0.89492448",
     )
-    def test_read_coord(self,mock_open):
+    def test_read_coord(self, read_text_mock):
         
         coord = np.array([[ 0.00000003  ,   -0.00000060  ,   -2.14906255],
                             [-0.00000001 ,    0.00000032  ,   -7.56375986],
@@ -144,16 +143,15 @@ class TestApi(unittest.TestCase):
         assert pbc == False
 
     @patch(
-        "builtins.open",
-        new_callable=mock_open,
-        read_data=(
+        "pathlib.Path.read_text",
+        return_value=(
             "2 10.0 11.0 12.0 90.0 90.0 90.0\n"
             "\n"
             "Cl 0.0 0.0 0.0\n"
             "Na 1.0 2.0 3.0\n"
         ),
     )
-    def test_read_xyz_keeps_multichar_symbols(self, mock_open):
+    def test_read_xyz_keeps_multichar_symbols(self, read_text_mock):
         data_N, data_atoms, data_xyz, cell, pbc = read_xyz("test.xyz")
 
         assert data_N == 2
@@ -163,22 +161,16 @@ class TestApi(unittest.TestCase):
         assert pbc is True
 
     @patch(
-        "builtins.open",
-        new_callable=mock_open,
-        read_data=(
+        "pathlib.Path.read_text",
+        return_value=(
             "1 bad 11.0 12.0 90.0 90.0 90.0\n"
             "\n"
             "Cl 0.0 0.0 0.0\n"
         ),
     )
-    def test_read_xyz_ignores_invalid_cell_header(self, mock_open):
-        data_N, data_atoms, data_xyz, cell, pbc = read_xyz("test.xyz")
-
-        assert data_N == 1
-        np.testing.assert_array_equal(data_atoms, np.array(["Cl"], dtype=object))
-        np.testing.assert_allclose(data_xyz, np.array([[0.0, 0.0, 0.0]]))
-        assert cell is None
-        assert pbc is False
+    def test_read_xyz_rejects_invalid_cell_header(self, read_text_mock):
+        with pytest.raises(TSValueError, match="Invalid XYZ coordinate file"):
+            read_xyz("test.xyz")
 
     @patch(
         "builtins.open",
@@ -191,6 +183,16 @@ class TestApi(unittest.TestCase):
         np.testing.assert_array_almost_equal(
             data_vib, vibrational_frequencies, decimal=8
         )
+
+    @patch("builtins.open", new_callable=mock_open, read_data="1.0\n")
+    def test_read_vib_file_rejects_missing_frequency_column(self, mock_open):
+        with pytest.raises(TSValueError, match="Invalid vibrational frequency line 1"):
+            read_vibrational("test.vib", "dftb+")
+
+    @patch("builtins.open", new_callable=mock_open, read_data="\n")
+    def test_read_vib_file_rejects_empty_file(self, mock_open):
+        with pytest.raises(TSValueError, match="No vibrational frequencies found"):
+            read_vibrational("test.vib", "dftb+")
 
     def test_read_gen(self):
         gen_file = Path(__file__).resolve().parents[1] / "data/thermo/geo_opt.gen"

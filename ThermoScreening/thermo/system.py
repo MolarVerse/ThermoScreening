@@ -4,6 +4,8 @@ import numpy as np
 
 from beartype.typing import List
 from numpy.exceptions import ComplexWarning
+from PQAnalysis.atomic_system import AtomicSystem as PQAtomicSystem
+from PQAnalysis.core.atom import Atom as PQAtom
 
 from pymatgen.core import Molecule, Structure
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
@@ -71,6 +73,13 @@ def _point_group_analyzer(molecule):
             module=r"pymatgen\.core\.operations",
         )
         return PointGroupAnalyzer(molecule)
+
+
+def _pq_atomic_system(atoms: List[Atom]) -> PQAtomicSystem:
+    return PQAtomicSystem(
+        atoms=[PQAtom(atom.symbol) for atom in atoms],
+        pos=np.asarray([_real_position(atom.position) for atom in atoms], dtype=float),
+    )
 
 
 def linearity(atoms: List[Atom]) -> bool:
@@ -325,7 +334,7 @@ def mass(atoms: List[Atom]) -> float:
     float
         The mass of the system in u.
     """
-    return np.sum([atom.mass for atom in atoms])
+    return _pq_atomic_system(atoms).mass
 
 
 def rotational_group_calc(atoms: List[Atom]) -> str:
@@ -350,7 +359,7 @@ def rotational_group_calc(atoms: List[Atom]) -> str:
     return symb
 
 
-def center_of_mass(atoms: List[Atom], mass: float) -> np.ndarray:
+def center_of_mass(atoms: List[Atom], _mass: float) -> np.ndarray:
     """
     Calculates the center of mass of the system.
 
@@ -363,7 +372,7 @@ def center_of_mass(atoms: List[Atom], mass: float) -> np.ndarray:
     np.ndarray
         The center of mass of the system.
     """
-    return np.sum([atom.mass * atom.position for atom in atoms], axis=0) / mass
+    return _pq_atomic_system(atoms).center_of_mass
 
 
 def imaginary_frequencies(vibrational_frequencies: np.ndarray) -> np.ndarray:

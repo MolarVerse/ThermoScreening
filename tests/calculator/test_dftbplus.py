@@ -172,9 +172,10 @@ def test_geoopt_read_uses_gen_reader(monkeypatch):
     assert calls == [("geo_opt.gen", "gen")]
 
 
-def test_hessian_read_reshapes_matrix(monkeypatch, tmp_path):
+def test_hessian_read_uses_square_matrix(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     np.savetxt("hessian.out", np.arange(36, dtype=float).reshape(6, 6))
+    monkeypatch.setattr(dftbplus_module, "_pq_hessian_reader", None)
 
     class FakeAtoms:
         def get_global_number_of_atoms(self):
@@ -188,6 +189,39 @@ def test_hessian_read_reshapes_matrix(monkeypatch, tmp_path):
     assert result.shape == (6, 6)
     np.testing.assert_array_equal(result, hessian.hessian)
     np.testing.assert_array_equal(result.ravel(), np.arange(36, dtype=float))
+
+
+def test_hessian_reader_uses_pqanalysis_when_available(monkeypatch):
+    calls = []
+
+    def fake_reader(filename):
+        calls.append(filename)
+        return np.eye(3)
+
+    monkeypatch.setattr(dftbplus_module, "_pq_hessian_reader", fake_reader)
+
+    np.testing.assert_array_equal(
+        dftbplus_module._read_hessian_matrix("hessian.out"),
+        np.eye(3),
+    )
+    assert calls == ["hessian.out"]
+
+
+def test_hessian_read_rejects_wrong_matrix_size(monkeypatch):
+    class FakeAtoms:
+        def get_global_number_of_atoms(self):
+            return 2
+
+    hessian = Hessian.__new__(Hessian)
+    hessian.atoms = FakeAtoms()
+    monkeypatch.setattr(
+        dftbplus_module,
+        "_read_hessian_matrix",
+        lambda filename: np.zeros((3, 3)),
+    )
+
+    with pytest.raises(ValueError, match="Hessian matrix size"):
+        hessian.read()
 
 
 def test_modes_initialization_runs_steps(monkeypatch):

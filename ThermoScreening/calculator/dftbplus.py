@@ -1,13 +1,26 @@
 import os
 import shutil
 import subprocess
+
+import numpy as np
 from ase.calculators.dftb import Dftb
 from ase.io import read
-import numpy as np
 
 from ..utils.physicalConstants import PhysicalConstants
 
 # --------------------------------------------------------------------------- #
+
+
+try:
+    from PQAnalysis.analysis.vibrational import read_hessian_file as _pq_hessian_reader
+except ModuleNotFoundError:
+    _pq_hessian_reader = None
+
+
+def _read_hessian_matrix(filename):
+    if _pq_hessian_reader is not None:
+        return _pq_hessian_reader(filename)
+    return np.atleast_2d(np.loadtxt(filename, dtype=float))
 
 
 def _slako_dir(slako_dir=None):
@@ -211,19 +224,13 @@ class Hessian(Dftb):
             Hessian matrix.
         """
 
-        with open("hessian.out") as f:
-            lines = [line.split() for line in f]
+        self.hessian = _read_hessian_matrix("hessian.out")
+        hessian_size = self.atoms.get_global_number_of_atoms() * 3
 
-        # matrix to array
-        hessian = []
-        for line in lines:
-            hessian += line
-        hessian = np.array(hessian, dtype=float)
-
-        self.hessian = hessian.reshape(
-            self.atoms.get_global_number_of_atoms() * 3,
-            self.atoms.get_global_number_of_atoms() * 3,
-        )
+        if self.hessian.shape != (hessian_size, hessian_size):
+            raise ValueError(
+                "Hessian matrix size does not match the number of atoms."
+            )
 
         return self.hessian
 
