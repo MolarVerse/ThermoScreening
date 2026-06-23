@@ -24,7 +24,7 @@ classifiers = [
 dependencies = [
     "numpy >= 1.26",
     "scipy",
-    "pymatgen",
+    "pymatgen-core >= 2026.5.18",
     "beartype",
     "ase",
     "rdkit",
