@@ -41,8 +41,22 @@ def _molecule_from_atoms(atoms: List[Atom]) -> Molecule:
     for atom in atoms:
         names.append(atom.symbol)
         coordinates.append(_real_position(atom.position))
+    _validate_unique_positions(coordinates)
 
     return Molecule(names, coordinates)
+
+
+def _validate_unique_positions(coordinates: List[np.ndarray]) -> None:
+    """
+    Reject overlapping atoms before symmetry analysis.
+    """
+
+    for index, position in enumerate(coordinates):
+        for previous in coordinates[:index]:
+            if np.allclose(position, previous, rtol=0.0, atol=1e-12):
+                raise TSValueError(
+                    "Atom positions must not overlap for symmetry analysis."
+                )
 
 
 def _point_group_analyzer(molecule):
@@ -241,6 +255,10 @@ def rotational_symmetry_number(atoms: List[Atom]) -> int:
     int
         The symmetry number of the system.
     """
+    if len(atoms) == 1:
+        _real_position(atoms[0].position)
+        return 1
+
     mol = _molecule_from_atoms(atoms)
     symmetry_number = _point_group_analyzer(mol).get_rotational_symmetry_number
     if callable(symmetry_number):
@@ -323,6 +341,10 @@ def rotational_group_calc(atoms: List[Atom]) -> str:
     str
         The rotational group of the system.
     """
+    if len(atoms) == 1:
+        _real_position(atoms[0].position)
+        return "Kh"
+
     mol = _molecule_from_atoms(atoms)
     symb = _point_group_analyzer(mol).sch_symbol
     return symb

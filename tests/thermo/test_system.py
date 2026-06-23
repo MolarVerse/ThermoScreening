@@ -1,5 +1,6 @@
 import unittest
 import warnings
+import math
 import numpy as np
 from ase.atoms import Atoms
 import ThermoScreening.thermo.system as system_module
@@ -9,6 +10,227 @@ from ThermoScreening.thermo.cell import Cell
 from ThermoScreening.exceptions import TSValueError
 import pytest
 
+
+def _atoms(spec):
+    return [
+        Atom(symbol=symbol, position=np.array(position, dtype=float))
+        for symbol, position in spec
+    ]
+
+
+def _ring(symbol, radius, z_coord, count, phase=0.0):
+    return [
+        (
+            symbol,
+            (
+                radius * math.cos(phase + 2 * math.pi * index / count),
+                radius * math.sin(phase + 2 * math.pi * index / count),
+                z_coord,
+            ),
+        )
+        for index in range(count)
+    ]
+
+
+SYMMETRY_EDGE_CASES = [
+    (
+        "linear_h2",
+        [("H", (0, 0, -0.37)), ("H", (0, 0, 0.37))],
+        2,
+        "D*h",
+    ),
+    (
+        "linear_co",
+        [("C", (0, 0, -0.64)), ("O", (0, 0, 0.49))],
+        1,
+        "C*v",
+    ),
+    (
+        "linear_co2",
+        [("O", (0, 0, -1.16)), ("C", (0, 0, 0)), ("O", (0, 0, 1.16))],
+        2,
+        "D*h",
+    ),
+    (
+        "water",
+        [
+            ("O", (0.000000, 0.000000, 0.000000)),
+            ("H", (0.957200, 0.000000, 0.000000)),
+            ("H", (-0.239987, 0.927297, 0.000000)),
+        ],
+        2,
+        "C2v",
+    ),
+    (
+        "ammonia",
+        [
+            ("N", (0, 0, 0.116)),
+            ("H", (0, 0.939, -0.272)),
+            ("H", (0.813, -0.4695, -0.272)),
+            ("H", (-0.813, -0.4695, -0.272)),
+        ],
+        3,
+        "C3v",
+    ),
+    (
+        "methane",
+        [
+            ("C", (0, 0, 0)),
+            ("H", (0.629, 0.629, 0.629)),
+            ("H", (-0.629, -0.629, 0.629)),
+            ("H", (-0.629, 0.629, -0.629)),
+            ("H", (0.629, -0.629, -0.629)),
+        ],
+        12,
+        "Td",
+    ),
+    ("bf3", [("B", (0, 0, 0))] + _ring("F", 1.3, 0, 3), 6, "D3h"),
+    (
+        "square_planar_sf4_geometry",
+        [
+            ("S", (0, 0, 0)),
+            ("F", (1, 0, 0)),
+            ("F", (-1, 0, 0)),
+            ("F", (0, 1, 0)),
+            ("F", (0, -1, 0)),
+        ],
+        8,
+        "D4h",
+    ),
+    (
+        "allene",
+        [
+            ("C", (0, 0, 0)),
+            ("C", (0, 0, -1.3)),
+            ("C", (0, 0, 1.3)),
+            ("H", (0.9, 0, -1.3)),
+            ("H", (-0.9, 0, -1.3)),
+            ("H", (0, 0.9, 1.3)),
+            ("H", (0, -0.9, 1.3)),
+        ],
+        4,
+        "D2d",
+    ),
+    (
+        "ethene",
+        [
+            ("C", (-0.67, 0, 0)),
+            ("C", (0.67, 0, 0)),
+            ("H", (-1.232, 0.928, 0)),
+            ("H", (-1.232, -0.928, 0)),
+            ("H", (1.232, 0.928, 0)),
+            ("H", (1.232, -0.928, 0)),
+        ],
+        4,
+        "D2h",
+    ),
+    (
+        "ethane_staggered",
+        [("C", (0, 0, -0.77)), ("C", (0, 0, 0.77))]
+        + _ring("H", 1.0, -1.27, 3)
+        + _ring("H", 1.0, 1.27, 3, math.pi / 3),
+        6,
+        "D3d",
+    ),
+    (
+        "ethane_eclipsed",
+        [("C", (0, 0, -0.77)), ("C", (0, 0, 0.77))]
+        + _ring("H", 1.0, -1.27, 3)
+        + _ring("H", 1.0, 1.27, 3),
+        6,
+        "D3h",
+    ),
+    (
+        "benzene",
+        [
+            ("C", (1.397, 0, 0)),
+            ("C", (0.6985, 1.2098, 0)),
+            ("C", (-0.6985, 1.2098, 0)),
+            ("C", (-1.397, 0, 0)),
+            ("C", (-0.6985, -1.2098, 0)),
+            ("C", (0.6985, -1.2098, 0)),
+            ("H", (2.479, 0, 0)),
+            ("H", (1.2395, 2.1468, 0)),
+            ("H", (-1.2395, 2.1468, 0)),
+            ("H", (-2.479, 0, 0)),
+            ("H", (-1.2395, -2.1468, 0)),
+            ("H", (1.2395, -2.1468, 0)),
+        ],
+        12,
+        "D6h",
+    ),
+    (
+        "sf6",
+        [
+            ("S", (0, 0, 0)),
+            ("F", (1.56, 0, 0)),
+            ("F", (-1.56, 0, 0)),
+            ("F", (0, 1.56, 0)),
+            ("F", (0, -1.56, 0)),
+            ("F", (0, 0, 1.56)),
+            ("F", (0, 0, -1.56)),
+        ],
+        24,
+        "Oh",
+    ),
+    (
+        "hof",
+        [("O", (0, 0, 0)), ("H", (0.96, 0.02, 0.01)), ("F", (-0.25, 1.39, 0.13))],
+        1,
+        "Cs",
+    ),
+    (
+        "substituted_tetrahedron",
+        [
+            ("C", (0, 0, 0)),
+            ("H", (1, 1, 1)),
+            ("N", (-1, -1, 1)),
+            ("O", (-1, 1, -1)),
+            ("F", (1, -1, -1)),
+        ],
+        1,
+        "C1",
+    ),
+]
+
+
+def _transformed_spec(spec, mode):
+    symbols = [symbol for symbol, _ in spec]
+    coordinates = np.array([position for _, position in spec], dtype=float)
+
+    if mode == "translated":
+        coordinates = coordinates + np.array([3.2, -1.7, 0.9])
+    elif mode == "rotated":
+        axis = np.array([0.2, -0.7, 0.68])
+        axis = axis / np.linalg.norm(axis)
+        angle = 1.137
+        cross_product_matrix = np.array(
+            [
+                [0, -axis[2], axis[1]],
+                [axis[2], 0, -axis[0]],
+                [-axis[1], axis[0], 0],
+            ]
+        )
+        rotation = (
+            np.eye(3)
+            + math.sin(angle) * cross_product_matrix
+            + (1 - math.cos(angle)) * (cross_product_matrix @ cross_product_matrix)
+        )
+        coordinates = coordinates @ rotation.T
+    elif mode == "permuted":
+        order = list(reversed(range(len(spec))))
+        symbols = [symbols[index] for index in order]
+        coordinates = coordinates[order]
+    else:
+        raise ValueError(mode)
+
+    return list(zip(symbols, map(tuple, coordinates)))
+
+
+def _symmetry_case_ids(value):
+    if isinstance(value, str):
+        return value
+    return None
 
 
 
@@ -147,6 +369,109 @@ def test_water_symmetry_regression():
 
     assert rotational_symmetry_number(atoms) == 2
     assert system_module.rotational_group_calc(atoms) == "C2v"
+
+
+def test_monoatomic_symmetry_regression():
+    atoms = [Atom(symbol="H", position=np.array([0.0, 0.0, 0.0]))]
+
+    assert rotational_symmetry_number(atoms) == 1
+    assert system_module.rotational_group_calc(atoms) == "Kh"
+
+
+def test_monoatomic_system_initializes():
+    atoms = [Atom(symbol="H", position=np.array([0.0, 0.0, 0.0]))]
+
+    system = System(
+        atoms,
+        periodicity=False,
+        cell=None,
+        solvation=None,
+        solvent=None,
+        charge=0,
+        electronic_energy=-0.5,
+        vibrational_frequencies=np.array([1.0, 2.0, 3.0]),
+    )
+
+    assert system.rotational_symmetry_number == 1
+    assert system.rotational_group == "Kh"
+
+
+def test_symmetry_analysis_rejects_overlapping_positions():
+    atoms = _atoms([("H", (0.0, 0.0, 0.0)), ("H", (0.0, 0.0, 0.0))])
+
+    with pytest.raises(TSValueError, match="must not overlap"):
+        rotational_symmetry_number(atoms)
+    with pytest.raises(TSValueError, match="must not overlap"):
+        system_module.rotational_group_calc(atoms)
+
+
+@pytest.mark.parametrize(
+    "name,spec,expected_number,expected_group",
+    SYMMETRY_EDGE_CASES,
+    ids=_symmetry_case_ids,
+)
+def test_rotational_symmetry_edge_case_regressions(
+    name,
+    spec,
+    expected_number,
+    expected_group,
+):
+    del name
+    atoms = _atoms(spec)
+
+    assert rotational_symmetry_number(atoms) == expected_number
+    assert system_module.rotational_group_calc(atoms) == expected_group
+
+
+@pytest.mark.parametrize("mode", ["translated", "rotated", "permuted"])
+@pytest.mark.parametrize(
+    "name,spec,expected_number,expected_group",
+    [
+        case
+        for case in SYMMETRY_EDGE_CASES
+        if case[0] in {"linear_co2", "methane", "benzene", "sf6", "hof"}
+    ],
+    ids=_symmetry_case_ids,
+)
+def test_rotational_symmetry_is_coordinate_frame_invariant(
+    name,
+    spec,
+    expected_number,
+    expected_group,
+    mode,
+):
+    del name
+    atoms = _atoms(_transformed_spec(spec, mode))
+
+    assert rotational_symmetry_number(atoms) == expected_number
+    assert system_module.rotational_group_calc(atoms) == expected_group
+
+
+@pytest.mark.parametrize(
+    "name,spec,expected_number,expected_group",
+    [
+        case
+        for case in SYMMETRY_EDGE_CASES
+        if case[0] in {"water", "methane", "benzene", "sf6"}
+    ],
+    ids=_symmetry_case_ids,
+)
+def test_rotational_symmetry_tolerates_tiny_coordinate_noise(
+    name,
+    spec,
+    expected_number,
+    expected_group,
+):
+    del name
+    rng = np.random.default_rng(314159)
+    noisy_spec = [
+        (symbol, tuple(np.asarray(position, dtype=float) + rng.normal(0, 1e-8, 3)))
+        for symbol, position in spec
+    ]
+    atoms = _atoms(noisy_spec)
+
+    assert rotational_symmetry_number(atoms) == expected_number
+    assert system_module.rotational_group_calc(atoms) == expected_group
 
 
 class TestSystem(unittest.TestCase):
