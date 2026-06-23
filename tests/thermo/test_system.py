@@ -98,6 +98,26 @@ def test_point_group_analyzer_suppresses_pymatgen_complex_warning(monkeypatch):
     assert analyzer.sch_symbol == "C1"
 
 
+def test_point_group_analyzer_keeps_unexpected_complex_warning(monkeypatch):
+    class FakePointGroupAnalyzer:
+        def __init__(self, molecule):
+            self.molecule = molecule
+            warnings.warn_explicit(
+                "unexpected complex warning",
+                system_module.ComplexWarning,
+                filename="other.py",
+                lineno=1,
+                module="other.module",
+            )
+
+    monkeypatch.setattr(system_module, "PointGroupAnalyzer", FakePointGroupAnalyzer)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", system_module.ComplexWarning)
+        with pytest.raises(system_module.ComplexWarning, match="unexpected"):
+            system_module._point_group_analyzer(object())
+
+
 def test_symmetry_analysis_rejects_imaginary_positions():
     atoms = [
         Atom(symbol="H", position=np.array([0.0 + 1.0j, 0.0, 0.0])),
@@ -106,6 +126,27 @@ def test_symmetry_analysis_rejects_imaginary_positions():
 
     with pytest.raises(TSValueError, match="Atom positions must be real-valued"):
         rotational_symmetry_number(atoms)
+
+
+def test_rotational_group_rejects_imaginary_positions():
+    atoms = [
+        Atom(symbol="H", position=np.array([0.0, 0.0, 0.0])),
+        Atom(symbol="H", position=np.array([1.0, 1.0e-6j, 0.0])),
+    ]
+
+    with pytest.raises(TSValueError, match="Atom positions must be real-valued"):
+        system_module.rotational_group_calc(atoms)
+
+
+def test_water_symmetry_regression():
+    atoms = [
+        Atom(symbol="O", position=np.array([0.000000, 0.000000, 0.000000])),
+        Atom(symbol="H", position=np.array([0.957200, 0.000000, 0.000000])),
+        Atom(symbol="H", position=np.array([-0.239987, 0.927297, 0.000000])),
+    ]
+
+    assert rotational_symmetry_number(atoms) == 2
+    assert system_module.rotational_group_calc(atoms) == "C2v"
 
 
 class TestSystem(unittest.TestCase):
