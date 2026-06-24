@@ -173,6 +173,27 @@ class TestApi(unittest.TestCase):
             read_xyz("test.xyz")
 
     @patch(
+        "pathlib.Path.read_text",
+        return_value="1\n\nH 0.12345678901234 1.0 2.0\n",
+    )
+    def test_read_xyz_positions_keep_double_precision(self, read_text_mock):
+        # XYZFrameReader stores positions as float32; read_xyz must preserve the
+        # full double precision of the source coordinates.
+        _, _, data_xyz, _, _ = read_xyz("test.xyz")
+
+        assert data_xyz.dtype == np.float64
+        np.testing.assert_allclose(
+            data_xyz[0],
+            np.array([0.12345678901234, 1.0, 2.0]),
+            rtol=0.0,
+            atol=1e-15,
+        )
+
+    def test_read_xyz_missing_file_raises_file_not_found(self):
+        with pytest.raises(FileNotFoundError):
+            read_xyz("/nonexistent/path/does_not_exist.xyz")
+
+    @patch(
         "builtins.open",
         new_callable=mock_open,
         read_data="1.0  2.0\n2.0  3.0\n3.0  4.0\n4.0  5.0\n5.0  6.0\n6.0  7.0\n",

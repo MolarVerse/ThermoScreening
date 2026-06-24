@@ -172,10 +172,9 @@ def test_geoopt_read_uses_gen_reader(monkeypatch):
     assert calls == [("geo_opt.gen", "gen")]
 
 
-def test_hessian_read_uses_square_matrix(monkeypatch, tmp_path):
+def test_hessian_read_parses_square_grid(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     np.savetxt("hessian.out", np.arange(36, dtype=float).reshape(6, 6))
-    monkeypatch.setattr(dftbplus_module, "_pq_hessian_reader", None)
 
     class FakeAtoms:
         def get_global_number_of_atoms(self):
@@ -191,34 +190,55 @@ def test_hessian_read_uses_square_matrix(monkeypatch, tmp_path):
     np.testing.assert_array_equal(result.ravel(), np.arange(36, dtype=float))
 
 
-def test_hessian_reader_uses_pqanalysis_when_available(monkeypatch):
-    calls = []
+def test_hessian_read_parses_wrapped_dftbplus_output(monkeypatch, tmp_path):
+    # DFTB+ writes hessian.out as a flat stream wrapped at a fixed number of
+    # values per matrix row, producing ragged line widths (e.g. 4 then 2) that
+    # numpy.loadtxt cannot parse. The reader must read all values and reshape.
+    monkeypatch.chdir(tmp_path)
+    expected = np.arange(36, dtype=float).reshape(6, 6)
+    with open("hessian.out", "w", encoding="utf-8") as handle:
+        for row in expected:
+            for start in range(0, row.size, 4):
+                handle.write(
+                    "  ".join(f"{value:.10f}" for value in row[start:start + 4])
+                    + "\n"
+                )
 
-    def fake_reader(filename):
-        calls.append(filename)
-        return np.eye(3)
+    # Sanity-check the fixture is genuinely the ragged layout DFTB+ emits.
+    line_widths = {
+        len(line.split())
+        for line in open("hessian.out", encoding="utf-8")
+        if line.strip()
+    }
+    assert line_widths == {4, 2}
+    with pytest.raises(ValueError):
+        np.loadtxt("hessian.out")
 
-    monkeypatch.setattr(dftbplus_module, "_pq_hessian_reader", fake_reader)
-
-    np.testing.assert_array_equal(
-        dftbplus_module._read_hessian_matrix("hessian.out"),
-        np.eye(3),
-    )
-    assert calls == ["hessian.out"]
-
-
-def test_hessian_read_rejects_wrong_matrix_size(monkeypatch):
     class FakeAtoms:
         def get_global_number_of_atoms(self):
             return 2
 
     hessian = Hessian.__new__(Hessian)
     hessian.atoms = FakeAtoms()
-    monkeypatch.setattr(
-        dftbplus_module,
-        "_read_hessian_matrix",
-        lambda filename: np.zeros((3, 3)),
-    )
+
+    result = hessian.read()
+
+    assert result.shape == (6, 6)
+    np.testing.assert_allclose(result, expected)
+
+
+def test_hessian_read_rejects_wrong_matrix_size(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    # 2 atoms -> a 6x6 (36-value) Hessian is expected; write only 30 values.
+    with open("hessian.out", "w", encoding="utf-8") as handle:
+        handle.write("\n".join("0.0 0.0 0.0 0.0 0.0" for _ in range(6)) + "\n")
+
+    class FakeAtoms:
+        def get_global_number_of_atoms(self):
+            return 2
+
+    hessian = Hessian.__new__(Hessian)
+    hessian.atoms = FakeAtoms()
 
     with pytest.raises(ValueError, match="Hessian matrix size"):
         hessian.read()
