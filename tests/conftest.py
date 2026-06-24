@@ -1,39 +1,21 @@
-import pytest
-import os
 import shutil
-# (c) Jakob Gamper
+from pathlib import Path
+
+import pytest
 
 
 @pytest.fixture(scope="function")
-def tmpdir():
-
-    tmpdir = "tmpdir"
-
-    if os.path.exists(tmpdir) and os.path.isdir(tmpdir):
-        shutil.rmtree(tmpdir)
-    os.mkdir(tmpdir)
-
-    os.chdir(tmpdir)
-
-    yield tmpdir
-
-    os.chdir("..")
-    shutil.rmtree(tmpdir)
+def tmpdir(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    return str(tmp_path)
 
 
 @pytest.fixture(scope="function")
-def test_with_data_dir(example_dir):
+def test_with_data_dir(example_dir, tmp_path, monkeypatch):
+    source = Path(__file__).parent / "data" / example_dir
+    workdir = tmp_path / example_dir
 
-    tmpdir = "tmpdir"
+    shutil.copytree(source, workdir)
+    monkeypatch.chdir(workdir)
 
-    if os.path.exists(tmpdir) and os.path.isdir(tmpdir):
-        shutil.rmtree(tmpdir)
-
-    shutil.copytree(os.path.join("tests/data", example_dir), tmpdir)
-
-    os.chdir(tmpdir)
-
-    yield tmpdir
-
-    os.chdir("..")
-    shutil.rmtree(tmpdir)
+    return str(workdir)

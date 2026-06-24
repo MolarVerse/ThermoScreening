@@ -56,7 +56,7 @@ thermo = "ThermoScreening.cli.thermo:main"
 [tool.pylint.main]
 fail-under = 7.0
 persistent = false
-py-version = "3.10"
+py-version = "3.12"
 
 [tool.pylint.reports]
 score = true

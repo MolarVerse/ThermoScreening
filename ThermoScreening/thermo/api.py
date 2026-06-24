@@ -1,7 +1,9 @@
 import logging
+from pathlib import Path
 
 import numpy as np
-from PQAnalysis.io import read_gen_file
+from PQAnalysis.io import XYZFrameReader, read_gen_file
+from PQAnalysis.io.traj_file.exceptions import FrameReaderError
 
 from ThermoScreening.exceptions import TSNotImplementedError, TSValueError
 from ThermoScreening.utils.custom_logging import setup_logger
@@ -16,6 +18,23 @@ from ..calculator import Geoopt, Hessian, Modes
 
 logger = logging.getLogger(__package_name__).getChild("api")
 logger = setup_logger(logger)
+
+
+def _pq_atom_names(system):
+    return np.array([atom.name for atom in system.atoms], dtype=object)
+
+
+def _pq_positions(system):
+    return np.asarray(system.pos, dtype=float)
+
+
+def _pq_xyz_cell(cell):
+    if cell.is_vacuum:
+        return None, False
+    return (
+        np.array([cell.x, cell.y, cell.z, cell.alpha, cell.beta, cell.gamma]),
+        True,
+    )
 
 
 def read_xyz(coord_file: str):
@@ -33,45 +52,16 @@ def read_xyz(coord_file: str):
         number of atoms, chemical symbols of atoms, coordinates of atoms, cell parameters
     """
 
-    cell = None
-    pbc = False
-    data_N = None
+    try:
+        frame = XYZFrameReader().read(
+            Path(coord_file).read_text(encoding="utf-8"),
+            traj_format="xyz",
+        )
+    except (OSError, FrameReaderError, ValueError, IndexError) as exc:
+        raise TSValueError("Invalid XYZ coordinate file.") from exc
 
-    with open(coord_file, "r") as f:
-
-        line = f.readline()
-
-        line = line.strip()
-
-        # split line and ignore spaces
-        line = line.split()
-        data_N = int(line[0])
-
-        if len(line) >= 7:
-            try:
-                cell = np.array([float(value) for value in line[1:7]])
-            except ValueError:
-                cell = None
-            else:
-                pbc = True
-
-        line = f.readline().strip()
-
-        i = 0
-        data_atoms = np.empty(data_N, dtype=object)
-        data_xyz = np.zeros((data_N, 3), dtype=float)
-        while True:
-            line = f.readline().strip()
-            line = line.split()
-            if len(line) == 0:
-                break
-            data_atoms[i] = str(line[0])
-            data_xyz[i, 0] = float(line[1])
-            data_xyz[i, 1] = float(line[2])
-            data_xyz[i, 2] = float(line[3])
-            i += 1
-
-    return [data_N, data_atoms, data_xyz, cell, pbc]
+    cell, pbc = _pq_xyz_cell(frame.cell)
+    return [frame.n_atoms, _pq_atom_names(frame), _pq_positions(frame), cell, pbc]
 
 
 def read_gen(coord_file: str):
@@ -91,8 +81,8 @@ def read_gen(coord_file: str):
     system = read_gen_file(coord_file)
 
     data_N = system.n_atoms
-    data_atoms = np.array([atom.name for atom in system.atoms], dtype=object)
-    data_xyz = np.asarray(system.pos, dtype=float)
+    data_atoms = _pq_atom_names(system)
+    data_xyz = _pq_positions(system)
 
     if system.cell.is_vacuum:
         cell_vector = None
@@ -120,16 +110,27 @@ def read_vib_file(vibrational_file: str):
     np.ndarray
         The vibrational frequencies as a numpy array.
     """
-    vibrational_frequencies = np.array([])
-    with open(vibrational_file, "r") as f:
-        while True:
-            line = f.readline().strip()
-            line = line.split()
-            if len(line) == 0:
-                break
-            vibrational_frequencies = np.append(vibrational_frequencies, float(line[1]))
+    vibrational_frequencies = []
+    with open(vibrational_file, "r", encoding="utf-8") as f:
+        for line_number, line in enumerate(f, start=1):
+            fields = line.split()
+            if not fields:
+                continue
+            if len(fields) < 2:
+                raise TSValueError(
+                    f"Invalid vibrational frequency line {line_number}."
+                )
+            try:
+                vibrational_frequencies.append(float(fields[1]))
+            except ValueError as exc:
+                raise TSValueError(
+                    f"Invalid vibrational frequency line {line_number}."
+                ) from exc
 
-    return vibrational_frequencies
+    if not vibrational_frequencies:
+        raise TSValueError("No vibrational frequencies found.")
+
+    return np.asarray(vibrational_frequencies)
 
 
 def read_coord(coord_file: str, engine: str):
