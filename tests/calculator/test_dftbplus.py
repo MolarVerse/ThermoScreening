@@ -2,6 +2,7 @@ import pytest
 
 import os
 import subprocess
+from pathlib import Path
 import numpy as np
 import ase.io as ase_io
 from ase import Atoms
@@ -313,6 +314,57 @@ def test_modes_read_converts_hartree_to_wavenumbers(monkeypatch, tmp_path):
 
     np.testing.assert_allclose(wave_numbers, np.array([0.0, 0.1, 0.2]) * 219474.63)
     np.testing.assert_array_equal(wave_numbers, modes.wave_numbers)
+
+
+def test_modes_pipeline_parses_authentic_dftbplus_layout(monkeypatch, tmp_path):
+    # End-to-end Hessian -> modes -> frequency path against the authentic DFTB+
+    # file layouts, with only the (CI-unavailable) `modes` binary mocked.
+    data_dir = Path(__file__).resolve().parents[1] / "data" / "calculator" / "modes"
+    for name in ("geo_opt.gen", "hessian.out", "vibrations.tag"):
+        (tmp_path / name).write_text(
+            (data_dir / name).read_text(encoding="utf-8"), encoding="utf-8"
+        )
+    monkeypatch.chdir(tmp_path)
+
+    # The committed hessian.out is the real wrapped/ragged layout that a
+    # square-grid reader (np.loadtxt) cannot parse.
+    with pytest.raises(ValueError):
+        np.loadtxt("hessian.out")
+
+    # Mock only the binary: it must run after write() created modes_in.hsd, and
+    # it leaves vibrations.tag (already staged) as its output.
+    monkeypatch.setattr(
+        dftbplus_module.shutil, "which", lambda command: "/usr/bin/modes"
+    )
+
+    def fake_run(command, stdout, check):
+        assert command == ["modes"]
+        assert check is True
+        assert Path("modes_in.hsd").exists()
+        stdout.write("modes finished")
+
+    monkeypatch.setattr(dftbplus_module.subprocess, "run", fake_run)
+
+    modes = Modes(geometry="geo_opt.gen", hessian="hessian.out")
+
+    expected = []
+    with open("vibrations.tag", encoding="utf-8") as handle:
+        handle.readline()
+        for line in handle:
+            expected += line.split()
+    expected = np.array(expected, dtype=float) * 219474.63
+
+    assert modes.wave_numbers.shape == (9,)
+    np.testing.assert_allclose(modes.wave_numbers, expected)
+
+    # The Hessian stage parses the same authentic ragged layout into (3N, 3N).
+    class FakeAtoms:
+        def get_global_number_of_atoms(self):
+            return 3
+
+    hessian = Hessian.__new__(Hessian)
+    hessian.atoms = FakeAtoms()
+    assert hessian.read().shape == (9, 9)
 
 
 @pytest.mark.skipif(
