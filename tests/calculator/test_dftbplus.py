@@ -316,6 +316,29 @@ def test_modes_read_converts_hartree_to_wavenumbers(monkeypatch, tmp_path):
     np.testing.assert_array_equal(wave_numbers, modes.wave_numbers)
 
 
+def test_modes_read_stops_at_trailing_tag_section(monkeypatch, tmp_path):
+    # DFTB+ may append further tag sections (e.g. saved_modes) after the
+    # frequencies; read() must stop there instead of parsing the header as a
+    # float.
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "vibrations.tag").write_text(
+        "frequencies         :real:1:3\n"
+        " 0.100000000000000E-002  0.200000000000000E-002  0.300000000000000E-002\n"
+        "saved_modes         :integer:1:3\n"
+        "                                1                                2\n"
+        "                                3\n",
+        encoding="utf-8",
+    )
+    modes = Modes.__new__(Modes)
+
+    wave_numbers = modes.read()
+
+    assert wave_numbers.shape == (3,)
+    np.testing.assert_allclose(
+        wave_numbers, np.array([1.0e-3, 2.0e-3, 3.0e-3]) * 219474.63
+    )
+
+
 def test_modes_pipeline_parses_authentic_dftbplus_layout(monkeypatch, tmp_path):
     # End-to-end Hessian -> modes -> frequency path against the authentic DFTB+
     # file layouts, with only the (CI-unavailable) `modes` binary mocked.

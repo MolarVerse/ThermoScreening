@@ -340,18 +340,19 @@ class Modes:
             Vibrational modes.
         """
 
-        with open("vibrations.tag") as f:
-            f.readline()  # skip the first line
-            lines = [line.split() for line in f]
-
-        # matrix to array
         modes = []
-        for line in lines:
-            modes += line
-        modes = np.array(modes, dtype=float)
+        with open("vibrations.tag", "r", encoding="utf-8") as f:
+            f.readline()  # skip the 'frequencies' tag header
+            for line in f:
+                try:
+                    values = [float(field) for field in line.split()]
+                except ValueError:
+                    # stop at the next tag section (e.g. 'saved_modes :integer:..')
+                    break
+                modes.extend(values)
 
         # Hartree to cm^-1 - 1 Hartree = 219474.63 cm^-1
-        self.wave_numbers = modes * 219474.63
+        self.wave_numbers = np.array(modes, dtype=float) * 219474.63
 
         return self.wave_numbers
 
