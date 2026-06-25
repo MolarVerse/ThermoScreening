@@ -655,12 +655,15 @@ class System:
         self._center_of_mass = center_of_mass(atoms, self._mass)
         self._symmetry_number = rotational_symmetry_number(atoms)
         self._rotational_group = rotational_group_calc(atoms)
-        if self._cell is None:
-            self._spacegroup_number = None
-            self._spacegroup = None
-        else:
+        if isinstance(self._cell, Cell):
             self._spacegroup_number = spacegroup_number(atoms, self._cell)
             self._spacegroup = spacegroup(atoms, self._cell)
+        else:
+            # Periodic input arrives as a raw cell array (from read_xyz/read_gen)
+            # and the spacegroup is unused by the gas-phase RRHO calculation, so
+            # degrade to None instead of feeding a non-Cell into spacegroup().
+            self._spacegroup_number = None
+            self._spacegroup = None
         self._imaginary_frequencies = imaginary_frequencies(vibrational_frequencies)
         self._has_imaginary_frequencies = check_imaginary_frequencies(
             self._imaginary_frequencies
@@ -823,17 +826,17 @@ class System:
         return self._rotational_group
 
     @property
-    def spacegroup_number(self) -> None | str:
+    def spacegroup_number(self) -> None | int:
         """
-        The spacegroup of the system.
+        The spacegroup number of the system.
 
         Returns
         -------
-        str, None
-            The spacegroup of the system.
+        int, None
+            The spacegroup number of the system.
         """
 
-        return self._spacegroup
+        return self._spacegroup_number
 
     @property
     def spacegroup(self) -> None | str:

@@ -532,6 +532,43 @@ class TestSystem(unittest.TestCase):
 
         assert system.periodicity is False
 
+    def test_system_accepts_periodic_ndarray_cell(self):
+        # read_xyz/read_gen hand back a raw ndarray cell for periodic input;
+        # System must construct instead of raising on the spacegroup hint, and
+        # degrade the (unused) spacegroup to None.
+        cell = np.array([[10.0, 0.0, 0.0], [0.0, 10.0, 0.0], [0.0, 0.0, 10.0]])
+
+        system = System(
+            self.atoms,
+            periodicity=True,
+            cell=cell,
+            solvation=None,
+            solvent=None,
+            charge=0,
+            electronic_energy=-33.6052447996,
+            vibrational_frequencies=np.array([-1, -2, 0.1, 1, 2, 3, 4, 5, 6]),
+        )
+
+        assert system.spacegroup_number is None
+        assert system.spacegroup is None
+
+    def test_spacegroup_properties_map_to_their_attributes(self):
+        system = System(
+            self.atoms,
+            periodicity=False,
+            cell=None,
+            solvation=None,
+            solvent=None,
+            charge=0,
+            electronic_energy=-33.6052447996,
+            vibrational_frequencies=np.array([-1, -2, 0.1, 1, 2, 3, 4, 5, 6]),
+        )
+        system._spacegroup_number = 1
+        system._spacegroup = "P1"
+
+        assert system.spacegroup_number == 1
+        assert system.spacegroup == "P1"
+
         np.testing.assert_array_equal(system.center_of_mass, [1, 0, 0])
 
         assert system.pbc == [False, False, False]
