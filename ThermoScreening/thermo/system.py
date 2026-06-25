@@ -108,17 +108,25 @@ def linearity(atoms: List[Atom]) -> bool:
         )
     elif len(atoms) == 2:
         return True
-    else:
-        # compute inertia tensor and eigenvalues
-        inertia_tensor = np.zeros((3, 3))
-        for atom in atoms:
-            inertia_tensor += atom.mass * np.outer(atom.position, atom.position)
-        eigenvalues = np.linalg.eigvalsh(inertia_tensor)
-        # check if the smallest eigenvalue is zero
-        if eigenvalues[0] == 0:
-            return True
-        else:
-            return False
+
+    masses = np.array([atom.mass for atom in atoms], dtype=float)
+    positions = np.array([_real_position(atom.position) for atom in atoms])
+    # relocate to the center of mass so linearity is translation-invariant
+    positions = positions - np.average(positions, axis=0, weights=masses)
+
+    x, y, z = positions[:, 0], positions[:, 1], positions[:, 2]
+    inertia_tensor = np.zeros((3, 3))
+    inertia_tensor[0, 0] = np.sum(masses * (y**2 + z**2))
+    inertia_tensor[1, 1] = np.sum(masses * (x**2 + z**2))
+    inertia_tensor[2, 2] = np.sum(masses * (x**2 + y**2))
+    inertia_tensor[0, 1] = inertia_tensor[1, 0] = -np.sum(masses * x * y)
+    inertia_tensor[0, 2] = inertia_tensor[2, 0] = -np.sum(masses * x * z)
+    inertia_tensor[1, 2] = inertia_tensor[2, 1] = -np.sum(masses * y * z)
+
+    eigenvalues = np.linalg.eigvalsh(inertia_tensor)
+    # a linear molecule has exactly one vanishing principal moment of inertia
+    # (the molecular axis); use a relative tolerance rather than an exact zero.
+    return bool(eigenvalues[0] <= 1e-6 * eigenvalues[-1])
 
 
 def dimensionality(atoms: List[Atom]) -> int:
