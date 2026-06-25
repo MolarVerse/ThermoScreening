@@ -11,16 +11,25 @@ from ..utils.physicalConstants import PhysicalConstants
 # --------------------------------------------------------------------------- #
 
 
-try:
-    from PQAnalysis.analysis.vibrational import read_hessian_file as _pq_hessian_reader
-except ModuleNotFoundError:
-    _pq_hessian_reader = None
+def _read_hessian_matrix(filename, size):
+    """
+    Read a DFTB+ Hessian matrix from ``filename``.
 
+    DFTB+ writes ``hessian.out`` as a flat stream of second derivatives wrapped
+    across a fixed number of values per line (with a ragged final line per
+    matrix row), so the matrix is reconstructed by reading every value and
+    reshaping to ``(size, size)`` rather than treating each physical line as a
+    matrix row.
+    """
+    with open(filename, "r", encoding="utf-8") as handle:
+        values = np.array(handle.read().split(), dtype=float)
 
-def _read_hessian_matrix(filename):
-    if _pq_hessian_reader is not None:
-        return _pq_hessian_reader(filename)
-    return np.atleast_2d(np.loadtxt(filename, dtype=float))
+    if values.size != size * size:
+        raise ValueError(
+            "Hessian matrix size does not match the number of atoms."
+        )
+
+    return values.reshape(size, size)
 
 
 def _slako_dir(slako_dir=None):
@@ -224,13 +233,8 @@ class Hessian(Dftb):
             Hessian matrix.
         """
 
-        self.hessian = _read_hessian_matrix("hessian.out")
         hessian_size = self.atoms.get_global_number_of_atoms() * 3
-
-        if self.hessian.shape != (hessian_size, hessian_size):
-            raise ValueError(
-                "Hessian matrix size does not match the number of atoms."
-            )
+        self.hessian = _read_hessian_matrix("hessian.out", hessian_size)
 
         return self.hessian
 
@@ -336,18 +340,19 @@ class Modes:
             Vibrational modes.
         """
 
-        with open("vibrations.tag") as f:
-            f.readline()  # skip the first line
-            lines = [line.split() for line in f]
-
-        # matrix to array
         modes = []
-        for line in lines:
-            modes += line
-        modes = np.array(modes, dtype=float)
+        with open("vibrations.tag", "r", encoding="utf-8") as f:
+            f.readline()  # skip the 'frequencies' tag header
+            for line in f:
+                try:
+                    values = [float(field) for field in line.split()]
+                except ValueError:
+                    # stop at the next tag section (e.g. 'saved_modes :integer:..')
+                    break
+                modes.extend(values)
 
         # Hartree to cm^-1 - 1 Hartree = 219474.63 cm^-1
-        self.wave_numbers = modes * 219474.63
+        self.wave_numbers = np.array(modes, dtype=float) * 219474.63
 
         return self.wave_numbers
 

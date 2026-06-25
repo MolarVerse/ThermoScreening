@@ -28,6 +28,23 @@ def _pq_positions(system):
     return np.asarray(system.pos, dtype=float)
 
 
+def _xyz_float64_positions(text: str, n_atoms: int):
+    """
+    Parse the atom-block coordinates of an XYZ string as float64.
+
+    ``XYZFrameReader`` stores frame positions as single precision (float32);
+    re-reading the coordinate columns here preserves the full double precision
+    of the source file, matching :func:`read_gen`. The frame has already
+    validated that the file is well-formed, so the atom lines follow the count
+    and comment lines.
+    """
+    atom_lines = text.splitlines()[2 : 2 + n_atoms]
+    return np.array(
+        [line.split()[1:4] for line in atom_lines],
+        dtype=float,
+    )
+
+
 def _pq_xyz_cell(cell):
     if cell.is_vacuum:
         return None, False
@@ -52,16 +69,16 @@ def read_xyz(coord_file: str):
         number of atoms, chemical symbols of atoms, coordinates of atoms, cell parameters
     """
 
+    text = Path(coord_file).read_text(encoding="utf-8")
+
     try:
-        frame = XYZFrameReader().read(
-            Path(coord_file).read_text(encoding="utf-8"),
-            traj_format="xyz",
-        )
-    except (OSError, FrameReaderError, ValueError, IndexError) as exc:
+        frame = XYZFrameReader().read(text, traj_format="xyz")
+    except (FrameReaderError, ValueError, IndexError) as exc:
         raise TSValueError("Invalid XYZ coordinate file.") from exc
 
     cell, pbc = _pq_xyz_cell(frame.cell)
-    return [frame.n_atoms, _pq_atom_names(frame), _pq_positions(frame), cell, pbc]
+    positions = _xyz_float64_positions(text, frame.n_atoms)
+    return [frame.n_atoms, _pq_atom_names(frame), positions, cell, pbc]
 
 
 def read_gen(coord_file: str):
