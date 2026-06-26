@@ -1,4 +1,6 @@
 import logging
+import os
+from contextlib import contextmanager
 from pathlib import Path
 
 import numpy as np
@@ -494,11 +496,36 @@ def execute(input_file: str) -> Thermo:
         engine=engine,
     )
 
+@contextmanager
+def _run_in_directory(directory):
+    """
+    Run the enclosed block in ``directory`` (created if needed), restoring the
+    previous working directory afterwards. A no-op when ``directory`` is None.
+
+    The DFTB+ steps read and write fixed filenames (geo_opt.gen, hessian.out,
+    vibrations.tag, ...) in the current directory, so giving each job its own
+    directory keeps batch runs from clobbering each other.
+    """
+    if directory is None:
+        yield
+        return
+
+    previous = Path.cwd()
+    directory = Path(directory)
+    directory.mkdir(parents=True, exist_ok=True)
+    os.chdir(directory)
+    try:
+        yield
+    finally:
+        os.chdir(previous)
+
+
 def dftbplus_thermo(
-        atoms, 
+        atoms,
         temperature=298.15,
         pressure=101325,
         charge=0.0,
+        directory=None,
         **kwargs
     ):
     """
@@ -514,6 +541,10 @@ def dftbplus_thermo(
         The pressure in Pa. Default is 101325.
     charge : float
         The system charge. Default is 0.0.
+    directory : str, optional
+        Working directory to run the DFTB+ steps in (created if needed). The
+        geometry/Hessian/modes files are written here, so separate jobs can run
+        without clobbering each other. Defaults to the current directory.
 
     Other Parameters
     ----------------
@@ -525,29 +556,30 @@ def dftbplus_thermo(
     Thermo
         The thermo calculation object.
     """
-    
-    # run geometry optimization
-    geoopt = Geoopt(atoms=atoms, charge=charge, **kwargs)
-    potential_energy = geoopt.potential_energy()
-    optimized_atoms = geoopt.read()
-    
-    # run hessian calculation
-    Hessian(atoms=optimized_atoms, charge=charge, **kwargs)
 
-    # run normal mode calculation
-    modes = Modes()
-    frequencies = modes.wave_numbers
+    with _run_in_directory(directory):
+        # run geometry optimization
+        geoopt = Geoopt(atoms=atoms, charge=charge, **kwargs)
+        potential_energy = geoopt.potential_energy()
+        optimized_atoms = geoopt.read()
 
-    # run thermo calculation on the optimized geometry directly (DFTB+ writes
-    # geo_opt.gen, not geo_opt.xyz, so avoid the disk round-trip entirely)
-    thermo = run_thermo(
-        frequencies,
-        atoms=optimized_atoms,
-        temperature=temperature,
-        pressure=pressure,
-        energy=potential_energy,
-        engine='dftb+',
-        charge=charge,
-    )
+        # run hessian calculation
+        Hessian(atoms=optimized_atoms, charge=charge, **kwargs)
+
+        # run normal mode calculation
+        modes = Modes()
+        frequencies = modes.wave_numbers
+
+        # run thermo calculation on the optimized geometry directly (DFTB+ writes
+        # geo_opt.gen, not geo_opt.xyz, so avoid the disk round-trip entirely)
+        thermo = run_thermo(
+            frequencies,
+            atoms=optimized_atoms,
+            temperature=temperature,
+            pressure=pressure,
+            energy=potential_energy,
+            engine='dftb+',
+            charge=charge,
+        )
 
     return thermo
