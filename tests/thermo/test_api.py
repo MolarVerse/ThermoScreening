@@ -274,5 +274,30 @@ class TestApi(unittest.TestCase):
                 engine="dftb+",
             )
 
+    def test_run_thermo_ase_atoms_matches_file_path(self):
+        import ase.io as ase_io
+
+        data_dir = Path(__file__).resolve().parents[1] / "data" / "thermo"
+        gen_file = data_dir / "geo_opt.gen"
+        frequencies = read_vibrational(str(data_dir / "frequency.txt"), "dftb+")
+
+        from_file = run_thermo(
+            frequencies, coord_file=str(gen_file), engine="dftb+", energy=-1.0
+        )
+        from_atoms = run_thermo(
+            frequencies,
+            atoms=ase_io.read(str(gen_file), format="gen"),
+            engine="dftb+",
+            energy=-1.0,
+        )
+
+        assert from_atoms.total_energy("H") == pytest.approx(from_file.total_energy("H"))
+        assert from_atoms.total_entropy("cal/(mol*K)") == pytest.approx(
+            from_file.total_entropy("cal/(mol*K)")
+        )
+        assert from_atoms.total_gibbs_free_energy("H") == pytest.approx(
+            from_file.total_gibbs_free_energy("H")
+        )
+
 if __name__ == "__main__":
     unittest.main()
