@@ -335,5 +335,50 @@ def test_run_in_directory_none_is_noop():
     assert Path.cwd() == start
 
 
+def test_dftbplus_thermo_runs_pipeline_in_directory(monkeypatch, tmp_path):
+    # Drive dftbplus_thermo with the DFTB+ steps mocked, so the directory wiring
+    # is exercised without the binaries.
+    import ThermoScreening.thermo.api as api
+
+    seen = {}
+
+    class FakeGeoopt:
+        def __init__(self, atoms, charge, **kwargs):
+            seen["cwd_during"] = Path.cwd().resolve()
+
+        def potential_energy(self):
+            return -1.0
+
+        def read(self):
+            return "optimized-atoms"
+
+    class FakeHessian:
+        def __init__(self, atoms, charge, **kwargs):
+            seen["hessian_atoms"] = atoms
+
+    class FakeModes:
+        def __init__(self):
+            self.wave_numbers = np.array([1.0, 2.0, 3.0])
+
+    def fake_run_thermo(frequencies, atoms=None, **kwargs):
+        seen["run_thermo_atoms"] = atoms
+        return "thermo-result"
+
+    monkeypatch.setattr(api, "Geoopt", FakeGeoopt)
+    monkeypatch.setattr(api, "Hessian", FakeHessian)
+    monkeypatch.setattr(api, "Modes", FakeModes)
+    monkeypatch.setattr(api, "run_thermo", fake_run_thermo)
+
+    job = tmp_path / "job"
+    start = Path.cwd()
+    result = api.dftbplus_thermo("initial-atoms", directory=str(job))
+
+    assert result == "thermo-result"
+    assert seen["run_thermo_atoms"] == "optimized-atoms"
+    assert seen["hessian_atoms"] == "optimized-atoms"
+    assert seen["cwd_during"] == job.resolve()  # pipeline ran inside the job dir
+    assert Path.cwd() == start  # working directory restored afterwards
+
+
 if __name__ == "__main__":
     unittest.main()
