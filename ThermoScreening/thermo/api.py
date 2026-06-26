@@ -340,6 +340,24 @@ def unit_frequency(engine: str):
         )
 
 
+def _atoms_from_ase(atoms):
+    """
+    Build the Atom list, cell and pbc from an ASE Atoms object.
+
+    Mirrors the (symbols, positions, cell, pbc) tuple that read_coord produces,
+    so an optimized geometry can be passed straight through without a disk
+    round-trip.
+    """
+    positions = np.asarray(atoms.get_positions(), dtype=float)
+    atom_list = [
+        Atom(symbol=symbol, position=positions[i])
+        for i, symbol in enumerate(atoms.get_chemical_symbols())
+    ]
+    pbc = bool(np.any(atoms.get_pbc()))
+    cell = np.asarray(atoms.get_cell(), dtype=float) if pbc else None
+    return atom_list, cell, pbc
+
+
 def run_thermo(
     vibrational_frequencies,
     coord_file="geo_opt.xyz",
@@ -348,6 +366,7 @@ def run_thermo(
     energy=0.0,
     engine="dftb+",
     charge=0.0,
+    atoms=None,
 ):
     """
     Run the thermo calculation. Returns thermo calculation object.
@@ -357,7 +376,8 @@ def run_thermo(
     vibrational_frequencies : np.ndarray
         Vibrational frequencies in cm^-1.
     coord_file : str
-        The name of the coordinate file. Default is 'geo_opt.xyz'.
+        The name of the coordinate file. Default is 'geo_opt.xyz'. Ignored when
+        ``atoms`` is provided.
     temperature : float
         The temperature in K. Default is 298.15.
     pressure : float
@@ -368,6 +388,8 @@ def run_thermo(
         The name of the engine. Default is 'dftb+'.
     charge : float
         The system charge.
+    atoms : ase.Atoms, optional
+        An optimized geometry to use directly instead of reading ``coord_file``.
 
     The coordinate file should be in xyz format.
 
@@ -382,13 +404,16 @@ def run_thermo(
     TSValueError
         If the number of vibrational frequencies does not match with the degree of freedom.
     """
-    # Read coordinate file
-    _, atom_symbol, xyz, cell, pbc = read_coord(coord_file, engine)
-
-    # Initialize atoms
-    atom_list = []
-    for i, symbol in enumerate(atom_symbol):
-        atom_list.append(Atom(symbol=symbol, position=xyz[i, :]))
+    # Build the atom list either from an optimized ASE Atoms object or by
+    # reading the coordinate file.
+    if atoms is not None:
+        atom_list, cell, pbc = _atoms_from_ase(atoms)
+    else:
+        _, atom_symbol, xyz, cell, pbc = read_coord(coord_file, engine)
+        atom_list = [
+            Atom(symbol=symbol, position=xyz[i, :])
+            for i, symbol in enumerate(atom_symbol)
+        ]
 
     expected_dof = dof(atom_list)
     if len(vibrational_frequencies) < expected_dof:
@@ -513,10 +538,11 @@ def dftbplus_thermo(
     modes = Modes()
     frequencies = modes.wave_numbers
 
-    # run thermo calculation
+    # run thermo calculation on the optimized geometry directly (DFTB+ writes
+    # geo_opt.gen, not geo_opt.xyz, so avoid the disk round-trip entirely)
     thermo = run_thermo(
         frequencies,
-        coord_file="geo_opt.xyz",
+        atoms=optimized_atoms,
         temperature=temperature,
         pressure=pressure,
         energy=potential_energy,
