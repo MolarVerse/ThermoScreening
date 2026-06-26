@@ -299,5 +299,41 @@ class TestApi(unittest.TestCase):
             from_file.total_gibbs_free_energy("H")
         )
 
+
+def test_run_in_directory_isolates_and_restores(tmp_path):
+    from ThermoScreening.thermo.api import _run_in_directory
+
+    start = Path.cwd()
+    job = tmp_path / "job1"
+
+    with _run_in_directory(str(job)):
+        assert Path.cwd().resolve() == job.resolve()
+        Path("artifact.txt").write_text("x", encoding="utf-8")
+
+    assert Path.cwd() == start
+    assert (job / "artifact.txt").exists()
+
+
+def test_run_in_directory_restores_on_error(tmp_path):
+    from ThermoScreening.thermo.api import _run_in_directory
+
+    start = Path.cwd()
+
+    with pytest.raises(RuntimeError):
+        with _run_in_directory(str(tmp_path / "job2")):
+            raise RuntimeError("boom")
+
+    assert Path.cwd() == start
+
+
+def test_run_in_directory_none_is_noop():
+    from ThermoScreening.thermo.api import _run_in_directory
+
+    start = Path.cwd()
+    with _run_in_directory(None):
+        assert Path.cwd() == start
+    assert Path.cwd() == start
+
+
 if __name__ == "__main__":
     unittest.main()
