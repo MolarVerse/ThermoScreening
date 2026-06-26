@@ -248,10 +248,36 @@ def test_dof():
     
 def test_linearity():
     atoms = [Atom(symbol='H', position=np.array([0, 0, 0]))]
-    
+
     with pytest.raises(TSValueError) as e:
         linearity(atoms)
     assert str(e.value) == "Number of atoms must be greater than 1. The system is monoatomic."
+
+
+def _atoms_at(spec, offset):
+    return [
+        Atom(symbol=symbol, position=np.array(position, dtype=float) + offset)
+        for symbol, position in spec
+    ]
+
+
+@pytest.mark.parametrize("offset", [np.zeros(3), np.array([10.0, -5.0, 3.0])])
+def test_linearity_is_translation_invariant(offset):
+    # Inertia tensor must be built from center-of-mass-relocated coordinates,
+    # so classification does not depend on where the molecule sits in space.
+    co2 = [("C", [0, 0, 0]), ("O", [0, 0, 1.16]), ("O", [0, 0, -1.16])]
+    # water is planar; when it lies in a coordinate plane the old second-moment
+    # tensor produced a spurious zero eigenvalue and called it linear.
+    water = [("O", [0, 0, 0]), ("H", [0.757, 0.586, 0]), ("H", [-0.757, 0.586, 0])]
+
+    assert linearity(_atoms_at(co2, offset)) is True
+    assert linearity(_atoms_at(water, offset)) is False
+
+
+def test_linearity_detects_off_axis_linear_molecule():
+    # A linear molecule not aligned to a Cartesian axis must still be linear.
+    hcn = [("H", [0, 0, 0]), ("C", [0.6, 0.6, 0.6]), ("N", [1.2, 1.2, 1.2])]
+    assert linearity(_atoms_at(hcn, np.zeros(3))) is True
              
 
 def test_rotational_symmetry_number_accepts_property(monkeypatch):
