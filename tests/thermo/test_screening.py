@@ -69,6 +69,20 @@ def test_load_jobs_rejects_empty_directory(tmp_path):
         screening._load_jobs(tmp_path, charge=0.0)
 
 
+def test_load_jobs_rejects_manifest_without_path_column(tmp_path):
+    manifest = tmp_path / "m.csv"
+    manifest.write_text("name,charge\nfoo,0\n", encoding="utf-8")
+    with pytest.raises(TSValueError, match="path"):
+        screening._load_jobs(manifest, charge=0.0)
+
+
+def test_load_jobs_rejects_empty_manifest(tmp_path):
+    manifest = tmp_path / "m.csv"
+    manifest.write_text("name,path,charge\n", encoding="utf-8")  # header only
+    with pytest.raises(TSValueError, match="no molecules"):
+        screening._load_jobs(manifest, charge=0.0)
+
+
 def test_screen_collects_results_and_isolates_failures(monkeypatch, tmp_path):
     _write_xyz(tmp_path / "good.xyz")
     _write_xyz(tmp_path / "bad.xyz")
