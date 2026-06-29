@@ -1,3 +1,5 @@
+"""ThermoScreening: DFTB+ thermochemistry screening package."""
+
 import logging
 import os
 import time

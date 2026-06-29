@@ -1,3 +1,5 @@
+"""Rigid-rotor/harmonic-oscillator thermochemistry calculation."""
+
 import numpy as np
 
 import logging
@@ -43,7 +45,7 @@ class Thermo:
     run()
         Calculates the thermochemical properties of the system.
     """
-    
+
     logger = logging.getLogger(__package_name__).getChild(__name__)
     logger = setup_logger(logger)
 
@@ -79,22 +81,22 @@ class Thermo:
         -------
         None
         """
-        if pressure == None:
+        if pressure is None:
             self.logger.error(
                 "The pressure is not given.",
                 exception=TSValueError
             )
-        if temperature == None:
+        if temperature is None:
             self.logger.error(
                 "The temperature is not given.",
                 exception=TSValueError
             )
-        if system == None:
+        if system is None:
             self.logger.error(
                 "The system is not given.",
                 exception=TSValueError
             )
-        if engine == None:
+        if engine is None:
             self.logger.error(
                 "The engine is not given.",
                 exception=TSValueError
@@ -124,7 +126,6 @@ class Thermo:
         self._reloc_coord = None
         self._atomic_masses = self._system.atomic_masses()
 
-        return None
 
     def run(self):
         """
@@ -143,7 +144,6 @@ class Thermo:
         self._compute_thermochemical_properties()
         self._summary()
 
-        return None
 
     def _transform_units(self):
         """
@@ -180,7 +180,6 @@ class Thermo:
                 exception=TSValueError
             )
 
-        return None
 
     def _relocate_to_cm(self):
         """
@@ -194,7 +193,6 @@ class Thermo:
         self._reloc_coord = self._system.coord()
         self._reloc_coord -= self._system.center_of_mass
 
-        return None
 
     def _compute_inertia_tensor(self):
         """
@@ -223,7 +221,6 @@ class Thermo:
         self._inertia_tensor[1, 2] = -np.sum(m * y * z)
         self._inertia_tensor[2, 1] = self._inertia_tensor[1, 2]
 
-        return None
 
     def _compute_rotational_partition_function(self):
         """
@@ -260,7 +257,6 @@ class Thermo:
             / (np.power(self._rotational_temperature_xyz, 1 / 2))
         )
 
-        return None
 
     def _compute_rotational_entropy(self):
         """
@@ -276,7 +272,6 @@ class Thermo:
             / PhysicalConstants["cal"]
         )
 
-        return None
 
     def _compute_rotational_energy(self):
         """
@@ -298,7 +293,6 @@ class Thermo:
             (3 / 2) * PhysicalConstants["R"] / PhysicalConstants["cal"]
         )
 
-        return None
 
     def _rotational_contribution(self):
         """
@@ -317,7 +311,6 @@ class Thermo:
         self._compute_rotational_energy()
         self._compute_rotational_heat_capacity()
 
-        return None
 
     def _compute_vibrational_partition_function(self):
         """
@@ -342,7 +335,6 @@ class Thermo:
             / (1 - np.exp(-self._vib_temp_K / self._temperature))
         )
 
-        return None
 
     def _compute_vibrational_entropy(self):
         """
@@ -367,7 +359,6 @@ class Thermo:
             / PhysicalConstants["cal"]
         )
 
-        return None
 
     def _compute_vibrational_energy(self):
         """
@@ -406,7 +397,6 @@ class Thermo:
             / PhysicalConstants["cal"]
         )
 
-        return None
 
     def _compute_vibrational_heat_capacity(self):
         """
@@ -428,7 +418,6 @@ class Thermo:
             )
             / PhysicalConstants["cal"]
         )
-        return None
 
     def _vibrational_contribution(self):
         """
@@ -455,7 +444,6 @@ class Thermo:
 
         self._electronic_partition_function = 2 * self._system._spin + 1
 
-        return None
 
     def _compute_electronic_entropy(self):
         """
@@ -471,7 +459,6 @@ class Thermo:
             * np.log(self._electronic_partition_function)
             / PhysicalConstants["cal"]
         )
-        return None
 
     def _compute_electronic_energy(self):
         """
@@ -484,7 +471,6 @@ class Thermo:
 
         self._electronic_energy = 0 / PhysicalConstants["cal"]
 
-        return None
 
     def _compute_electronic_heat_capacity(self):
         """
@@ -497,7 +483,6 @@ class Thermo:
 
         self._electronic_heat_capacity = 0 / PhysicalConstants["cal"]
 
-        return None
 
     def _electronic_contribution(self):
         """
@@ -513,7 +498,6 @@ class Thermo:
         self._compute_electronic_energy()
         self._compute_electronic_heat_capacity()
 
-        return None
 
     def _compute_translational_partition_function(self):
         """
@@ -532,7 +516,6 @@ class Thermo:
             (3 / 2),
         ) * (PhysicalConstants["kB"] * self._temperature / self._pressure)
 
-        return None
 
     def _compute_translational_entropy(self):
         """
@@ -549,7 +532,6 @@ class Thermo:
             / PhysicalConstants["cal"]
         )
 
-        return None
 
     def _compute_translational_energy(self):
         """
@@ -568,7 +550,6 @@ class Thermo:
             / PhysicalConstants["cal"]
         )
 
-        return None
 
     def _compute_translational_heat_capacity(self):
         """
@@ -583,7 +564,6 @@ class Thermo:
             3 / 2 * PhysicalConstants["R"] / PhysicalConstants["cal"]
         )
 
-        return None
 
     def _translational_contribution(self):
         """
@@ -598,7 +578,6 @@ class Thermo:
         self._compute_translational_energy()
         self._compute_translational_heat_capacity()
 
-        return None
 
     def _compute_thermochemical_properties(self):
         """
@@ -666,7 +645,6 @@ class Thermo:
             + self._translational_heat_capacity
         )
 
-        return None
 
     def _summary(self):
         """
@@ -703,7 +681,6 @@ class Thermo:
             + self._total_gibbs_free_energy_Hartree_per_mol
         )
 
-        return None
 
     def total_energy(self, unit: str) -> float:
         """
@@ -727,15 +704,14 @@ class Thermo:
 
         if unit == "H":
             return _real_scalar(self._total_energy_Hartree_per_mol)
-        elif unit == "kcal":
+        if unit == "kcal":
             return _real_scalar(self._total_energy_kcal)
-        elif unit == "cal":
+        if unit == "cal":
             return _real_scalar(self._total_energy)
-        else:
-            self.logger.error(
-                "The unit is not supported.",
-                exception=TSValueError
-            )
+        self.logger.error(
+            "The unit is not supported.",
+            exception=TSValueError
+        )
 
     def total_enthalpy(self, unit: str) -> float:
         """
@@ -759,15 +735,14 @@ class Thermo:
 
         if unit == "H":
             return _real_scalar(self._total_enthalpy_Hartree_per_mol)
-        elif unit == "kcal":
+        if unit == "kcal":
             return _real_scalar(self._total_enthalpy_kcal)
-        elif unit == "cal":
+        if unit == "cal":
             return _real_scalar(self._total_enthalpy)
-        else:
-            self.logger.error(
-                "The unit is not supported.",
-                exception=TSValueError
-            )
+        self.logger.error(
+            "The unit is not supported.",
+            exception=TSValueError
+        )
 
     def total_entropy(self, unit: str) -> float:
         """
@@ -791,13 +766,12 @@ class Thermo:
 
         if unit == "H/T":
             return _real_scalar(self._total_entropy_Hartree_per_mol)
-        elif unit == "cal/(mol*K)":
+        if unit == "cal/(mol*K)":
             return _real_scalar(self._total_entropy)
-        else:
-            self.logger.error(
-                "The unit is not supported.",
-                exception=TSValueError
-            )
+        self.logger.error(
+            "The unit is not supported.",
+            exception=TSValueError
+        )
 
     def total_gibbs_free_energy(self, unit: str) -> float:
         """
@@ -821,15 +795,14 @@ class Thermo:
 
         if unit == "H":
             return _real_scalar(self._total_gibbs_free_energy_Hartree_per_mol)
-        elif unit == "kcal":
+        if unit == "kcal":
             return _real_scalar(self._total_gibbs_free_energy_kcal)
-        elif unit == "cal":
+        if unit == "cal":
             return _real_scalar(self._total_gibbs_free_energy)
-        else:
-            self.logger.error(
-                "The unit is not supported.",
-                exception=TSValueError
-            )
+        self.logger.error(
+            "The unit is not supported.",
+            exception=TSValueError
+        )
 
     def total_heat_capacity(self, unit: str) -> float:
         """
@@ -853,18 +826,17 @@ class Thermo:
 
         if unit == "cal/(mol*K)":
             return _real_scalar(self._total_heatcapacity)
-        elif unit == "H/T":
+        if unit == "H/T":
             return _real_scalar(
                 self._total_heatcapacity
                 * PhysicalConstants["cal"]
                 / PhysicalConstants["H"]
                 / PhysicalConstants["N_A"]
             )
-        else:
-            self.logger.error(
-                "The unit is not supported.",
-                exception=TSValueError
-            )
+        self.logger.error(
+            "The unit is not supported.",
+            exception=TSValueError
+        )
 
     def total_EeZPE(self) -> float:
         """

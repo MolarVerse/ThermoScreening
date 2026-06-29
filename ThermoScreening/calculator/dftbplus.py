@@ -1,3 +1,5 @@
+"""DFTB+ calculators: geometry optimisation, Hessian, and vibrational modes."""
+
 import os
 import shutil
 import subprocess
@@ -121,7 +123,6 @@ class Geoopt(Dftb):
 
         self.calculate(atoms)
 
-        return None
 
     def potential_energy(self):
         """
@@ -221,7 +222,6 @@ class Hessian(Dftb):
 
         self.calculate(atoms)
 
-        return None
 
     def read(self):
         """
@@ -278,7 +278,6 @@ class Modes:
         # read the vibrational modes
         self.wave_numbers = self.read()
 
-        return None
 
     def write(self):
         """
@@ -304,7 +303,6 @@ class Modes:
         with open("modes_in.hsd", "w") as f:
             f.write(string)
 
-        return None
 
     def calculate(self):
         """
@@ -328,7 +326,6 @@ class Modes:
         with open("modes.out", "w") as output:
             subprocess.run(["modes"], stdout=output, check=True)
 
-        return None
 
     def read(self):
         """

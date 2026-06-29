@@ -1,3 +1,5 @@
+"""Reader for ThermoScreening key=value input files."""
+
 import logging
 
 from ThermoScreening.exceptions import TSValueError
@@ -14,7 +16,7 @@ class InputFileReader:
         The input file.
 
     """
-    
+
     logger = logging.getLogger(__package_name__).getChild(__qualname__)
     logger = setup_logger(logger)
 
@@ -58,7 +60,6 @@ class InputFileReader:
         self._read()
         self._check()
 
-        return None
 
     def _read(self):
         """
@@ -84,7 +85,6 @@ class InputFileReader:
             key, value = line.split("=", maxsplit=1)
             self._dictionary[key.strip()] = value.strip()
 
-        return None
 
     def _check(self):
         """
@@ -101,8 +101,7 @@ class InputFileReader:
         """
         self._check_required_keys()
         self._check_known_keys()
-        
-        return None
+
 
     def _check_required_keys(self):
         """
@@ -120,11 +119,10 @@ class InputFileReader:
         for key in self.required_keys:
             if key not in self._dictionary.keys():
                 self.logger.error(
-                    "The key {} is not set in the input file.".format(key),
+                    f"The key {key} is not set in the input file.",
                     exception=TSValueError
                 )
-            
-        return None
+
 
     def _check_known_keys(self):
         """
@@ -142,8 +140,7 @@ class InputFileReader:
         for key in self._dictionary.keys():
             if key not in self.required_keys:
                 self.logger.error(
-                    "The key {} is not known.".format(key),
+                    f"The key {key} is not known.",
                     exception=TSValueError
                 )
 
-        return None

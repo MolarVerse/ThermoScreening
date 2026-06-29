@@ -1,3 +1,5 @@
+"""The ``thermo`` command-line entry point."""
+
 from argparse import ArgumentParser
 import sys
 import time
