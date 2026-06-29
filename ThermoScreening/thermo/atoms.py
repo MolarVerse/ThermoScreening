@@ -1,3 +1,5 @@
+"""Atom representation and element reference data."""
+
 import logging
 
 import numpy as np
@@ -45,7 +47,7 @@ class Atom:
     >>> atom.position
     array([0., 0., 0.])
     """
-    
+
     logger = logging.getLogger(__package_name__).getChild(__qualname__)
     logger = setup_logger(logger)
 
@@ -96,7 +98,7 @@ class Atom:
                 self._symbol = atomic_Symbol[int(number)].capitalize()
             except:
                 self.logger.error(
-                    "The atomic number %s is not known." % number,
+                    f"The atomic number {number} is not known.",
                     exception=TSValueError
                 )
             self._mass = atomicMasses[self._symbol.lower()]
@@ -107,7 +109,7 @@ class Atom:
                 self._number = atomicNumbers[symbol.lower()]
             except:
                 self.logger.error(
-                    "The chemical symbol %s is not known." % symbol,
+                    f"The chemical symbol {symbol} is not known.",
                     exception=TSValueError
                 )
             self._mass = atomicMasses[symbol.lower()]
@@ -225,7 +227,7 @@ class Atom:
                 self._number = atomicNumbers[self._symbol.lower()]
             except:
                 self.logger.error(
-                    "The chemical symbol %s is not known." % symbol,
+                    f"The chemical symbol {symbol} is not known.",
                     exception=TSValueError
                 )
 
@@ -238,14 +240,14 @@ class Atom:
                 self._symbol = atomic_Symbol[int(number)].capitalize()
             except:
                 self.logger.error(
-                    "The atomic number %s is not known." % number,
+                    f"The atomic number {number} is not known.",
                     exception=TSValueError
                 )
             self._mass = atomicMasses[self._symbol.lower()]
             self._configuration = atomicElectronConfigurations[self._symbol.lower()]
         if position is not None:
-            
-            self.position = position        
+
+            self.position = position
 
 
 atomic_Symbol = atomicNumbersReverse

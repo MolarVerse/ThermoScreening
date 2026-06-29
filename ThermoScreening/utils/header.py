@@ -1,3 +1,5 @@
+"""Program header/banner."""
+
 import sys
 
 from beartype.typing import Any

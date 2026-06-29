@@ -1,3 +1,5 @@
+"""Package version helpers."""
+
 from importlib.metadata import PackageNotFoundError, version
 
 

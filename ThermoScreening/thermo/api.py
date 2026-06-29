@@ -1,3 +1,5 @@
+"""High-level thermochemistry functions: coordinate/frequency I/O and run helpers."""
+
 import logging
 import os
 from contextlib import contextmanager
@@ -181,14 +183,13 @@ def read_coord(coord_file: str, engine: str):
         if coord_file.endswith(".xyz"):
             data_N, data_atoms, data_xyz, cell, pbc = read_xyz(coord_file)
             return data_N, data_atoms, data_xyz, cell, pbc
-        elif coord_file.endswith(".gen"):
+        if coord_file.endswith(".gen"):
             data_N, data_atoms, data_xyz, cell_vectors, pbc = read_gen(coord_file)
             return data_N, data_atoms, data_xyz, cell_vectors, pbc
-        else:
-            logger.error(
-                "The input file is not supported.",
-                exception=TSNotImplementedError
-            )
+        logger.error(
+            "The input file is not supported.",
+            exception=TSNotImplementedError
+        )
 
     else:
         logger.error(
@@ -251,11 +252,10 @@ def unit_length(engine: str):
     """
     if engine == "dftb+":
         return "Angstrom"
-    else:
-        logger.error(
-            "The engine is not supported.",
-            exception=TSNotImplementedError
-        )
+    logger.error(
+        "The engine is not supported.",
+        exception=TSNotImplementedError
+    )
 
 
 def unit_energy(engine: str):
@@ -279,11 +279,10 @@ def unit_energy(engine: str):
     """
     if engine == "dftb+":
         return "Hartree"
-    else:
-        logger.error(
-            "The engine is not supported.",
-            exception=TSNotImplementedError
-        )
+    logger.error(
+        "The engine is not supported.",
+        exception=TSNotImplementedError
+    )
 
 
 def unit_mass(engine: str):
@@ -307,11 +306,10 @@ def unit_mass(engine: str):
     """
     if engine == "dftb+":
         return "amu"
-    else:
-        logger.error(
-            "The engine is not supported.",
-            exception=TSNotImplementedError
-        )
+    logger.error(
+        "The engine is not supported.",
+        exception=TSNotImplementedError
+    )
 
 
 def unit_frequency(engine: str):
@@ -335,11 +333,10 @@ def unit_frequency(engine: str):
     """
     if engine == "dftb+":
         return "cm^-1"
-    else:
-        logger.error(
-            "The engine is not supported.",
-            exception=TSNotImplementedError
-        )
+    logger.error(
+        "The engine is not supported.",
+        exception=TSNotImplementedError
+    )
 
 
 def _atoms_from_ase(atoms):

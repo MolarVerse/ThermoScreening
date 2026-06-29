@@ -1,3 +1,5 @@
+"""Command-line interface for ThermoScreening."""
+
 from .thermo import main
 from ..utils import print_header
 

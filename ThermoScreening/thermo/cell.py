@@ -1,3 +1,5 @@
+"""Periodic cell helpers."""
+
 import numpy as np
 
 

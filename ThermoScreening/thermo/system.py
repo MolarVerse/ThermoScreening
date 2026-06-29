@@ -1,3 +1,5 @@
+"""Molecular system model with symmetry and degree-of-freedom analysis."""
+
 import logging
 import warnings
 import numpy as np
@@ -159,13 +161,13 @@ def dimensionality(atoms: List[Atom]) -> int:
         or (np.array_equal(x, zero_array) and np.array_equal(y, zero_array))
     ):
         return 1
-    elif (
+    if (
         np.array_equal(z, zero_array)
         or np.array_equal(y, zero_array)
         or np.array_equal(x, zero_array)
     ):
         return 2
-    elif (
+    if (
         np.array_equal(z, zero_array)
         and np.array_equal(y, zero_array)
         and np.array_equal(x, zero_array)
@@ -197,13 +199,12 @@ def dim(atoms: List[Atom]) -> int:
     number_of_atoms = len(atoms)
     if number_of_atoms == 1:
         return 1
-    elif number_of_atoms > 1:
+    if number_of_atoms > 1:
         return dimensionality(atoms)
-    else:
-        System.logger.error(
-            "The number of atoms must be greater than 0.",
-            exception=TSValueError
-        )
+    System.logger.error(
+        "The number of atoms must be greater than 0.",
+        exception=TSValueError
+    )
 
 
 def dof(atoms: List[Atom]) -> int:
@@ -229,15 +230,14 @@ def dof(atoms: List[Atom]) -> int:
     number_of_atoms = len(atoms)
     if number_of_atoms == 1:
         return 3
-    elif number_of_atoms > 1:
+    if number_of_atoms > 1:
         return (
             (3 * number_of_atoms - 5) if linearity(atoms) else (3 * number_of_atoms - 6)
         )
-    else:
-        System.logger.error(
-            "The number of atoms must be greater than 0.",
-            exception=TSValueError
-        )
+    System.logger.error(
+        "The number of atoms must be greater than 0.",
+        exception=TSValueError
+    )
 
 
 def spin(charge: float) -> float:
@@ -255,8 +255,7 @@ def spin(charge: float) -> float:
 
     if (charge % 2.0) == 0:
         return 0.0
-    else:
-        return 0.5
+    return 0.5
 
 
 def rotational_symmetry_number(atoms: List[Atom]) -> int:
@@ -580,7 +579,7 @@ class System:
     >>> system.atoms
     [Atom(symbol='H', position=[0.0, 0.0, 0.0], mass=1.0), Atom(symbol='H', position=[0.0, 0.0, 1.0], mass=1.0)]
     """
-    
+
     logger = logging.getLogger(__package_name__).getChild(__name__)
     logger = setup_logger(logger)
 
@@ -627,19 +626,19 @@ class System:
             If the number of atoms is less than 1.
             If the vibrational frequencies are not provided.
         """
-        
+
         if atoms is None:
             self.logger.error(
                 "Atoms must be provided.",
                 exception=TSValueError
             )
-            
+
         if len(atoms) == 0:
             self.logger.error(
                 "The number of atoms must be greater than 0.",
                 exception=TSValueError
             )
-            
+
         if vibrational_frequencies is None:
             self.logger.error(
                 "Vibrational frequencies must be provided.",
