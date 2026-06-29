@@ -81,26 +81,16 @@ class Thermo:
         -------
         None
         """
+        # These None guards are unreachable while beartype enforces the
+        # parameter types, but kept as defensive checks.
         if pressure is None:
-            self.logger.error(
-                "The pressure is not given.",
-                exception=TSValueError
-            )
+            raise TSValueError("The pressure is not given.")  # pragma: no cover
         if temperature is None:
-            self.logger.error(
-                "The temperature is not given.",
-                exception=TSValueError
-            )
+            raise TSValueError("The temperature is not given.")  # pragma: no cover
         if system is None:
-            self.logger.error(
-                "The system is not given.",
-                exception=TSValueError
-            )
+            raise TSValueError("The system is not given.")  # pragma: no cover
         if engine is None:
-            self.logger.error(
-                "The engine is not given.",
-                exception=TSValueError
-            )
+            raise TSValueError("The engine is not given.")  # pragma: no cover
 
         self._temperature = temperature
         self._pressure = pressure
@@ -108,20 +98,11 @@ class Thermo:
         self._engine = engine
 
         if self._engine != "dftb+":
-            self.logger.error(
-                "The engine is not supported.",
-                exception=TSValueError
-            )
+            raise TSValueError("The engine is not supported.")
         if self._temperature < 0:
-            self.logger.error(
-                "The temperature is negative.",
-                exception=TSValueError
-            )
+            raise TSValueError("The temperature is negative.")
         if self._pressure < 0:
-            self.logger.error(
-                "The pressure is negative.",
-                exception=TSValueError
-            )
+            raise TSValueError("The pressure is negative.")
 
         self._reloc_coord = None
         self._atomic_masses = self._system.atomic_masses()
@@ -175,10 +156,7 @@ class Thermo:
             )
 
         else:
-            self.logger.error(
-                "The engine is not supported.",
-                exception=TSValueError
-            )
+            raise TSValueError("The engine is not supported.")  # pragma: no cover
 
 
     def _relocate_to_cm(self):
@@ -708,10 +686,7 @@ class Thermo:
             return _real_scalar(self._total_energy_kcal)
         if unit == "cal":
             return _real_scalar(self._total_energy)
-        self.logger.error(
-            "The unit is not supported.",
-            exception=TSValueError
-        )
+        raise TSValueError("The unit is not supported.")
 
     def total_enthalpy(self, unit: str) -> float:
         """
@@ -739,10 +714,7 @@ class Thermo:
             return _real_scalar(self._total_enthalpy_kcal)
         if unit == "cal":
             return _real_scalar(self._total_enthalpy)
-        self.logger.error(
-            "The unit is not supported.",
-            exception=TSValueError
-        )
+        raise TSValueError("The unit is not supported.")
 
     def total_entropy(self, unit: str) -> float:
         """
@@ -768,10 +740,7 @@ class Thermo:
             return _real_scalar(self._total_entropy_Hartree_per_mol)
         if unit == "cal/(mol*K)":
             return _real_scalar(self._total_entropy)
-        self.logger.error(
-            "The unit is not supported.",
-            exception=TSValueError
-        )
+        raise TSValueError("The unit is not supported.")
 
     def total_gibbs_free_energy(self, unit: str) -> float:
         """
@@ -799,10 +768,7 @@ class Thermo:
             return _real_scalar(self._total_gibbs_free_energy_kcal)
         if unit == "cal":
             return _real_scalar(self._total_gibbs_free_energy)
-        self.logger.error(
-            "The unit is not supported.",
-            exception=TSValueError
-        )
+        raise TSValueError("The unit is not supported.")
 
     def total_heat_capacity(self, unit: str) -> float:
         """
@@ -833,10 +799,7 @@ class Thermo:
                 / PhysicalConstants["H"]
                 / PhysicalConstants["N_A"]
             )
-        self.logger.error(
-            "The unit is not supported.",
-            exception=TSValueError
-        )
+        raise TSValueError("The unit is not supported.")
 
     def total_EeZPE(self) -> float:
         """

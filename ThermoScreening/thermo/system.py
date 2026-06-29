@@ -104,11 +104,8 @@ def linearity(atoms: List[Atom]) -> bool:
         If the number of atoms is 1.
     """
     if len(atoms) == 1:
-        System.logger.error(
-            "Number of atoms must be greater than 1. The system is monoatomic.",
-            exception=TSValueError
-        )
-    elif len(atoms) == 2:
+        raise TSValueError("Number of atoms must be greater than 1. The system is monoatomic.")
+    if len(atoms) == 2:
         return True
 
     masses = np.array([atom.mass for atom in atoms], dtype=float)
@@ -172,9 +169,8 @@ def dimensionality(atoms: List[Atom]) -> int:
         and np.array_equal(y, zero_array)
         and np.array_equal(x, zero_array)
     ):
-        ValueError("The system is 0D!")
-    else:
-        return 3
+        raise TSValueError("The system is 0D!")  # pragma: no cover
+    return 3
 
 
 def dim(atoms: List[Atom]) -> int:
@@ -201,10 +197,7 @@ def dim(atoms: List[Atom]) -> int:
         return 1
     if number_of_atoms > 1:
         return dimensionality(atoms)
-    System.logger.error(
-        "The number of atoms must be greater than 0.",
-        exception=TSValueError
-    )
+    raise TSValueError("The number of atoms must be greater than 0.")
 
 
 def dof(atoms: List[Atom]) -> int:
@@ -234,10 +227,7 @@ def dof(atoms: List[Atom]) -> int:
         return (
             (3 * number_of_atoms - 5) if linearity(atoms) else (3 * number_of_atoms - 6)
         )
-    System.logger.error(
-        "The number of atoms must be greater than 0.",
-        exception=TSValueError
-    )
+    raise TSValueError("The number of atoms must be greater than 0.")
 
 
 def spin(charge: float) -> float:
@@ -628,22 +618,13 @@ class System:
         """
 
         if atoms is None:
-            self.logger.error(
-                "Atoms must be provided.",
-                exception=TSValueError
-            )
+            raise TSValueError("Atoms must be provided.")
 
         if len(atoms) == 0:
-            self.logger.error(
-                "The number of atoms must be greater than 0.",
-                exception=TSValueError
-            )
+            raise TSValueError("The number of atoms must be greater than 0.")
 
         if vibrational_frequencies is None:
-            self.logger.error(
-                "Vibrational frequencies must be provided.",
-                exception=TSValueError
-            )
+            raise TSValueError("Vibrational frequencies must be provided.")
 
         self._atoms = atoms
         self._charge = charge

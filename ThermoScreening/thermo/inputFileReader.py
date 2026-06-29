@@ -52,10 +52,7 @@ class InputFileReader:
         None
         """
         if input_file is None:
-            self.logger.error(
-                "The input file has to be given to initialize the InputFileReader.",
-                exception=TSValueError,
-            )
+            raise TSValueError("The input file has to be given to initialize the InputFileReader.")
         self._input_file = input_file
         self._read()
         self._check()
@@ -78,10 +75,7 @@ class InputFileReader:
             if not line or line.startswith("#"):
                 continue
             if "=" not in line:
-                self.logger.error(
-                    f"The line '{line}' is not a valid key-value assignment.",
-                    exception=TSValueError,
-                )
+                raise TSValueError(f"The line '{line}' is not a valid key-value assignment.")
             key, value = line.split("=", maxsplit=1)
             self._dictionary[key.strip()] = value.strip()
 
@@ -118,10 +112,7 @@ class InputFileReader:
         """
         for key in self.required_keys:
             if key not in self._dictionary.keys():
-                self.logger.error(
-                    f"The key {key} is not set in the input file.",
-                    exception=TSValueError
-                )
+                raise TSValueError(f"The key {key} is not set in the input file.")
 
 
     def _check_known_keys(self):
@@ -139,8 +130,5 @@ class InputFileReader:
         """
         for key in self._dictionary.keys():
             if key not in self.required_keys:
-                self.logger.error(
-                    f"The key {key} is not known.",
-                    exception=TSValueError
-                )
+                raise TSValueError(f"The key {key} is not known.")
 

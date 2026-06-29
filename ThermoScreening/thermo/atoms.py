@@ -81,26 +81,17 @@ class Atom:
         """
 
         if symbol is None and number is None:
-            self.logger.error(
-                "Either symbol or number has to be given to initialize the atom.",
-                exception=TSValueError
-            )
+            raise TSValueError("Either symbol or number has to be given to initialize the atom.")
 
         if symbol is not None and number is not None:
             if number != atomicNumbers[symbol.lower()]:
-                self.logger.error(
-                    "The symbol and atomic number are not consistent.",
-                    exception=TSValueError
-                )
+                raise TSValueError("The symbol and atomic number are not consistent.")
         if number is not None:
             self._number = number
             try:
                 self._symbol = atomic_Symbol[int(number)].capitalize()
             except:
-                self.logger.error(
-                    f"The atomic number {number} is not known.",
-                    exception=TSValueError
-                )
+                raise TSValueError(f"The atomic number {number} is not known.") from None
             self._mass = atomicMasses[self._symbol.lower()]
             self._configuration = atomicElectronConfigurations[self._symbol.lower()]
         else:
@@ -108,27 +99,17 @@ class Atom:
             try:
                 self._number = atomicNumbers[symbol.lower()]
             except:
-                self.logger.error(
-                    f"The chemical symbol {symbol} is not known.",
-                    exception=TSValueError
-                )
+                raise TSValueError(f"The chemical symbol {symbol} is not known.") from None
             self._mass = atomicMasses[symbol.lower()]
             self._configuration = atomicElectronConfigurations[symbol.lower()]
 
         if position is None:
-            self.logger.error(
-                "The position of the atom has to be given to initialize the atom.",
-                exception=TSValueError
-            )
+            raise TSValueError("The position of the atom has to be given to initialize the atom.")
 
-        else:
-            self._position = position
+        self._position = position
 
         if len(position) != 3:
-            self.logger.error(
-                "The position of the atom has to be a 3D vector.",
-                exception=TSValueError
-            )
+            raise TSValueError("The position of the atom has to be a 3D vector.")
 
     @property
     def symbol(self):
@@ -194,10 +175,7 @@ class Atom:
             If the length of the position is not 3.
         """
         if len(array) != 3:
-            self.logger.error(
-                "The position of the atom has to be a 3D vector.",
-                exception=TSValueError
-            )
+            raise TSValueError("The position of the atom has to be a 3D vector.")
         self._position = array
 
     def change_atom(
@@ -226,10 +204,7 @@ class Atom:
             try:
                 self._number = atomicNumbers[self._symbol.lower()]
             except:
-                self.logger.error(
-                    f"The chemical symbol {symbol} is not known.",
-                    exception=TSValueError
-                )
+                raise TSValueError(f"The chemical symbol {symbol} is not known.") from None
 
             self._mass = atomicMasses[symbol.lower()]
             self._configuration = atomicElectronConfigurations[symbol.lower()]
@@ -239,10 +214,7 @@ class Atom:
             try:
                 self._symbol = atomic_Symbol[int(number)].capitalize()
             except:
-                self.logger.error(
-                    f"The atomic number {number} is not known.",
-                    exception=TSValueError
-                )
+                raise TSValueError(f"The atomic number {number} is not known.") from None
             self._mass = atomicMasses[self._symbol.lower()]
             self._configuration = atomicElectronConfigurations[self._symbol.lower()]
         if position is not None:
