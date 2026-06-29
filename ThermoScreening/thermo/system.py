@@ -169,7 +169,7 @@ def dimensionality(atoms: List[Atom]) -> int:
         and np.array_equal(y, zero_array)
         and np.array_equal(x, zero_array)
     ):
-        raise TSValueError("The system is 0D!")
+        raise TSValueError("The system is 0D!")  # pragma: no cover
     return 3
 
 

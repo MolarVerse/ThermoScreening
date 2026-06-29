@@ -88,6 +88,33 @@ def test_scalar_total_accessors_reject_unknown_units(method_name):
         getattr(thermo, method_name)("unknown")
 
 
+def _valid_system():
+    atoms = [Atom(symbol="H", position=np.array([i, 0.0, 0.0])) for i in range(3)]
+    return System(
+        atoms,
+        periodicity=False,
+        cell=None,
+        charge=0,
+        electronic_energy=-1.0,
+        vibrational_frequencies=np.array([-1, -2, 0.1, 1, 2, 3, 4, 5, 6]),
+    )
+
+
+def test_thermo_rejects_unsupported_engine():
+    with pytest.raises(TSValueError, match="engine is not supported"):
+        Thermo(temperature=298.15, pressure=101325, system=_valid_system(), engine="xtb")
+
+
+def test_thermo_rejects_negative_temperature():
+    with pytest.raises(TSValueError, match="temperature is negative"):
+        Thermo(temperature=-1.0, pressure=101325, system=_valid_system(), engine="dftb+")
+
+
+def test_thermo_rejects_negative_pressure():
+    with pytest.raises(TSValueError, match="pressure is negative"):
+        Thermo(temperature=298.15, pressure=-1.0, system=_valid_system(), engine="dftb+")
+
+
 class TestThermo(unittest.TestCase):
 
     def test_thermo_aq_2(self):

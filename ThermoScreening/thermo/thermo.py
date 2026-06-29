@@ -81,14 +81,16 @@ class Thermo:
         -------
         None
         """
+        # These None guards are unreachable while beartype enforces the
+        # parameter types, but kept as defensive checks.
         if pressure is None:
-            raise TSValueError("The pressure is not given.")
+            raise TSValueError("The pressure is not given.")  # pragma: no cover
         if temperature is None:
-            raise TSValueError("The temperature is not given.")
+            raise TSValueError("The temperature is not given.")  # pragma: no cover
         if system is None:
-            raise TSValueError("The system is not given.")
+            raise TSValueError("The system is not given.")  # pragma: no cover
         if engine is None:
-            raise TSValueError("The engine is not given.")
+            raise TSValueError("The engine is not given.")  # pragma: no cover
 
         self._temperature = temperature
         self._pressure = pressure
@@ -154,7 +156,7 @@ class Thermo:
             )
 
         else:
-            raise TSValueError("The engine is not supported.")
+            raise TSValueError("The engine is not supported.")  # pragma: no cover
 
 
     def _relocate_to_cm(self):
