@@ -10,10 +10,11 @@ from ThermoScreening.cli.dftb_setup import (
     install_slakos,
 )
 from ThermoScreening.thermo.api import execute
+from ThermoScreening.thermo.screening import screen
 from ThermoScreening.version import __version__
 
 
-DFTB_COMMANDS = {"setup-dftb", "doctor"}
+SUBCOMMANDS = {"setup-dftb", "doctor", "screen"}
 
 
 def _run_parser():
@@ -54,6 +55,34 @@ def _command_parser():
         help="Check DFTB+ executables and Slater-Koster parameter configuration.",
     )
 
+    screen_parser = subparsers.add_parser(
+        "screen",
+        help="Run thermochemistry screening over a set of molecules.",
+    )
+    screen_parser.add_argument(
+        "source",
+        help="Directory of .xyz/.gen structures, or a .csv manifest "
+        "(columns: path, optional name/charge).",
+    )
+    screen_parser.add_argument(
+        "-o", "--out", default="results",
+        help="Output stem; writes <out>.csv and <out>.json. Default 'results'.",
+    )
+    screen_parser.add_argument(
+        "--charge", type=float, default=0.0,
+        help="Charge for directory input and manifest rows without a charge.",
+    )
+    screen_parser.add_argument(
+        "--temperature", type=float, default=298.15, help="Temperature in K.",
+    )
+    screen_parser.add_argument(
+        "--pressure", type=float, default=101325.0, help="Pressure in Pa.",
+    )
+    screen_parser.add_argument(
+        "--directory", default="screening",
+        help="Root working directory; each molecule runs in <directory>/<name>.",
+    )
+
     return parser
 
 
@@ -69,7 +98,7 @@ def parse_args(argv=None):
     if argv is None:
         argv = sys.argv[1:]
 
-    if argv and argv[0] in DFTB_COMMANDS:
+    if argv and argv[0] in SUBCOMMANDS:
         parser = _command_parser()
         args = parser.parse_args(argv)
     else:
@@ -109,6 +138,27 @@ def run_doctor():
     return 0 if all(item.ok for item in diagnostics) else 1
 
 
+def run_screen(parser_args):
+    """
+    Run thermochemistry screening over a set of molecules.
+    """
+
+    results = screen(
+        parser_args.source,
+        out=parser_args.out,
+        charge=parser_args.charge,
+        temperature=parser_args.temperature,
+        pressure=parser_args.pressure,
+        directory=parser_args.directory,
+    )
+
+    failed = sum(1 for record in results if record["status"] != "ok")
+    print(f"Screened {len(results)} molecules ({failed} failed).")
+    print(f"Results: {parser_args.out}.csv, {parser_args.out}.json")
+
+    return 1 if failed else 0
+
+
 def main():
     """
     Main function to run the thermo cli. It parses the command line arguments
@@ -132,6 +182,9 @@ def main():
 
     if command == "doctor":
         return run_doctor()
+
+    if command == "screen":
+        return run_screen(parser_args)
 
     input_file = parser_args.input_file
     verbose = parser_args.verbose

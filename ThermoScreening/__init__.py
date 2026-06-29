@@ -49,3 +49,7 @@ if log_file_env_var and (logging_env_var or "").lower() != "off":
 
 if config.log_file_name is None:
     config.log_file_name = f"ThermoScreening_{execution_start_time}.log"
+
+# Public screening entry point (imported last so the type-checking hook and
+# logging configuration above are already in place).
+from ThermoScreening.thermo.screening import screen  # noqa: E402  pylint: disable=wrong-import-position
