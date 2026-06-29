@@ -115,6 +115,73 @@ def test_thermo_rejects_negative_pressure():
         Thermo(temperature=298.15, pressure=-1.0, system=_valid_system(), engine="dftb+")
 
 
+# --- geometry-dependent thermochemistry, validated against ASE IdealGasThermo --- #
+
+from ase import Atoms  # noqa: E402
+from ase.thermochemistry import IdealGasThermo  # noqa: E402
+
+_CM_TO_EV = 1.23984198e-4
+_EVK_TO_CALMOLK = 1.602176634e-19 * 6.02214076e23 / 4.184
+_T, _P = 298.15, 101325.0
+_R_CALMOLK = 8.314462618 / 4.184
+
+
+def _ts_thermo(symbols, positions, real_freqs, dof):
+    atoms = [Atom(symbol=s, position=np.array(p, float)) for s, p in zip(symbols, positions)]
+    pad = np.concatenate([np.zeros(3 * len(atoms) - dof), np.asarray(real_freqs, float)])
+    system = System(
+        atoms, periodicity=False, cell=None, charge=0,
+        electronic_energy=0.0, vibrational_frequencies=pad,
+    )
+    thermo = Thermo(temperature=_T, pressure=_P, system=system, engine="dftb+")
+    thermo.run()
+    return thermo
+
+
+def _ase_total_entropy(symbols, positions, real_freqs, geometry, sigma):
+    ase_thermo = IdealGasThermo(
+        vib_energies=[f * _CM_TO_EV for f in real_freqs],
+        geometry=geometry,
+        atoms=Atoms(symbols=symbols, positions=positions),
+        symmetrynumber=sigma, spin=0, potentialenergy=0.0,
+    )
+    return ase_thermo.get_entropy(_T, _P, verbose=False) * _EVK_TO_CALMOLK
+
+
+@pytest.mark.parametrize(
+    "symbols,positions,freqs,dof,geometry,sigma",
+    [
+        (["O", "H", "H"], [[0, 0, 0.119], [0, 0.763, -0.477], [0, -0.763, -0.477]],
+         [1595.0, 3657.0, 3756.0], 3, "nonlinear", 2),
+        (["C", "O", "O"], [[0, 0, 0], [0, 0, 1.16], [0, 0, -1.16]],
+         [667.0, 667.0, 1333.0, 2349.0], 4, "linear", 2),
+        (["N", "N"], [[0, 0, 0], [0, 0, 1.10]], [2359.0], 1, "linear", 2),
+        (["Ar"], [[0, 0, 0]], [], 0, "monatomic", 1),
+    ],
+)
+def test_total_entropy_matches_ase(symbols, positions, freqs, dof, geometry, sigma):
+    thermo = _ts_thermo(symbols, positions, freqs, dof)
+    ts_total = thermo.total_entropy("cal/(mol*K)")
+    ase_total = _ase_total_entropy(symbols, positions, freqs, geometry, sigma)
+
+    assert np.isfinite(ts_total)
+    assert ts_total == pytest.approx(ase_total, abs=0.05)
+
+
+def test_rotational_contribution_handles_linear_and_monatomic():
+    # linear and monatomic species used to give -inf rotational entropy
+    co2 = _ts_thermo(["C", "O", "O"], [[0, 0, 0], [0, 0, 1.16], [0, 0, -1.16]],
+                     [667.0, 667.0, 1333.0, 2349.0], 4)
+    assert co2._n_rot == 2
+    assert np.isfinite(co2._rotational_entropy)
+    assert co2._rotational_heat_capacity == pytest.approx(_R_CALMOLK)  # Cv_rot = R (linear)
+
+    argon = _ts_thermo(["Ar"], [[0, 0, 0]], [], 0)
+    assert argon._n_rot == 0
+    assert argon._rotational_entropy == 0.0
+    assert argon._rotational_heat_capacity == 0.0
+
+
 class TestThermo(unittest.TestCase):
 
     def test_thermo_aq_2(self):

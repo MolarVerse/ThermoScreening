@@ -9,7 +9,7 @@ from ThermoScreening.utils.custom_logging import setup_logger
 from ThermoScreening.utils.physicalConstants import PhysicalConstants
 from ThermoScreening import __package_name__
 
-from .system import System
+from .system import System, linearity
 
 
 def _real_scalar(value) -> float:
@@ -209,8 +209,23 @@ class Thermo:
         None
         """
 
+        if self._n_rot == 0:
+            # monatomic: no rotational degrees of freedom
+            self._eigenvalues_I_SI = np.array([])
+            self._rotational_temperature = np.array([])
+            self._rotational_constant = np.array([])
+            self._rotational_temperature_xyz = np.nan
+            self._rotational_partition_function = 1.0
+            return
+
+        # the non-zero principal moments of inertia: all three for a nonlinear
+        # rotor, the two equal perpendicular moments for a linear molecule
+        # (eigenvalues are sorted ascending, so the smallest, ~zero for a linear
+        # molecule, is dropped)
         self._eigenvalues_I_SI = (
-            self._eigenvalues_I * PhysicalConstants["u"] * PhysicalConstants["A"] ** 2
+            self._eigenvalues_I[-self._n_rot:]
+            * PhysicalConstants["u"]
+            * PhysicalConstants["A"] ** 2
         )
         self._rotational_temperature = (
             PhysicalConstants["h"] ** 2 / (8 * np.pi**2 * PhysicalConstants["kB"])
@@ -222,18 +237,20 @@ class Thermo:
             * PhysicalConstants["HztoGHz"]
         )
 
-        self._rotational_temperature_xyz = (
-            self._rotational_temperature[0]
-            * self._rotational_temperature[1]
-            * self._rotational_temperature[2]
-        )
+        sigma = self._system.rotational_symmetry_number
 
-        self._rotational_partition_function = (
-            np.pi ** (1 / 2) / self._system.rotational_symmetry_number
-        ) * (
-            self._temperature ** (3 / 2)
-            / (np.power(self._rotational_temperature_xyz, 1 / 2))
-        )
+        if self._n_rot == 2:
+            # linear molecule: q_rot = T / (sigma * theta)
+            theta = self._rotational_temperature[-1]
+            self._rotational_temperature_xyz = theta
+            self._rotational_partition_function = self._temperature / (sigma * theta)
+        else:
+            # nonlinear molecule: q_rot = (sqrt(pi)/sigma) * T^(3/2) / sqrt(theta_xyz)
+            self._rotational_temperature_xyz = np.prod(self._rotational_temperature)
+            self._rotational_partition_function = (np.pi ** (1 / 2) / sigma) * (
+                self._temperature ** (3 / 2)
+                / (np.power(self._rotational_temperature_xyz, 1 / 2))
+            )
 
 
     def _compute_rotational_entropy(self):
@@ -244,9 +261,13 @@ class Thermo:
         -------
         None
         """
+        if self._n_rot == 0:
+            self._rotational_entropy = 0.0
+            return
+
         self._rotational_entropy = (
             PhysicalConstants["R"]
-            * (np.log(self._rotational_partition_function) + 3 / 2)
+            * (np.log(self._rotational_partition_function) + self._n_rot / 2)
             / PhysicalConstants["cal"]
         )
 
@@ -260,7 +281,7 @@ class Thermo:
         None
         """
         self._rotational_energy = (
-            (3 / 2) * PhysicalConstants["R"] * self._temperature
+            (self._n_rot / 2) * PhysicalConstants["R"] * self._temperature
         ) / PhysicalConstants["cal"]
 
     def _compute_rotational_heat_capacity(self):
@@ -268,7 +289,7 @@ class Thermo:
         Computes the rotational heat capacity of the system.
         """
         self._rotational_heat_capacity = (
-            (3 / 2) * PhysicalConstants["R"] / PhysicalConstants["cal"]
+            (self._n_rot / 2) * PhysicalConstants["R"] / PhysicalConstants["cal"]
         )
 
 
@@ -283,11 +304,24 @@ class Thermo:
 
         self._relocate_to_cm()
         self._compute_inertia_tensor()
-        self._eigenvalues_I, self._eigenvectors_I = np.linalg.eig(self._inertia_tensor)
+        # the inertia tensor is symmetric by construction; eigvalsh returns real,
+        # ascending eigenvalues (eig may emit spurious imaginary parts)
+        self._eigenvalues_I = np.linalg.eigvalsh(self._inertia_tensor)
+        self._n_rot = self._rotational_dof()
         self._compute_rotational_partition_function()
         self._compute_rotational_entropy()
         self._compute_rotational_energy()
         self._compute_rotational_heat_capacity()
+
+    def _rotational_dof(self) -> int:
+        """
+        Number of rotational degrees of freedom: 0 (monatomic), 2 (linear) or
+        3 (nonlinear).
+        """
+        atoms = self._system.atoms
+        if len(atoms) == 1:
+            return 0
+        return 2 if linearity(atoms) else 3
 
 
     def _compute_vibrational_partition_function(self):
