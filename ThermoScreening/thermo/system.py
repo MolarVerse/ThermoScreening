@@ -231,24 +231,6 @@ def dof(atoms: List[Atom]) -> int:
     raise TSValueError("The number of atoms must be greater than 0.")
 
 
-def spin(charge: float) -> float:
-    """
-    Calculates the spin of the system.
-    Parameters
-    ----------
-    charge : float
-
-    Returns
-    -------
-    float
-        The spin of the system.
-    """
-
-    if (charge % 2.0) == 0:
-        return 0.0
-    return 0.5
-
-
 def rotational_symmetry_number(atoms: List[Atom]) -> int:
     """
     Calculates the symmetry number of the system.
@@ -585,6 +567,7 @@ class System:
         solvent: str | None = None,
         electronic_energy: float | None = None,
         vibrational_frequencies: np.ndarray | None = None,
+        spin: float | None = None,
     ) -> None:
         """
         Initializes the System with the given parameters.
@@ -682,7 +665,15 @@ class System:
         if electronic_energy is None:
             self._electronic_energy = 0.0
 
-        self._spin = spin(self._charge)
+        # Default to a closed-shell singlet (consistent with the spin-restricted
+        # DFTB+ calculation); open-shell species (radicals, triplet O2, ...) must
+        # set the spin explicitly.
+        if spin is None:
+            self._spin = 0.0
+        else:
+            if spin < 0:
+                raise TSValueError("The spin must be non-negative.")
+            self._spin = float(spin)
 
     @property
     def atoms(self) -> List[Atom]:

@@ -278,6 +278,37 @@ def test_linearity_detects_off_axis_linear_molecule():
     # A linear molecule not aligned to a Cartesian axis must still be linear.
     hcn = [("H", [0, 0, 0]), ("C", [0.6, 0.6, 0.6]), ("N", [1.2, 1.2, 1.2])]
     assert linearity(_atoms_at(hcn, np.zeros(3))) is True
+
+
+def test_system_defaults_to_singlet():
+    atoms = [Atom(symbol="C", position=np.array([0.0, 0, 0])),
+             Atom(symbol="H", position=np.array([1.0, 0, 0]))]
+    system = System(
+        atoms, periodicity=False, cell=None, charge=0,
+        electronic_energy=0.0, vibrational_frequencies=np.array([1580.0]),
+    )
+    assert system.spin == 0.0  # closed-shell default; open-shell must be explicit
+
+
+def test_system_accepts_explicit_spin():
+    # an explicit spin gives an open-shell multiplicity, e.g. triplet O2
+    atoms = [Atom(symbol="O", position=np.array([0.0, 0, 0])),
+             Atom(symbol="O", position=np.array([1.2, 0, 0]))]
+    system = System(
+        atoms, periodicity=False, cell=None, charge=0, spin=1.0,
+        electronic_energy=0.0, vibrational_frequencies=np.array([1580.0]),
+    )
+    assert system.spin == 1.0
+
+
+def test_system_rejects_negative_spin():
+    atoms = [Atom(symbol="H", position=np.array([0.0, 0, 0])),
+             Atom(symbol="H", position=np.array([1.0, 0, 0]))]
+    with pytest.raises(TSValueError, match="spin must be non-negative"):
+        System(
+            atoms, periodicity=False, cell=None, charge=0, spin=-1.0,
+            electronic_energy=0.0, vibrational_frequencies=np.array([1580.0]),
+        )
              
 
 def test_rotational_symmetry_number_accepts_property(monkeypatch):
@@ -538,7 +569,7 @@ class TestSystem(unittest.TestCase):
 
         assert system.charge == 0
 
-        assert system.spin == 0
+        assert system.spin == 0  # default: closed-shell singlet
 
         assert system.number_of_atoms == 3
 

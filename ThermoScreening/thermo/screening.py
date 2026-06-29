@@ -47,11 +47,12 @@ class ScreeningJob:
     name: str
     path: Path
     charge: float
+    spin: float | None = None
 
 
-def _jobs_from_directory(directory: Path, charge: float):
+def _jobs_from_directory(directory: Path, charge: float, spin=None):
     jobs = [
-        ScreeningJob(name=path.stem, path=path, charge=charge)
+        ScreeningJob(name=path.stem, path=path, charge=charge, spin=spin)
         for path in sorted(directory.iterdir())
         if path.suffix.lower() in _STRUCTURE_SUFFIXES
     ]
@@ -60,7 +61,7 @@ def _jobs_from_directory(directory: Path, charge: float):
     return jobs
 
 
-def _jobs_from_manifest(manifest: Path, charge: float):
+def _jobs_from_manifest(manifest: Path, charge: float, spin=None):
     base = manifest.parent
     jobs = []
     with open(manifest, newline="", encoding="utf-8") as handle:
@@ -71,11 +72,13 @@ def _jobs_from_manifest(manifest: Path, charge: float):
             if not path.is_absolute():
                 path = base / path
             row_charge = row.get("charge")
+            row_spin = row.get("spin")
             jobs.append(
                 ScreeningJob(
                     name=row.get("name") or path.stem,
                     path=path,
                     charge=float(row_charge) if row_charge not in (None, "") else charge,
+                    spin=float(row_spin) if row_spin not in (None, "") else spin,
                 )
             )
     if not jobs:
@@ -83,12 +86,12 @@ def _jobs_from_manifest(manifest: Path, charge: float):
     return jobs
 
 
-def _load_jobs(source, charge: float):
+def _load_jobs(source, charge: float, spin=None):
     source = Path(source)
     if source.is_dir():
-        return _jobs_from_directory(source, charge)
+        return _jobs_from_directory(source, charge, spin)
     if source.suffix.lower() == ".csv":
-        return _jobs_from_manifest(source, charge)
+        return _jobs_from_manifest(source, charge, spin)
     raise TSValueError(
         f"Screening input must be a directory or a .csv manifest, got '{source}'."
     )
@@ -130,6 +133,7 @@ def screen(
     pressure=101325,
     directory="screening",
     parameters=None,
+    spin=None,
 ):
     """
     Run a thermochemistry screen over a set of molecules.
@@ -138,7 +142,8 @@ def screen(
     ----------
     source : str
         A directory of ``.xyz``/``.gen`` structures (all run at ``charge``), or
-        a ``.csv`` manifest with ``path`` and optional ``name``/``charge`` columns.
+        a ``.csv`` manifest with ``path`` and optional ``name``/``charge``/``spin``
+        columns.
     out : str
         Output stem; results are written to ``<out>.csv`` and ``<out>.json``.
     charge : float
@@ -151,6 +156,9 @@ def screen(
         Root working directory; each molecule runs in ``<directory>/<name>``.
     parameters : dict, optional
         DFTB+ Hamiltonian parameters. Defaults to the bundled 3ob set.
+    spin : float, optional
+        Spin quantum number S applied to molecules without a manifest ``spin``;
+        defaults to an electron-count guess per molecule.
 
     Returns
     -------
@@ -158,7 +166,7 @@ def screen(
         One result record per molecule, including failed ones (status="error").
     """
     parameters = dict(dftb_3ob_parameters) if parameters is None else parameters
-    jobs = _load_jobs(source, charge)
+    jobs = _load_jobs(source, charge, spin)
     root = Path(directory)
 
     results = []
@@ -179,6 +187,7 @@ def screen(
                 pressure=pressure,
                 charge=job.charge,
                 directory=str(root / job.name),
+                spin=job.spin,
                 **parameters,
             )
             record.update(_thermo_summary(thermo))
