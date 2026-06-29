@@ -222,7 +222,8 @@ def dof(atoms: List[Atom]) -> int:
     """
     number_of_atoms = len(atoms)
     if number_of_atoms == 1:
-        return 3
+        # a monatomic species has no rotational or vibrational degrees of freedom
+        return 0
     if number_of_atoms > 1:
         return (
             (3 * number_of_atoms - 5) if linearity(atoms) else (3 * number_of_atoms - 6)
