@@ -344,6 +344,7 @@ def run_thermo(
     engine="dftb+",
     charge=0.0,
     atoms=None,
+    spin=None,
 ):
     """
     Run the thermo calculation. Returns thermo calculation object.
@@ -405,6 +406,7 @@ def run_thermo(
         vibrational_frequencies=vibrational_frequencies,
         pbc=pbc,
         charge=charge,
+        spin=spin,
     )
 
     thermo_setup = Thermo(
@@ -500,6 +502,7 @@ def dftbplus_thermo(
         pressure=101325,
         charge=0.0,
         directory=None,
+        spin=None,
         **kwargs
     ):
     """
@@ -554,6 +557,7 @@ def dftbplus_thermo(
             energy=potential_energy,
             engine='dftb+',
             charge=charge,
+            spin=spin,
         )
 
     return thermo

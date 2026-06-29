@@ -231,22 +231,32 @@ def dof(atoms: List[Atom]) -> int:
     raise TSValueError("The number of atoms must be greater than 0.")
 
 
-def spin(charge: float) -> float:
+def default_spin(atoms: List[Atom], charge: float) -> float:
     """
-    Calculates the spin of the system.
+    Guess the spin quantum number S as the minimum-spin ground state from the
+    electron-count parity.
+
+    electrons = sum(atomic numbers) - charge; S = 0.0 for an even electron count
+    (a closed-shell singlet - ~99% of even-electron molecules) and 0.5 for an odd
+    one (a doublet radical - essentially always the ground state). This reliably
+    covers closed-shell molecules and simple radicals; even-electron high-spin
+    ground states (e.g. the triplet O2) need an explicit spin.
+
     Parameters
     ----------
+    atoms : List[Atom]
+        The atoms of the system.
     charge : float
+        The charge of the system.
 
     Returns
     -------
     float
-        The spin of the system.
+        The default spin quantum number S.
     """
 
-    if (charge % 2.0) == 0:
-        return 0.0
-    return 0.5
+    electrons = sum(atom.number for atom in atoms) - charge
+    return 0.0 if round(electrons) % 2 == 0 else 0.5
 
 
 def rotational_symmetry_number(atoms: List[Atom]) -> int:
@@ -585,6 +595,7 @@ class System:
         solvent: str | None = None,
         electronic_energy: float | None = None,
         vibrational_frequencies: np.ndarray | None = None,
+        spin: float | None = None,
     ) -> None:
         """
         Initializes the System with the given parameters.
@@ -682,7 +693,15 @@ class System:
         if electronic_energy is None:
             self._electronic_energy = 0.0
 
-        self._spin = spin(self._charge)
+        # Default to the minimum-spin ground state from the electron count
+        # (even -> singlet, odd -> doublet); even-electron high-spin species
+        # (triplet O2, ...) must set the spin explicitly.
+        if spin is None:
+            self._spin = default_spin(self._atoms, self._charge)
+        else:
+            if spin < 0:
+                raise TSValueError("The spin must be non-negative.")
+            self._spin = float(spin)
 
     @property
     def atoms(self) -> List[Atom]:
