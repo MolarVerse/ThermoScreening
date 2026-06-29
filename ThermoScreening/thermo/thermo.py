@@ -438,7 +438,19 @@ class Thermo:
         Returns
         -------
         None
+
+        Raises
+        ------
+        TSValueError
+            If a kept vibrational frequency is imaginary (non-positive), which
+            would otherwise make the harmonic formulas return NaN.
         """
+
+        if np.any(self._system.real_vibrational_frequencies <= 0):
+            raise TSValueError(
+                "Imaginary (non-positive) vibrational frequencies are present; "
+                "the geometry is not a minimum."
+            )
 
         self._compute_vibrational_partition_function()
         self._compute_vibrational_entropy()

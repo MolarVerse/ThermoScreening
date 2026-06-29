@@ -168,6 +168,18 @@ def test_total_entropy_matches_ase(symbols, positions, freqs, dof, geometry, sig
     assert ts_total == pytest.approx(ase_total, abs=0.05)
 
 
+def test_thermo_rejects_imaginary_vibrational_mode():
+    # an imaginary (negative) mode in the kept dof set used to give NaN; it now
+    # raises (the geometry is not a minimum)
+    with pytest.raises(TSValueError, match="[Ii]maginary"):
+        _ts_thermo(
+            ["O", "H", "H"],
+            [[0, 0, 0.119], [0, 0.763, -0.477], [0, -0.763, -0.477]],
+            [-500.0, 3657.0, 3756.0],
+            3,
+        )
+
+
 def test_rotational_contribution_handles_linear_and_monatomic():
     # linear and monatomic species used to give -inf rotational entropy
     co2 = _ts_thermo(["C", "O", "O"], [[0, 0, 0], [0, 0, 1.16], [0, 0, -1.16]],
