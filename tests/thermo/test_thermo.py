@@ -180,6 +180,20 @@ def test_thermo_rejects_imaginary_vibrational_mode():
         )
 
 
+def test_explicit_spin_sets_electronic_entropy():
+    # triplet O2 (S=1) -> q_elec = 2S+1 = 3 -> S_elec = R ln 3
+    atoms = [Atom(symbol="O", position=np.array([0.0, 0, 0])),
+             Atom(symbol="O", position=np.array([1.2, 0, 0]))]
+    system = System(
+        atoms, periodicity=False, cell=None, charge=0, spin=1.0,
+        electronic_energy=0.0, vibrational_frequencies=np.array([1580.0]),
+    )
+    thermo = Thermo(temperature=_T, pressure=_P, system=system, engine="dftb+")
+    thermo.run()
+
+    assert thermo._electronic_entropy == pytest.approx(_R_CALMOLK * np.log(3))
+
+
 def test_rotational_contribution_handles_linear_and_monatomic():
     # linear and monatomic species used to give -inf rotational entropy
     co2 = _ts_thermo(["C", "O", "O"], [[0, 0, 0], [0, 0, 1.16], [0, 0, -1.16]],
