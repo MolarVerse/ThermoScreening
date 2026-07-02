@@ -457,5 +457,19 @@ def test_dftbplus_thermo_explicit_triplet(monkeypatch, tmp_path):
     assert seen["geoopt_kwargs"]["Hamiltonian_SpinPolarisation_UnpairedElectrons"] == 2
 
 
+def test_dftbplus_thermo_uses_given_spin_constants(monkeypatch, tmp_path):
+    api, seen = _mock_pipeline(monkeypatch)
+    # a caller-supplied spin-constant table flows into both DFTB+ steps
+    custom = {"H": "{ -0.088 }", "O": "{ -0.099 }"}
+    api.dftbplus_thermo(
+        Atoms("OH", positions=[[0, 0, 0], [0.97, 0, 0]]),
+        directory=str(tmp_path / "j"),
+        spin_constants=custom,
+    )
+
+    assert seen["geoopt_kwargs"]["Hamiltonian_SpinConstants_O"] == "{ -0.099 }"
+    assert seen["hessian_kwargs"]["Hamiltonian_SpinConstants_O"] == "{ -0.099 }"
+
+
 if __name__ == "__main__":
     unittest.main()

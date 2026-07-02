@@ -89,6 +89,37 @@ def test_screen_passes_spin_to_dftbplus_thermo(monkeypatch, tmp_path):
     assert captured["spin"] == 1.0
 
 
+def test_screen_selects_mio_parameter_set(monkeypatch, tmp_path):
+    from ThermoScreening.calculator.dftbplus import SPIN_CONSTANTS_MIO
+
+    _write_xyz(tmp_path / "mol.xyz")
+
+    captured = {}
+
+    def fake_thermo(atoms, spin_constants=None, **kwargs):
+        captured["spin_constants"] = spin_constants
+        captured["kwargs"] = kwargs
+        return _FakeThermo()
+
+    monkeypatch.setattr(screening, "dftbplus_thermo", fake_thermo)
+    screening.screen(
+        str(tmp_path),
+        out=str(tmp_path / "r"),
+        directory=str(tmp_path / "runs"),
+        parameter_set="mio",
+    )
+
+    # mio spin constants and DFTB2 Hamiltonian (no third order) flow through
+    assert captured["spin_constants"] is SPIN_CONSTANTS_MIO
+    assert "Hamiltonian_ThirdOrderFull" not in captured["kwargs"]
+
+
+def test_screen_rejects_unknown_parameter_set(tmp_path):
+    _write_xyz(tmp_path / "mol.xyz")
+    with pytest.raises(ValueError, match="Unknown DFTB parameter set"):
+        screening.screen(str(tmp_path), out=str(tmp_path / "r"), parameter_set="nope")
+
+
 def test_load_jobs_rejects_unknown_source(tmp_path):
     bad = tmp_path / "thing.txt"
     bad.write_text("x", encoding="utf-8")
@@ -185,6 +216,10 @@ def test_cli_parse_args_routes_screen():
     assert args.out == "out"
     assert args.charge == -1.0
     assert args.temperature == 300.0
+    assert args.parameter_set == "3ob"  # default set
+
+    mio_args = cli.parse_args(["screen", "molecules.csv", "--parameter-set", "mio"])
+    assert mio_args.parameter_set == "mio"
 
 
 def test_cli_run_screen_returns_failure_count(monkeypatch):
@@ -196,7 +231,7 @@ def test_cli_run_screen_returns_failure_count(monkeypatch):
 
     args = Namespace(
         source="x", out="res", charge=0.0, temperature=298.15,
-        pressure=101325.0, directory="screening",
+        pressure=101325.0, directory="screening", parameter_set="3ob",
     )
 
     assert cli.run_screen(args) == 1  # one molecule failed

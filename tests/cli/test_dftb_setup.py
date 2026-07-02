@@ -9,9 +9,11 @@ from ThermoScreening.cli.dftb_setup import (
     REQUIRED_PARAMETER_FILE,
     Diagnostic,
     check_dftb_setup,
+    default_parameter_dir,
     dftb_prefix_export,
     format_diagnostics,
     install_slakos,
+    slako_url,
 )
 
 
@@ -44,6 +46,44 @@ def test_install_slakos_extracts_archive(tmp_path):
     assert (installed_dir / REQUIRED_PARAMETER_FILE).read_text(
         encoding="utf-8"
     ) == "parameter data"
+
+
+def test_slako_url_resolves_known_sets():
+    assert "3ob" in slako_url("3ob")
+    assert slako_url("3ob") == slako_url("3ob-3-1")
+    assert "mio" in slako_url("mio")
+    assert slako_url("mio") == slako_url("mio-1-1")
+
+
+def test_slako_url_rejects_unknown_set():
+    with pytest.raises(ValueError, match="Unknown parameter set"):
+        slako_url("nope")
+
+
+def test_default_parameter_dir_uses_canonical_name(tmp_path):
+    assert default_parameter_dir(tmp_path, "mio") == tmp_path / "mio-1-1"
+    assert default_parameter_dir(tmp_path, "3ob") == tmp_path / "3ob-3-1"
+
+
+def test_install_slakos_installs_mio_set(tmp_path):
+    source_dir = tmp_path / "source" / "mio-1-1"
+    source_dir.mkdir(parents=True)
+    (source_dir / REQUIRED_PARAMETER_FILE).write_text("mio data", encoding="utf-8")
+
+    archive_path = tmp_path / "mio-1-1.tar.xz"
+    with tarfile.open(archive_path, "w:xz") as archive:
+        archive.add(source_dir, arcname="mio-1-1")
+
+    installed_dir = install_slakos(
+        install_root=tmp_path / "install",
+        url=archive_path.as_uri(),
+        parameter_set="mio",
+    )
+
+    assert installed_dir == (tmp_path / "install" / "mio-1-1").resolve()
+    assert (installed_dir / REQUIRED_PARAMETER_FILE).read_text(
+        encoding="utf-8"
+    ) == "mio data"
 
 
 def test_install_slakos_reuses_existing_directory(monkeypatch, tmp_path):
