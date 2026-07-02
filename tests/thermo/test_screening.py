@@ -57,6 +57,38 @@ def test_load_jobs_from_manifest(tmp_path):
     assert jobs[1].charge == 0.0  # blank charge falls back to the default
 
 
+def test_load_jobs_reads_spin_from_manifest(tmp_path):
+    _write_xyz(tmp_path / "a.xyz")
+    _write_xyz(tmp_path / "b.xyz")
+    manifest = tmp_path / "m.csv"
+    manifest.write_text(
+        "name,path,charge,spin\nradical,a.xyz,0,0.5\nclosed,b.xyz,0,\n",
+        encoding="utf-8",
+    )
+
+    jobs = screening._load_jobs(manifest, charge=0.0, spin=None)
+
+    assert jobs[0].spin == 0.5
+    assert jobs[1].spin is None  # blank -> default (electron-count guess)
+
+
+def test_screen_passes_spin_to_dftbplus_thermo(monkeypatch, tmp_path):
+    _write_xyz(tmp_path / "mol.xyz")
+    manifest = tmp_path / "m.csv"
+    manifest.write_text("name,path,charge,spin\nmol,mol.xyz,0,1.0\n", encoding="utf-8")
+
+    captured = {}
+
+    def fake_thermo(atoms, spin=None, **kwargs):
+        captured["spin"] = spin
+        return _FakeThermo()
+
+    monkeypatch.setattr(screening, "dftbplus_thermo", fake_thermo)
+    screening.screen(str(manifest), out=str(tmp_path / "r"), directory=str(tmp_path / "runs"))
+
+    assert captured["spin"] == 1.0
+
+
 def test_load_jobs_rejects_unknown_source(tmp_path):
     bad = tmp_path / "thing.txt"
     bad.write_text("x", encoding="utf-8")

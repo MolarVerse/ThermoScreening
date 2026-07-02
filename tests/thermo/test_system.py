@@ -4,7 +4,7 @@ import math
 import numpy as np
 from ase.atoms import Atoms
 import ThermoScreening.thermo.system as system_module
-from ThermoScreening.thermo.system import System, dim, dof, linearity, rotational_symmetry_number
+from ThermoScreening.thermo.system import System, dim, dof, linearity, rotational_symmetry_number, default_spin
 from ThermoScreening.thermo.atoms import Atom
 from ThermoScreening.thermo.cell import Cell
 from ThermoScreening.exceptions import TSValueError
@@ -278,6 +278,42 @@ def test_linearity_detects_off_axis_linear_molecule():
     # A linear molecule not aligned to a Cartesian axis must still be linear.
     hcn = [("H", [0, 0, 0]), ("C", [0.6, 0.6, 0.6]), ("N", [1.2, 1.2, 1.2])]
     assert linearity(_atoms_at(hcn, np.zeros(3))) is True
+
+
+@pytest.mark.parametrize(
+    "symbols,charge,expected",
+    [
+        (["O", "H", "H"], 0, 0.0),       # water, 10 electrons (even) -> singlet
+        (["C", "H", "H", "H"], 0, 0.5),  # methyl radical, 9 electrons (odd) -> doublet
+        (["O", "O"], 0, 0.0),            # O2: even electrons -> minimum-spin guesses singlet
+        (["O", "H"], -1, 0.0),           # hydroxide anion, 10 electrons (even) -> singlet
+    ],
+)
+def test_default_spin_from_electron_count(symbols, charge, expected):
+    atoms = [Atom(symbol=s, position=np.array([i * 1.2, 0.0, 0.0]))
+             for i, s in enumerate(symbols)]
+    assert default_spin(atoms, charge) == expected
+
+
+def test_system_accepts_explicit_spin():
+    # an explicit spin overrides the guess, e.g. triplet O2 (even electrons)
+    atoms = [Atom(symbol="O", position=np.array([0.0, 0, 0])),
+             Atom(symbol="O", position=np.array([1.2, 0, 0]))]
+    system = System(
+        atoms, periodicity=False, cell=None, charge=0, spin=1.0,
+        electronic_energy=0.0, vibrational_frequencies=np.array([1580.0]),
+    )
+    assert system.spin == 1.0
+
+
+def test_system_rejects_negative_spin():
+    atoms = [Atom(symbol="H", position=np.array([0.0, 0, 0])),
+             Atom(symbol="H", position=np.array([1.0, 0, 0]))]
+    with pytest.raises(TSValueError, match="spin must be non-negative"):
+        System(
+            atoms, periodicity=False, cell=None, charge=0, spin=-1.0,
+            electronic_energy=0.0, vibrational_frequencies=np.array([1580.0]),
+        )
              
 
 def test_rotational_symmetry_number_accepts_property(monkeypatch):
@@ -538,7 +574,7 @@ class TestSystem(unittest.TestCase):
 
         assert system.charge == 0
 
-        assert system.spin == 0
+        assert system.spin == 0.5  # 3 H atoms -> 3 electrons (doublet, minimum-spin default)
 
         assert system.number_of_atoms == 3
 
