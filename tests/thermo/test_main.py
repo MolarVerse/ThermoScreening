@@ -86,6 +86,8 @@ def test_parse_args_setup_dftb_command():
             "--url",
             "file:///tmp/3ob-3-1.tar.xz",
             "--force",
+            "--parameter-set",
+            "mio",
         ]
     )
 
@@ -93,6 +95,7 @@ def test_parse_args_setup_dftb_command():
     assert args.install_root == "/tmp/slakos"
     assert args.url == "file:///tmp/3ob-3-1.tar.xz"
     assert args.force is True
+    assert args.parameter_set == "mio"
 
 
 def test_parse_args_doctor_command():
@@ -110,12 +113,13 @@ def test_main_runs_setup_dftb(monkeypatch, tmp_path, capsys):
             install_root=str(tmp_path),
             url="file:///tmp/3ob-3-1.tar.xz",
             force=True,
+            parameter_set="3ob",
         ),
     )
     monkeypatch.setattr(
         thermo,
         "install_slakos",
-        lambda install_root, url, force: tmp_path / "3ob-3-1",
+        lambda install_root, url, force, parameter_set: tmp_path / "3ob-3-1",
     )
 
     assert thermo.main() == 0

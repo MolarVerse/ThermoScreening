@@ -416,6 +416,38 @@ def test_spin_kwargs_rejects_element_without_constant():
         )
 
 
+def test_spin_kwargs_uses_given_spin_constants():
+    # the caller-supplied constants override the module default (3ob)
+    custom = {"H": "{ -0.088 }", "O": "{ -0.099 }"}
+    kw = dftbplus_module._spin_kwargs(
+        Atoms("OH", positions=[[0, 0, 0], [0.97, 0, 0]]),
+        0.5,
+        custom,
+    )
+    assert kw["Hamiltonian_SpinConstants_O"] == "{ -0.099 }"
+    assert kw["Hamiltonian_SpinConstants_H"] == "{ -0.088 }"
+
+
+def test_resolve_parameter_set_selects_hamiltonian_and_constants():
+    params_3ob, spin_3ob = dftbplus_module.resolve_parameter_set("3ob")
+    params_mio, spin_mio = dftbplus_module.resolve_parameter_set("mio")
+
+    # 3ob is DFTB3 (third order), mio is DFTB2 (no third order)
+    assert params_3ob["Hamiltonian_ThirdOrderFull"] == "Yes"
+    assert "Hamiltonian_ThirdOrderFull" not in params_mio
+    assert spin_3ob is dftbplus_module.SPIN_CONSTANTS_3OB
+    assert spin_mio is dftbplus_module.SPIN_CONSTANTS_MIO
+
+    # returns a fresh copy so callers can mutate without touching the module dict
+    params_3ob["Hamiltonian_SCC"] = "No"
+    assert dftbplus_module.dftb_3ob_parameters["Hamiltonian_SCC"] == "Yes"
+
+
+def test_resolve_parameter_set_rejects_unknown_set():
+    with pytest.raises(ValueError, match="Unknown DFTB parameter set"):
+        dftbplus_module.resolve_parameter_set("does-not-exist")
+
+
 @pytest.mark.skipif(
     not dftbplus_ready,
     reason="DFTB+ executables are not installed or cannot start.",

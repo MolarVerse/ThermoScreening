@@ -51,15 +51,16 @@ def _slako_dir(slako_dir=None):
     return selected_dir + os.sep
 
 
-# Atomic spin constants (Hartree) for the 3ob-3-1 PBE Slater-Koster set: the spin
-# constant of the highest occupied shell per element (Wss for H, Wpp for the
-# p-block, valence Wss for the s-block and Zn), used with ShellResolvedSpin = No
-# to match this tool's atom-resolved 3ob SCC. Taken from the authoritative
-# ``spinw.hsd`` shipped with the 3ob-3-1 set (PBE, slateratom) and match it
-# exactly. These are parameters tied to the SK set + functional; a different SK
-# set (e.g. mio) needs its own constants. Verified end-to-end: an OH radical runs
-# spin-polarised (0.40 eV below restricted, S_elec = R ln 2).
-SPIN_CONSTANTS = {
+# Atomic spin constants (Hartree): the spin constant of the highest occupied
+# shell per element (Wss for H, Wpp for the p-block, valence Wss for the s-block
+# and Zn), used with ShellResolvedSpin = No to match the atom-resolved SCC. These
+# are parameters tied to the Slater-Koster set + functional, so each parameter set
+# has its own.
+#
+# 3ob-3-1 (PBE): taken from the authoritative ``spinw.hsd`` shipped with the set
+# (calculated with PBE/slateratom) and match it exactly. Verified end-to-end: an
+# OH radical runs spin-polarised (0.40 eV below restricted, S_elec = R ln 2).
+SPIN_CONSTANTS_3OB = {
     "H": "{ -0.07174 }",
     "C": "{ -0.02265 }",
     "N": "{ -0.02545 }",
@@ -77,15 +78,27 @@ SPIN_CONSTANTS = {
     "I": "{ -0.01144 }",
 }
 
+# mio-1-1 reuses the 3ob spin constants. mio is the LDA-based Elstner-1998 set
+# (PRB 58, 7260) and ships no spin constants of its own; the only well-documented
+# organic spin constants (3ob's ``spinw.hsd`` and the DFTB+ manual's own H2O
+# example, H = -0.072 / O Wpp = -0.028) are PBE values. The atomic spin constant
+# is only weakly functional-dependent for H/C/N/O/S, so the authoritative 3ob
+# values are the best available choice for mio too. Verified end-to-end: a mio OH
+# radical runs spin-polarised and is stabilised relative to the restricted run.
+SPIN_CONSTANTS_MIO = SPIN_CONSTANTS_3OB
 
-def _spin_kwargs(atoms, spin):
+# Default (3ob) spin constants.
+SPIN_CONSTANTS = SPIN_CONSTANTS_3OB
+
+
+def _spin_kwargs(atoms, spin, spin_constants=SPIN_CONSTANTS_3OB):
     """
     ASE ``Dftb`` keyword arguments enabling colinear spin polarisation.
 
     Returns an empty dict for ``spin`` in (None, 0), so the closed-shell
     (restricted) calculation is left exactly as before. For spin S > 0 it enables
     ``SpinPolarisation = Colinear`` with ``UnpairedElectrons = round(2*S)`` and
-    injects the 3ob ``SpinConstants`` for the elements present.
+    injects the ``spin_constants`` for the elements present.
 
     Parameters
     ----------
@@ -93,11 +106,13 @@ def _spin_kwargs(atoms, spin):
         The atoms whose elements need spin constants.
     spin : float or None
         Spin quantum number S.
+    spin_constants : dict
+        Element -> spin-constant brace string, matching the Slater-Koster set.
 
     Raises
     ------
     ValueError
-        If an element has no tabulated 3ob spin constant.
+        If an element has no tabulated spin constant.
     """
     if spin is None or float(spin) <= 0.0:
         return {}
@@ -107,11 +122,12 @@ def _spin_kwargs(atoms, spin):
         return {}
 
     elements = sorted(set(atoms.get_chemical_symbols()))
-    missing = [element for element in elements if element not in SPIN_CONSTANTS]
+    missing = [element for element in elements if element not in spin_constants]
     if missing:
         raise ValueError(
             "Spin-polarised DFTB+ is not available for element(s) "
-            f"{', '.join(missing)}: no 3ob spin constant is tabulated."
+            f"{', '.join(missing)}: no spin constant is tabulated for this "
+            "parameter set."
         )
 
     kwargs = {
@@ -121,7 +137,7 @@ def _spin_kwargs(atoms, spin):
         "Hamiltonian_SpinConstants_ShellResolvedSpin": "No",
     }
     for element in elements:
-        kwargs[f"Hamiltonian_SpinConstants_{element}"] = SPIN_CONSTANTS[element]
+        kwargs[f"Hamiltonian_SpinConstants_{element}"] = spin_constants[element]
     return kwargs
 
 
@@ -477,3 +493,75 @@ dftb_3ob_parameters = dict(
     # Parser options
     ParserOptions_ParserVersion=12,
 )
+
+
+# mio-1-1 (DFTB2): the original mio set is a second-order model, so it has no
+# ThirdOrderFull / Hubbard derivatives. Same SCC + Fermi machinery as 3ob;
+# spin-polarised runs use SPIN_CONSTANTS_MIO. Verified end-to-end against real
+# DFTB+ on an OH radical.
+dftb_mio_parameters = dict(
+    # SCC
+    Hamiltonian_SCC="Yes",
+    Hamiltonian_MaxSCCIterations=250,
+    Hamiltonian_SCCTolerance='1.0e-7',
+    Hamiltonian_ReadInitialCharges="No",
+
+    # Fermi smearing
+    Hamiltonian_Filling="Fermi {",
+    Hamiltonian_Filling_empty="Temperature [Kelvin] = 300",
+
+    # Convergence helper
+    Hamiltonian_Mixer="DIIS{}",
+
+    # Are guessed by ase
+    Hamiltonian_MaxAngularMomentum_="",
+
+    # Analysis
+    Analysis_="",
+    Analysis_CalculateForces="Yes",
+    Analysis_MullikenAnalysis="Yes",
+
+    # Parser options
+    ParserOptions_ParserVersion=12,
+)
+
+
+# Selectable DFTB parameter sets: name -> (Hamiltonian parameters, spin constants).
+# ``dftbplus_thermo`` / ``screen`` pick a set by name so a run needs only a
+# structure + charge (+ optional spin); everything else follows from the set.
+DFTB_PARAMETER_SETS = {
+    "3ob": (dftb_3ob_parameters, SPIN_CONSTANTS_3OB),
+    "3ob-3-1": (dftb_3ob_parameters, SPIN_CONSTANTS_3OB),
+    "mio": (dftb_mio_parameters, SPIN_CONSTANTS_MIO),
+    "mio-1-1": (dftb_mio_parameters, SPIN_CONSTANTS_MIO),
+}
+
+
+def resolve_parameter_set(parameter_set):
+    """
+    Resolve a parameter-set name to ``(hamiltonian_parameters, spin_constants)``.
+
+    Parameters
+    ----------
+    parameter_set : str
+        One of the keys of :data:`DFTB_PARAMETER_SETS` (e.g. ``"3ob"``, ``"mio"``).
+
+    Returns
+    -------
+    tuple(dict, dict)
+        A fresh copy of the Hamiltonian parameters and the matching spin
+        constants for the set.
+
+    Raises
+    ------
+    ValueError
+        If ``parameter_set`` is not a known set.
+    """
+    try:
+        parameters, spin_constants = DFTB_PARAMETER_SETS[parameter_set]
+    except KeyError:
+        known = ", ".join(sorted(DFTB_PARAMETER_SETS))
+        raise ValueError(
+            f"Unknown DFTB parameter set {parameter_set!r}; choose one of: {known}."
+        )
+    return dict(parameters), spin_constants

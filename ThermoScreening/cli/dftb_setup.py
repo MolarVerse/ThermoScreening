@@ -14,11 +14,51 @@ from urllib.request import urlopen
 
 
 DEFAULT_PARAMETER_SET = "3ob-3-1"
-DEFAULT_SLAKO_URL = (
-    "https://github.com/dftbparams/3ob/releases/latest/download/"
-    f"{DEFAULT_PARAMETER_SET}.tar.xz"
-)
 REQUIRED_PARAMETER_FILE = "C-C.skf"
+
+# Download URLs for the supported Slater-Koster sets (dftbparams GitHub releases).
+PARAMETER_SET_URLS = {
+    "3ob-3-1": (
+        "https://github.com/dftbparams/3ob/releases/latest/download/3ob-3-1.tar.xz"
+    ),
+    "mio-1-1": (
+        "https://github.com/dftbparams/mio/releases/latest/download/mio-1-1.tar.xz"
+    ),
+}
+
+# Short names accepted by the CLI (mapped to the canonical archive/directory name).
+PARAMETER_SET_ALIASES = {"3ob": "3ob-3-1", "mio": "mio-1-1"}
+
+
+def _canonical_set_name(parameter_set: str) -> str:
+    """
+    Map a short set name (e.g. ``"mio"``) to its canonical name (``"mio-1-1"``).
+    """
+
+    return PARAMETER_SET_ALIASES.get(parameter_set, parameter_set)
+
+
+def slako_url(parameter_set: str = DEFAULT_PARAMETER_SET) -> str:
+    """
+    Return the download URL for a Slater-Koster parameter set.
+
+    Raises
+    ------
+    ValueError
+        If ``parameter_set`` is not a known set.
+    """
+
+    name = _canonical_set_name(parameter_set)
+    try:
+        return PARAMETER_SET_URLS[name]
+    except KeyError:
+        known = ", ".join(sorted(PARAMETER_SET_URLS))
+        raise ValueError(
+            f"Unknown parameter set {parameter_set!r}; choose one of: {known}."
+        )
+
+
+DEFAULT_SLAKO_URL = PARAMETER_SET_URLS[DEFAULT_PARAMETER_SET]
 
 
 @dataclass(frozen=True)
@@ -40,13 +80,16 @@ def default_install_root() -> Path:
     return Path.home() / ".local" / "share" / "thermoscreening" / "slakos"
 
 
-def default_parameter_dir(install_root: str | Path | None = None) -> Path:
+def default_parameter_dir(
+    install_root: str | Path | None = None,
+    parameter_set: str = DEFAULT_PARAMETER_SET,
+) -> Path:
     """
-    Return the default 3ob parameter directory under an install root.
+    Return the parameter directory for ``parameter_set`` under an install root.
     """
 
     root = Path(install_root).expanduser() if install_root is not None else default_install_root()
-    return root / DEFAULT_PARAMETER_SET
+    return root / _canonical_set_name(parameter_set)
 
 
 def _download_file(url: str, destination: Path, timeout: int = 60) -> None:
@@ -77,15 +120,32 @@ def _safe_extract_tar(archive_path: Path, destination: Path) -> None:
 
 def install_slakos(
     install_root: str | Path | None = None,
-    url: str = DEFAULT_SLAKO_URL,
+    url: str | None = None,
     force: bool = False,
+    parameter_set: str = DEFAULT_PARAMETER_SET,
 ) -> Path:
     """
-    Download and extract the default Slater-Koster parameter set.
+    Download and extract a Slater-Koster parameter set.
+
+    Parameters
+    ----------
+    install_root : str or Path, optional
+        Directory where parameter sets are installed. Defaults to the user-local
+        share directory.
+    url : str, optional
+        Archive URL. Defaults to the release URL for ``parameter_set``.
+    force : bool
+        Re-download even when the set already exists.
+    parameter_set : str
+        Set to install (``"3ob"``/``"3ob-3-1"`` or ``"mio"``/``"mio-1-1"``).
     """
 
+    name = _canonical_set_name(parameter_set)
+    if url is None:
+        url = slako_url(name)
+
     root = Path(install_root).expanduser() if install_root is not None else default_install_root()
-    parameter_dir = default_parameter_dir(root)
+    parameter_dir = default_parameter_dir(root, name)
     marker_file = parameter_dir / REQUIRED_PARAMETER_FILE
 
     if marker_file.exists() and not force:
@@ -94,7 +154,7 @@ def install_slakos(
     root.mkdir(parents=True, exist_ok=True)
 
     with tempfile.TemporaryDirectory(prefix="thermoscreening-dftb-") as tmp_dir:
-        archive_path = Path(tmp_dir) / f"{DEFAULT_PARAMETER_SET}.tar.xz"
+        archive_path = Path(tmp_dir) / f"{name}.tar.xz"
         _download_file(url, archive_path)
         _safe_extract_tar(archive_path, root)
 

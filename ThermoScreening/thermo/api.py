@@ -18,7 +18,7 @@ from .system import System, dof
 from .thermo import Thermo
 from .atoms import Atom
 from ..calculator import Geoopt, Hessian, Modes
-from ..calculator.dftbplus import _spin_kwargs
+from ..calculator.dftbplus import _spin_kwargs, SPIN_CONSTANTS_3OB
 
 
 logger = logging.getLogger(__package_name__).getChild("api")
@@ -504,6 +504,7 @@ def dftbplus_thermo(
         charge=0.0,
         directory=None,
         spin=None,
+        spin_constants=None,
         **kwargs
     ):
     """
@@ -529,6 +530,10 @@ def dftbplus_thermo(
         (even -> 0, odd -> 0.5). When S > 0 the DFTB+ steps run colinear
         spin-polarised (so radicals are treated open-shell automatically); S = 0
         keeps the restricted closed-shell calculation.
+    spin_constants : dict, optional
+        Element -> spin-constant mapping matching the Slater-Koster set in use.
+        Defaults to the 3ob constants; pass ``SPIN_CONSTANTS_MIO`` (or the value
+        from :func:`resolve_parameter_set`) when running the mio set.
 
     Other Parameters
     ----------------
@@ -547,7 +552,10 @@ def dftbplus_thermo(
         electrons = round(float(sum(atoms.get_atomic_numbers())) - charge)
         spin = 0.0 if electrons % 2 == 0 else 0.5
 
-    spin_kwargs = _spin_kwargs(atoms, spin)
+    if spin_constants is None:
+        spin_constants = SPIN_CONSTANTS_3OB
+
+    spin_kwargs = _spin_kwargs(atoms, spin, spin_constants)
 
     with _run_in_directory(directory):
         # run geometry optimization

@@ -16,7 +16,7 @@ from pathlib import Path
 import ase.io
 
 from ThermoScreening import __package_name__
-from ThermoScreening.calculator.dftbplus import dftb_3ob_parameters
+from ThermoScreening.calculator.dftbplus import resolve_parameter_set
 from ThermoScreening.exceptions import TSValueError
 from ThermoScreening.utils.custom_logging import setup_logger
 
@@ -134,6 +134,7 @@ def screen(
     directory="screening",
     parameters=None,
     spin=None,
+    parameter_set="3ob",
 ):
     """
     Run a thermochemistry screen over a set of molecules.
@@ -155,17 +156,21 @@ def screen(
     directory : str
         Root working directory; each molecule runs in ``<directory>/<name>``.
     parameters : dict, optional
-        DFTB+ Hamiltonian parameters. Defaults to the bundled 3ob set.
+        DFTB+ Hamiltonian parameters. Defaults to those of ``parameter_set``.
     spin : float, optional
         Spin quantum number S applied to molecules without a manifest ``spin``;
         defaults to an electron-count guess per molecule.
+    parameter_set : str
+        Slater-Koster parameter set to use (``"3ob"`` or ``"mio"``). Selects both
+        the default Hamiltonian parameters and the matching spin constants.
 
     Returns
     -------
     list of dict
         One result record per molecule, including failed ones (status="error").
     """
-    parameters = dict(dftb_3ob_parameters) if parameters is None else parameters
+    default_parameters, spin_constants = resolve_parameter_set(parameter_set)
+    parameters = default_parameters if parameters is None else parameters
     jobs = _load_jobs(source, charge, spin)
     root = Path(directory)
 
@@ -188,6 +193,7 @@ def screen(
                 charge=job.charge,
                 directory=str(root / job.name),
                 spin=job.spin,
+                spin_constants=spin_constants,
                 **parameters,
             )
             record.update(_thermo_summary(thermo))

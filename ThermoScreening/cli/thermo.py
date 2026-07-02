@@ -5,7 +5,6 @@ import sys
 import time
 
 from ThermoScreening.cli.dftb_setup import (
-    DEFAULT_SLAKO_URL,
     check_dftb_setup,
     dftb_prefix_export,
     format_diagnostics,
@@ -34,7 +33,7 @@ def _command_parser():
 
     setup_parser = subparsers.add_parser(
         "setup-dftb",
-        help="Download the default DFTB+ Slater-Koster parameter set.",
+        help="Download a DFTB+ Slater-Koster parameter set.",
     )
     setup_parser.add_argument(
         "--install-root",
@@ -42,9 +41,15 @@ def _command_parser():
         help="Directory where Slater-Koster parameter sets are installed.",
     )
     setup_parser.add_argument(
+        "--parameter-set",
+        default="3ob",
+        choices=["3ob", "mio"],
+        help="Parameter set to download (default '3ob').",
+    )
+    setup_parser.add_argument(
         "--url",
-        default=DEFAULT_SLAKO_URL,
-        help="Archive URL for the default Slater-Koster parameter set.",
+        default=None,
+        help="Archive URL override (defaults to the release URL for the set).",
     )
     setup_parser.add_argument(
         "--force",
@@ -84,6 +89,11 @@ def _command_parser():
         "--directory", default="screening",
         help="Root working directory; each molecule runs in <directory>/<name>.",
     )
+    screen_parser.add_argument(
+        "--parameter-set", default="3ob", choices=["3ob", "mio"],
+        help="Slater-Koster parameter set (default '3ob'). Selects the Hamiltonian "
+        "parameters and matching spin constants.",
+    )
 
     return parser
 
@@ -120,6 +130,7 @@ def run_setup_dftb(parser_args):
         install_root=parser_args.install_root,
         url=parser_args.url,
         force=parser_args.force,
+        parameter_set=parser_args.parameter_set,
     )
 
     print("Slater-Koster files: ", parameter_dir)
@@ -152,6 +163,7 @@ def run_screen(parser_args):
         temperature=parser_args.temperature,
         pressure=parser_args.pressure,
         directory=parser_args.directory,
+        parameter_set=parser_args.parameter_set,
     )
 
     failed = sum(1 for record in results if record["status"] != "ok")
