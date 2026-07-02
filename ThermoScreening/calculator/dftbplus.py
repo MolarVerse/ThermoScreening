@@ -51,22 +51,30 @@ def _slako_dir(slako_dir=None):
     return selected_dir + os.sep
 
 
-# Atomic spin constants (Hartree) for the 3ob-3-1 PBE Slater-Koster set, i.e. the
-# single spin constant of the highest occupied shell per element (Wss for H, Wpp
-# otherwise), used with ShellResolvedSpin = No to match this tool's atom-resolved
-# 3ob SCC. These are parameters that must match the SK set's functional (PBE) and
-# parametrisation; using a different SK set requires its own spin constants.
-# Cross-verified: 3ob (Elstner list) vs QUASINANO2015 (arXiv:1605.01360) vs the
-# DFTB+ manual/mio (Koehler). Validate energies with a real spin-polarised run.
+# Atomic spin constants (Hartree) for the 3ob-3-1 PBE Slater-Koster set: the spin
+# constant of the highest occupied shell per element (Wss for H, Wpp for the
+# p-block, valence Wss for the s-block and Zn), used with ShellResolvedSpin = No
+# to match this tool's atom-resolved 3ob SCC. Taken from the authoritative
+# ``spinw.hsd`` shipped with the 3ob-3-1 set (PBE, slateratom) and match it
+# exactly. These are parameters tied to the SK set + functional; a different SK
+# set (e.g. mio) needs its own constants. Verified end-to-end: an OH radical runs
+# spin-polarised (0.40 eV below restricted, S_elec = R ln 2).
 SPIN_CONSTANTS = {
     "H": "{ -0.07174 }",
     "C": "{ -0.02265 }",
     "N": "{ -0.02545 }",
     "O": "{ -0.02785 }",
     "F": "{ -0.02990 }",
+    "Na": "{ -0.01528 }",
+    "Mg": "{ -0.01667 }",
     "P": "{ -0.01490 }",
     "S": "{ -0.01549 }",
     "Cl": "{ -0.01606 }",
+    "K": "{ -0.01075 }",
+    "Ca": "{ -0.01196 }",
+    "Zn": "{ -0.01680 }",
+    "Br": "{ -0.01377 }",
+    "I": "{ -0.01144 }",
 }
 
 

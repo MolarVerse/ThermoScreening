@@ -409,9 +409,10 @@ def test_spin_kwargs_builds_colinear_block():
 
 
 def test_spin_kwargs_rejects_element_without_constant():
+    # Fe is not in the 3ob spin-constant set
     with pytest.raises(ValueError, match="not available for element"):
         dftbplus_module._spin_kwargs(
-            Atoms("Br2", positions=[[0, 0, 0], [0, 0, 2.3]]), 0.5
+            Atoms("Fe2", positions=[[0, 0, 0], [0, 0, 2.3]]), 0.5
         )
 
 
