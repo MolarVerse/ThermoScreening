@@ -51,6 +51,80 @@ def _slako_dir(slako_dir=None):
     return selected_dir + os.sep
 
 
+# Atomic spin constants (Hartree) for the 3ob-3-1 PBE Slater-Koster set: the spin
+# constant of the highest occupied shell per element (Wss for H, Wpp for the
+# p-block, valence Wss for the s-block and Zn), used with ShellResolvedSpin = No
+# to match this tool's atom-resolved 3ob SCC. Taken from the authoritative
+# ``spinw.hsd`` shipped with the 3ob-3-1 set (PBE, slateratom) and match it
+# exactly. These are parameters tied to the SK set + functional; a different SK
+# set (e.g. mio) needs its own constants. Verified end-to-end: an OH radical runs
+# spin-polarised (0.40 eV below restricted, S_elec = R ln 2).
+SPIN_CONSTANTS = {
+    "H": "{ -0.07174 }",
+    "C": "{ -0.02265 }",
+    "N": "{ -0.02545 }",
+    "O": "{ -0.02785 }",
+    "F": "{ -0.02990 }",
+    "Na": "{ -0.01528 }",
+    "Mg": "{ -0.01667 }",
+    "P": "{ -0.01490 }",
+    "S": "{ -0.01549 }",
+    "Cl": "{ -0.01606 }",
+    "K": "{ -0.01075 }",
+    "Ca": "{ -0.01196 }",
+    "Zn": "{ -0.01680 }",
+    "Br": "{ -0.01377 }",
+    "I": "{ -0.01144 }",
+}
+
+
+def _spin_kwargs(atoms, spin):
+    """
+    ASE ``Dftb`` keyword arguments enabling colinear spin polarisation.
+
+    Returns an empty dict for ``spin`` in (None, 0), so the closed-shell
+    (restricted) calculation is left exactly as before. For spin S > 0 it enables
+    ``SpinPolarisation = Colinear`` with ``UnpairedElectrons = round(2*S)`` and
+    injects the 3ob ``SpinConstants`` for the elements present.
+
+    Parameters
+    ----------
+    atoms : ase.Atoms
+        The atoms whose elements need spin constants.
+    spin : float or None
+        Spin quantum number S.
+
+    Raises
+    ------
+    ValueError
+        If an element has no tabulated 3ob spin constant.
+    """
+    if spin is None or float(spin) <= 0.0:
+        return {}
+
+    unpaired = int(round(2.0 * float(spin)))
+    if unpaired <= 0:
+        return {}
+
+    elements = sorted(set(atoms.get_chemical_symbols()))
+    missing = [element for element in elements if element not in SPIN_CONSTANTS]
+    if missing:
+        raise ValueError(
+            "Spin-polarised DFTB+ is not available for element(s) "
+            f"{', '.join(missing)}: no 3ob spin constant is tabulated."
+        )
+
+    kwargs = {
+        "Hamiltonian_SpinPolarisation": "Colinear {",
+        "Hamiltonian_SpinPolarisation_UnpairedElectrons": unpaired,
+        "Hamiltonian_SpinConstants_": "",
+        "Hamiltonian_SpinConstants_ShellResolvedSpin": "No",
+    }
+    for element in elements:
+        kwargs[f"Hamiltonian_SpinConstants_{element}"] = SPIN_CONSTANTS[element]
+    return kwargs
+
+
 class Geoopt(Dftb):
     """
     Custom DFTB+ calculator to optimize the system with the 'GeometryOptimisation' driver (Rational).

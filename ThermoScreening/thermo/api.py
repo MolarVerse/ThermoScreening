@@ -18,6 +18,7 @@ from .system import System, dof
 from .thermo import Thermo
 from .atoms import Atom
 from ..calculator import Geoopt, Hessian, Modes
+from ..calculator.dftbplus import _spin_kwargs
 
 
 logger = logging.getLogger(__package_name__).getChild("api")
@@ -523,6 +524,12 @@ def dftbplus_thermo(
         geometry/Hessian/modes files are written here, so separate jobs can run
         without clobbering each other. Defaults to the current directory.
 
+    spin : float, optional
+        Spin quantum number S. Defaults to the minimum-spin electron-count guess
+        (even -> 0, odd -> 0.5). When S > 0 the DFTB+ steps run colinear
+        spin-polarised (so radicals are treated open-shell automatically); S = 0
+        keeps the restricted closed-shell calculation.
+
     Other Parameters
     ----------------
     **kwargs : dict
@@ -534,14 +541,22 @@ def dftbplus_thermo(
         The thermo calculation object.
     """
 
+    # Resolve the spin (electron-count guess when not given) so the calculation
+    # and the analysis use the same multiplicity; S > 0 enables spin polarisation.
+    if spin is None:
+        electrons = round(float(sum(atoms.get_atomic_numbers())) - charge)
+        spin = 0.0 if electrons % 2 == 0 else 0.5
+
+    spin_kwargs = _spin_kwargs(atoms, spin)
+
     with _run_in_directory(directory):
         # run geometry optimization
-        geoopt = Geoopt(atoms=atoms, charge=charge, **kwargs)
+        geoopt = Geoopt(atoms=atoms, charge=charge, **spin_kwargs, **kwargs)
         potential_energy = geoopt.potential_energy()
         optimized_atoms = geoopt.read()
 
         # run hessian calculation
-        Hessian(atoms=optimized_atoms, charge=charge, **kwargs)
+        Hessian(atoms=optimized_atoms, charge=charge, **spin_kwargs, **kwargs)
 
         # run normal mode calculation
         modes = Modes()
