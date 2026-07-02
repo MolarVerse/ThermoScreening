@@ -390,6 +390,31 @@ def test_modes_pipeline_parses_authentic_dftbplus_layout(monkeypatch, tmp_path):
     assert hessian.read().shape == (9, 9)
 
 
+def test_spin_kwargs_restricted_and_fractional():
+    h2 = Atoms("H2", positions=[[0, 0, 0], [0, 0, 0.74]])
+    assert dftbplus_module._spin_kwargs(h2, None) == {}
+    assert dftbplus_module._spin_kwargs(h2, 0.0) == {}
+    assert dftbplus_module._spin_kwargs(h2, 0.1) == {}  # rounds to 0 unpaired
+
+
+def test_spin_kwargs_builds_colinear_block():
+    kw = dftbplus_module._spin_kwargs(
+        Atoms("OH", positions=[[0, 0, 0], [0.97, 0, 0]]), 0.5
+    )
+    assert kw["Hamiltonian_SpinPolarisation"] == "Colinear {"
+    assert kw["Hamiltonian_SpinPolarisation_UnpairedElectrons"] == 1
+    assert kw["Hamiltonian_SpinConstants_ShellResolvedSpin"] == "No"
+    assert kw["Hamiltonian_SpinConstants_H"] == "{ -0.07174 }"
+    assert kw["Hamiltonian_SpinConstants_O"] == "{ -0.02785 }"
+
+
+def test_spin_kwargs_rejects_element_without_constant():
+    with pytest.raises(ValueError, match="not available for element"):
+        dftbplus_module._spin_kwargs(
+            Atoms("Br2", positions=[[0, 0, 0], [0, 0, 2.3]]), 0.5
+        )
+
+
 @pytest.mark.skipif(
     not dftbplus_ready,
     reason="DFTB+ executables are not installed or cannot start.",

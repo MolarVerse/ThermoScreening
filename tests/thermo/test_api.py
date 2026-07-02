@@ -21,6 +21,7 @@ from ThermoScreening.thermo.api import (
     unit_frequency,
 )
 from ase.build import molecule
+from ase import Atoms
 from ThermoScreening.exceptions import TSNotImplementedError, TSValueError
 
 class TestApi(unittest.TestCase):
@@ -345,6 +346,7 @@ def test_dftbplus_thermo_runs_pipeline_in_directory(monkeypatch, tmp_path):
     class FakeGeoopt:
         def __init__(self, atoms, charge, **kwargs):
             seen["cwd_during"] = Path.cwd().resolve()
+            seen["geoopt_kwargs"] = kwargs
 
         def potential_energy(self):
             return -1.0
@@ -371,13 +373,88 @@ def test_dftbplus_thermo_runs_pipeline_in_directory(monkeypatch, tmp_path):
 
     job = tmp_path / "job"
     start = Path.cwd()
-    result = api.dftbplus_thermo("initial-atoms", directory=str(job))
+    water = Atoms("OH2", positions=[[0, 0, 0.12], [0, 0.76, -0.48], [0, -0.76, -0.48]])
+    result = api.dftbplus_thermo(water, directory=str(job))
 
     assert result == "thermo-result"
     assert seen["run_thermo_atoms"] == "optimized-atoms"
     assert seen["hessian_atoms"] == "optimized-atoms"
     assert seen["cwd_during"] == job.resolve()  # pipeline ran inside the job dir
     assert Path.cwd() == start  # working directory restored afterwards
+    # closed-shell water -> restricted, no spin polarisation in the DFTB+ kwargs
+    assert "Hamiltonian_SpinPolarisation" not in seen["geoopt_kwargs"]
+
+
+def _mock_pipeline(monkeypatch):
+    import ThermoScreening.thermo.api as api
+
+    seen = {}
+
+    class FakeGeoopt:
+        def __init__(self, atoms, charge, **kwargs):
+            seen["geoopt_kwargs"] = kwargs
+
+        def potential_energy(self):
+            return -1.0
+
+        def read(self):
+            return "optimized-atoms"
+
+    class FakeHessian:
+        def __init__(self, atoms, charge, **kwargs):
+            seen["hessian_kwargs"] = kwargs
+
+    class FakeModes:
+        def __init__(self):
+            self.wave_numbers = np.array([1.0, 2.0, 3.0])
+
+    def fake_run_thermo(frequencies, atoms=None, spin=None, **kwargs):
+        seen["run_thermo_spin"] = spin
+        return "thermo-result"
+
+    monkeypatch.setattr(api, "Geoopt", FakeGeoopt)
+    monkeypatch.setattr(api, "Hessian", FakeHessian)
+    monkeypatch.setattr(api, "Modes", FakeModes)
+    monkeypatch.setattr(api, "run_thermo", fake_run_thermo)
+    return api, seen
+
+
+def test_dftbplus_thermo_spin_polarises_radical_automatically(monkeypatch, tmp_path):
+    api, seen = _mock_pipeline(monkeypatch)
+    # OH: 9 electrons (odd) -> auto doublet -> spin-polarised, no user input
+    api.dftbplus_thermo(
+        Atoms("OH", positions=[[0, 0, 0], [0.97, 0, 0]]), directory=str(tmp_path / "j")
+    )
+
+    assert seen["run_thermo_spin"] == 0.5  # analysis multiplicity matches
+    assert seen["geoopt_kwargs"]["Hamiltonian_SpinPolarisation"] == "Colinear {"
+    assert seen["geoopt_kwargs"]["Hamiltonian_SpinPolarisation_UnpairedElectrons"] == 1
+    assert seen["hessian_kwargs"]["Hamiltonian_SpinConstants_O"] == "{ -0.02785 }"
+
+
+def test_dftbplus_thermo_restricted_for_closed_shell(monkeypatch, tmp_path):
+    api, seen = _mock_pipeline(monkeypatch)
+    # water: 10 electrons (even) -> singlet -> restricted, no spin kwargs
+    api.dftbplus_thermo(
+        Atoms("OH2", positions=[[0, 0, 0.12], [0, 0.76, -0.48], [0, -0.76, -0.48]]),
+        directory=str(tmp_path / "j"),
+    )
+
+    assert seen["run_thermo_spin"] == 0.0
+    assert "Hamiltonian_SpinPolarisation" not in seen["geoopt_kwargs"]
+
+
+def test_dftbplus_thermo_explicit_triplet(monkeypatch, tmp_path):
+    api, seen = _mock_pipeline(monkeypatch)
+    # O2 is even-electron but a triplet -> user declares spin=1 -> 2 unpaired
+    api.dftbplus_thermo(
+        Atoms("O2", positions=[[0, 0, 0], [0, 0, 1.2]]),
+        directory=str(tmp_path / "j"),
+        spin=1.0,
+    )
+
+    assert seen["run_thermo_spin"] == 1.0
+    assert seen["geoopt_kwargs"]["Hamiltonian_SpinPolarisation_UnpairedElectrons"] == 2
 
 
 if __name__ == "__main__":
