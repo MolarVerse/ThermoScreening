@@ -114,6 +114,7 @@ def test_main_runs_setup_dftb(monkeypatch, tmp_path, capsys):
             url="file:///tmp/3ob-3-1.tar.xz",
             force=True,
             parameter_set="3ob",
+            solvent=None,
         ),
     )
     monkeypatch.setattr(
@@ -127,6 +128,29 @@ def test_main_runs_setup_dftb(monkeypatch, tmp_path, capsys):
     output = capsys.readouterr().out
     assert "Slater-Koster files:" in output
     assert "export DFTB_PREFIX=" in output
+
+
+def test_main_setup_dftb_downloads_solvent(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(
+        thermo,
+        "parse_args",
+        lambda: argparse.Namespace(
+            command="setup-dftb",
+            install_root=str(tmp_path),
+            url=None,
+            force=False,
+            parameter_set="3ob",
+            solvent="water",
+        ),
+    )
+    monkeypatch.setattr(
+        thermo,
+        "install_gbsa_param",
+        lambda solvent, install_root, url, force: tmp_path / "param_gbsa_h2o.txt",
+    )
+
+    assert thermo.main() == 0
+    assert "GBSA solvation parameters:" in capsys.readouterr().out
 
 
 def test_main_runs_doctor(monkeypatch, capsys):

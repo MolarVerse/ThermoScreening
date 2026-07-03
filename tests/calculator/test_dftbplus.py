@@ -448,6 +448,33 @@ def test_resolve_parameter_set_rejects_unknown_set():
         dftbplus_module.resolve_parameter_set("does-not-exist")
 
 
+def test_solvation_kwargs_gas_phase_is_empty():
+    assert dftbplus_module._solvation_kwargs() == {}
+    assert dftbplus_module._solvation_kwargs(solvent=None, param_file=None) == {}
+
+
+def test_solvation_kwargs_explicit_param_file(tmp_path):
+    param = tmp_path / "param_gbsa_h2o.txt"
+    param.write_text("data", encoding="utf-8")
+
+    kw = dftbplus_module._solvation_kwargs(param_file=str(param))
+
+    assert kw["Hamiltonian_Solvation"] == "GeneralizedBorn {"
+    # DFTB+ resolves ParamFile relative to the run dir, so it must be absolute
+    assert os.path.isabs(kw["Hamiltonian_Solvation_ParamFile"])
+    assert kw["Hamiltonian_Solvation_ParamFile"] == str(param.resolve())
+
+
+def test_solvation_kwargs_missing_param_file_raises(tmp_path):
+    with pytest.raises(FileNotFoundError):
+        dftbplus_module._solvation_kwargs(param_file=str(tmp_path / "nope.txt"))
+
+
+def test_solvation_kwargs_missing_solvent_file_hints_setup(tmp_path):
+    with pytest.raises(FileNotFoundError, match="setup-dftb --solvent water"):
+        dftbplus_module._solvation_kwargs(solvent="water", install_root=tmp_path)
+
+
 @pytest.mark.skipif(
     not dftbplus_ready,
     reason="DFTB+ executables are not installed or cannot start.",

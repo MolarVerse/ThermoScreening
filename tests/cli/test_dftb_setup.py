@@ -8,10 +8,13 @@ from ThermoScreening.cli.dftb_setup import (
     DEFAULT_PARAMETER_SET,
     REQUIRED_PARAMETER_FILE,
     Diagnostic,
+    _solvent_stem,
     check_dftb_setup,
     default_parameter_dir,
     dftb_prefix_export,
     format_diagnostics,
+    gbsa_param_path,
+    install_gbsa_param,
     install_slakos,
     slako_url,
 )
@@ -122,6 +125,60 @@ def test_install_slakos_rejects_unsafe_archive_member(tmp_path):
         install_slakos(install_root=tmp_path / "install", url=archive_path.as_uri())
 
     assert not (tmp_path / "unsafe.txt").exists()
+
+
+def test_solvent_stem_resolves_names_and_aliases():
+    assert _solvent_stem("water") == "h2o"
+    assert _solvent_stem("Water") == "h2o"
+    assert _solvent_stem("dichloromethane") == "ch2cl2"
+    assert _solvent_stem("chloroform") == "chcl3"
+
+
+def test_solvent_stem_rejects_unknown():
+    with pytest.raises(ValueError, match="Unknown solvent"):
+        _solvent_stem("unobtainium")
+
+
+def test_gbsa_param_path_uses_solvent_stem(tmp_path):
+    path = gbsa_param_path("water", install_root=tmp_path)
+    assert path.name == "param_gbsa_h2o.txt"
+    assert path.parent.name == "gfn2-0-1"
+
+
+def test_install_gbsa_param_downloads_file(tmp_path):
+    source = tmp_path / "param_gbsa_h2o.txt"
+    source.write_text("solvent parameters", encoding="utf-8")
+
+    installed = install_gbsa_param(
+        "water", install_root=tmp_path / "install", url=source.as_uri()
+    )
+
+    assert installed == gbsa_param_path("water", tmp_path / "install").resolve()
+    assert installed.read_text(encoding="utf-8") == "solvent parameters"
+
+
+def test_install_gbsa_param_requires_downloaded_file(monkeypatch, tmp_path):
+    # a "download" that writes nothing must not silently succeed
+    monkeypatch.setattr(dftb_setup, "_download_file", lambda url, destination: None)
+
+    with pytest.raises(FileNotFoundError):
+        install_gbsa_param("water", install_root=tmp_path / "install")
+
+
+def test_install_gbsa_param_reuses_existing(monkeypatch, tmp_path):
+    destination = gbsa_param_path("water", tmp_path / "install")
+    destination.parent.mkdir(parents=True)
+    destination.write_text("existing", encoding="utf-8")
+
+    def fail_download(*args, **kwargs):
+        raise AssertionError("download should not run")
+
+    monkeypatch.setattr(dftb_setup, "_download_file", fail_download)
+
+    installed = install_gbsa_param("water", install_root=tmp_path / "install")
+
+    assert installed == destination.resolve()
+    assert destination.read_text(encoding="utf-8") == "existing"
 
 
 def test_dftb_prefix_export_adds_trailing_separator(tmp_path):

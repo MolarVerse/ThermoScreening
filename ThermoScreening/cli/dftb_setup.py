@@ -167,6 +167,118 @@ def install_slakos(
     return parameter_dir.resolve()
 
 
+# GBSA/ALPB implicit-solvation parameter files (grimme-lab/gbsa-parameters). The
+# published sets are fit for GFN-xTB; used with DFTB (3ob/mio) they are an
+# approximation (see the note in ``calculator.dftbplus._solvation_kwargs``).
+GBSA_PARAM_METHOD = "gfn2-0-1"
+GBSA_BASE_URL = "https://raw.githubusercontent.com/grimme-lab/gbsa-parameters/main"
+
+# User-facing solvent name -> parameter-file stem in the repository.
+GBSA_SOLVENTS = {
+    "acetone": "acetone",
+    "acetonitrile": "acetonitrile",
+    "benzene": "benzene",
+    "ch2cl2": "ch2cl2",
+    "dichloromethane": "ch2cl2",
+    "chcl3": "chcl3",
+    "chloroform": "chcl3",
+    "cs2": "cs2",
+    "dmf": "dmf",
+    "dmso": "dmso",
+    "ether": "ether",
+    "diethylether": "ether",
+    "water": "h2o",
+    "h2o": "h2o",
+    "methanol": "methanol",
+    "hexane": "nhexane",
+    "nhexane": "nhexane",
+    "thf": "thf",
+    "toluene": "toluene",
+}
+
+
+def _solvent_stem(solvent: str) -> str:
+    """
+    Map a user-facing solvent name to its parameter-file stem.
+
+    Raises
+    ------
+    ValueError
+        If ``solvent`` is not a known solvent.
+    """
+
+    try:
+        return GBSA_SOLVENTS[solvent.lower()]
+    except KeyError:
+        known = ", ".join(sorted(set(GBSA_SOLVENTS)))
+        raise ValueError(
+            f"Unknown solvent {solvent!r}; choose one of: {known}."
+        )
+
+
+def default_gbsa_dir(install_root: str | Path | None = None) -> Path:
+    """
+    Return the directory holding downloaded GBSA solvation parameter files.
+    """
+
+    root = Path(install_root).expanduser() if install_root is not None else default_install_root()
+    return root / "gbsa" / GBSA_PARAM_METHOD
+
+
+def gbsa_param_path(
+    solvent: str,
+    install_root: str | Path | None = None,
+) -> Path:
+    """
+    Return the local path where the GBSA parameter file for ``solvent`` lives
+    (whether or not it has been downloaded yet).
+    """
+
+    return default_gbsa_dir(install_root) / f"param_gbsa_{_solvent_stem(solvent)}.txt"
+
+
+def install_gbsa_param(
+    solvent: str,
+    install_root: str | Path | None = None,
+    url: str | None = None,
+    force: bool = False,
+) -> Path:
+    """
+    Download the GBSA implicit-solvation parameter file for ``solvent``.
+
+    Parameters
+    ----------
+    solvent : str
+        Solvent name (e.g. ``"water"``); see :data:`GBSA_SOLVENTS`.
+    install_root : str or Path, optional
+        Directory root for downloaded parameters. Defaults to the user-local
+        share directory.
+    url : str, optional
+        Explicit file URL override. Defaults to the grimme-lab release file.
+    force : bool
+        Re-download even when the file already exists.
+    """
+
+    stem = _solvent_stem(solvent)
+    destination = gbsa_param_path(solvent, install_root)
+
+    if destination.exists() and not force:
+        return destination.resolve()
+
+    if url is None:
+        url = f"{GBSA_BASE_URL}/{GBSA_PARAM_METHOD}/param_gbsa_{stem}.txt"
+
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    _download_file(url, destination)
+
+    if not destination.exists():
+        raise FileNotFoundError(
+            f"Downloaded GBSA parameter file is missing: {destination}"
+        )
+
+    return destination.resolve()
+
+
 def dftb_prefix_export(parameter_dir: str | Path) -> str:
     """
     Return the shell export line for a Slater-Koster parameter directory.

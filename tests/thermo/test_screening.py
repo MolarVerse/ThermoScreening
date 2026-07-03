@@ -10,6 +10,9 @@ from ThermoScreening.thermo import screening
 
 
 class _FakeThermo:
+    def electronic_energy(self):
+        return -100.0
+
     def total_energy(self, unit):
         return -10.0
 
@@ -18,6 +21,9 @@ class _FakeThermo:
 
     def total_gibbs_free_energy(self, unit):
         return -11.0
+
+    def total_EeGtot(self):
+        return -111.0
 
     def total_entropy(self, unit):
         return 50.0
@@ -120,6 +126,26 @@ def test_screen_rejects_unknown_parameter_set(tmp_path):
         screening.screen(str(tmp_path), out=str(tmp_path / "r"), parameter_set="nope")
 
 
+def test_screen_passes_solvent_to_dftbplus_thermo(monkeypatch, tmp_path):
+    _write_xyz(tmp_path / "mol.xyz")
+
+    captured = {}
+
+    def fake_thermo(atoms, solvent=None, **kwargs):
+        captured["solvent"] = solvent
+        return _FakeThermo()
+
+    monkeypatch.setattr(screening, "dftbplus_thermo", fake_thermo)
+    screening.screen(
+        str(tmp_path),
+        out=str(tmp_path / "r"),
+        directory=str(tmp_path / "runs"),
+        solvent="water",
+    )
+
+    assert captured["solvent"] == "water"
+
+
 def test_load_jobs_rejects_unknown_source(tmp_path):
     bad = tmp_path / "thing.txt"
     bad.write_text("x", encoding="utf-8")
@@ -173,6 +199,9 @@ def test_screen_collects_results_and_isolates_failures(monkeypatch, tmp_path):
     assert [record["status"] for record in results] == ["ok", "error"]
     assert results[1]["error"] == "kaboom"
     assert results[0]["G_hartree"] == -11.0
+    # electronic energy (carries solvation) and absolute Gibbs are reported too
+    assert results[0]["Eelec_hartree"] == -100.0
+    assert results[0]["G_total_hartree"] == -111.0
 
     # each molecule ran in its own directory
     assert str(tmp_path / "runs" / "good") in captured["dirs"]
@@ -217,9 +246,13 @@ def test_cli_parse_args_routes_screen():
     assert args.charge == -1.0
     assert args.temperature == 300.0
     assert args.parameter_set == "3ob"  # default set
+    assert args.solvent is None  # gas phase by default
 
     mio_args = cli.parse_args(["screen", "molecules.csv", "--parameter-set", "mio"])
     assert mio_args.parameter_set == "mio"
+
+    solv_args = cli.parse_args(["screen", "molecules.csv", "--solvent", "water"])
+    assert solv_args.solvent == "water"
 
 
 def test_cli_run_screen_returns_failure_count(monkeypatch):
@@ -232,6 +265,7 @@ def test_cli_run_screen_returns_failure_count(monkeypatch):
     args = Namespace(
         source="x", out="res", charge=0.0, temperature=298.15,
         pressure=101325.0, directory="screening", parameter_set="3ob",
+        solvent=None,
     )
 
     assert cli.run_screen(args) == 1  # one molecule failed
