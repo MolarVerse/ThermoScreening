@@ -19,6 +19,7 @@ from .thermo import Thermo
 from .atoms import Atom
 from ..calculator import Geoopt, Hessian, Modes
 from ..calculator.dftbplus import _spin_kwargs, _solvation_kwargs, SPIN_CONSTANTS_3OB
+from ..calculator.xtb import optimise_and_frequencies, xtb_calculator
 
 
 logger = logging.getLogger(__package_name__).getChild("api")
@@ -606,6 +607,85 @@ def dftbplus_thermo(
             pressure=pressure,
             energy=potential_energy,
             engine='dftb+',
+            charge=charge,
+            spin=spin,
+            quasi_rrho=quasi_rrho,
+        )
+
+    return thermo
+
+
+def xtb_thermo(
+        atoms,
+        temperature=298.15,
+        pressure=101325,
+        charge=0.0,
+        spin=None,
+        method="GFN2-xTB",
+        directory=None,
+        quasi_rrho=False,
+        fmax=0.01,
+    ):
+    """
+    Run the thermo pipeline with GFN-xTB (tblite): optimise, compute the
+    Hessian/frequencies, and evaluate the thermochemistry.
+
+    Needs no Slater-Koster files or spin constants -- GFN-xTB parameters are
+    built in for H-Rn and open-shell systems are handled natively via the number
+    of unpaired electrons.
+
+    Parameters
+    ----------
+    atoms : ase.Atoms
+        Atoms object. The initial geometry.
+    temperature : float
+        The temperature in K. Default is 298.15.
+    pressure : float
+        The pressure in Pa. Default is 101325.
+    charge : float
+        The system charge. Default is 0.0.
+    spin : float, optional
+        Spin quantum number S. Defaults to the minimum-spin electron-count guess
+        (even -> 0, odd -> 0.5). ``round(2*S)`` unpaired electrons are passed to
+        xTB, so radicals run open-shell automatically.
+    method : str
+        GFN-xTB parametrisation, ``"GFN2-xTB"`` (default) or ``"GFN1-xTB"``.
+    directory : str, optional
+        Working directory to run in (created if needed). Defaults to the current
+        directory.
+    quasi_rrho : bool
+        If True, use Grimme's quasi-RRHO vibrational entropy. Default False.
+    fmax : float
+        Force convergence threshold for the optimisation (eV/A). Default 0.01.
+
+    Returns
+    -------
+    Thermo
+        The thermo calculation object.
+    """
+
+    # Resolve the spin the same way as the DFTB+ path so the calculation and the
+    # analysis use the same multiplicity.
+    if spin is None:
+        electrons = round(float(sum(atoms.get_atomic_numbers())) - charge)
+        spin = 0.0 if electrons % 2 == 0 else 0.5
+
+    prepared = atoms.copy()
+    prepared.info["charge"] = int(round(charge))
+    prepared.info["spin"] = int(round(2.0 * float(spin)))
+
+    with _run_in_directory(directory):
+        optimized_atoms, potential_energy, frequencies = optimise_and_frequencies(
+            prepared, xtb_calculator(method), fmax=fmax
+        )
+
+        thermo = run_thermo(
+            frequencies,
+            atoms=optimized_atoms,
+            temperature=temperature,
+            pressure=pressure,
+            energy=potential_energy,
+            engine="xtb",
             charge=charge,
             spin=spin,
             quasi_rrho=quasi_rrho,

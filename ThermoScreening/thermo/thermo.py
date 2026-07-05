@@ -113,7 +113,7 @@ class Thermo:
         self._engine = engine
         self._quasi_rrho = quasi_rrho
 
-        if self._engine != "dftb+":
+        if self._engine not in ("dftb+", "xtb"):
             raise TSValueError("The engine is not supported.")
         if self._temperature < 0:
             raise TSValueError("The temperature is negative.")
