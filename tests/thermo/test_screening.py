@@ -174,6 +174,28 @@ def test_screen_dispatches_to_xtb_engine(monkeypatch, tmp_path):
     assert captured["method"] == "GFN1-xTB"
 
 
+def test_screen_dispatches_to_xtb_cli_engine(monkeypatch, tmp_path):
+    _write_xyz(tmp_path / "mol.xyz")
+
+    captured = {}
+
+    def fake_xtb_cli(atoms, method="GFN2-xTB", solvent=None, **kwargs):
+        captured.update(called="xtb-cli", method=method, solvent=solvent)
+        return _FakeThermo()
+
+    monkeypatch.setattr(screening, "xtb_cli_thermo", fake_xtb_cli)
+    screening.screen(
+        str(tmp_path),
+        out=str(tmp_path / "r"),
+        directory=str(tmp_path / "runs"),
+        engine="xtb-cli",
+        solvent="water",
+    )
+
+    assert captured["called"] == "xtb-cli"
+    assert captured["solvent"] == "water"  # xtb-cli supports solvation
+
+
 def test_screen_rejects_unknown_engine(tmp_path):
     _write_xyz(tmp_path / "mol.xyz")
     with pytest.raises(TSValueError, match="Unknown engine"):
@@ -319,6 +341,9 @@ def test_cli_parse_args_routes_screen():
     )
     assert xtb_args.engine == "xtb"
     assert xtb_args.method == "GFN1-xTB"
+
+    cli_args = cli.parse_args(["screen", "molecules.csv", "--engine", "xtb-cli"])
+    assert cli_args.engine == "xtb-cli"
 
 
 def test_cli_run_screen_returns_failure_count(monkeypatch):

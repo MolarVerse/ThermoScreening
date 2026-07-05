@@ -112,13 +112,15 @@ def _command_parser():
         "modes) instead of the pure harmonic oscillator.",
     )
     screen_parser.add_argument(
-        "--engine", default="dftb+", choices=["dftb+", "xtb"],
+        "--engine", default="dftb+", choices=["dftb+", "xtb", "xtb-cli"],
         help="Calculation engine (default 'dftb+'). 'xtb' uses GFN-xTB via tblite "
-        "(no Slater-Koster files); parameter-set/solvent apply only to dftb+.",
+        "(gas-phase); 'xtb-cli' uses the native xtb binary, which also does "
+        "implicit solvation of charged radicals. parameter-set applies to dftb+; "
+        "solvent to dftb+ and xtb-cli.",
     )
     screen_parser.add_argument(
         "--method", default="GFN2-xTB", choices=["GFN2-xTB", "GFN1-xTB"],
-        help="GFN-xTB parametrisation when --engine xtb (default 'GFN2-xTB').",
+        help="GFN-xTB parametrisation for the xtb engines (default 'GFN2-xTB').",
     )
 
     return parser

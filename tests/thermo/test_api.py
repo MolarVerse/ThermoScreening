@@ -554,5 +554,43 @@ def test_xtb_thermo_pipeline(monkeypatch, tmp_path):
     assert seen["energy"] == -5.0
 
 
+def test_xtb_cli_thermo_pipeline(monkeypatch, tmp_path):
+    import ThermoScreening.thermo.api as api
+
+    seen = {}
+
+    def fake_run_xtb(atoms, charge=0.0, unpaired=0, method="GFN2-xTB", solvent=None):
+        seen.update(charge=charge, unpaired=unpaired, method=method, solvent=solvent)
+        return "optimized-atoms", -4.5, np.array([1500.0, 3600.0, 3700.0])
+
+    def fake_run_thermo(frequencies, atoms=None, engine=None, spin=None,
+                        quasi_rrho=False, **kwargs):
+        seen.update(engine=engine, spin=spin, quasi_rrho=quasi_rrho,
+                    energy=kwargs.get("energy"))
+        return "thermo-result"
+
+    monkeypatch.setattr(api, "run_xtb", fake_run_xtb)
+    monkeypatch.setattr(api, "run_thermo", fake_run_thermo)
+
+    # neutral OH radical -> auto doublet -> 1 unpaired electron; water solvation
+    result = api.xtb_cli_thermo(
+        Atoms("OH", positions=[[0, 0, 0], [0, 0, 0.97]]),
+        directory=str(tmp_path / "j"),
+        solvent="water",
+        method="GFN1-xTB",
+        quasi_rrho=True,
+    )
+
+    assert result == "thermo-result"
+    assert seen["engine"] == "xtb"
+    assert seen["spin"] == 0.5        # auto electron-count guess (9 electrons)
+    assert seen["unpaired"] == 1      # round(2*S) passed to xtb --uhf
+    assert seen["charge"] == 0.0
+    assert seen["solvent"] == "water"
+    assert seen["method"] == "GFN1-xTB"
+    assert seen["quasi_rrho"] is True
+    assert seen["energy"] == -4.5
+
+
 if __name__ == "__main__":
     unittest.main()

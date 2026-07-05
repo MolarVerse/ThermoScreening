@@ -20,7 +20,7 @@ from ThermoScreening.calculator.dftbplus import resolve_parameter_set
 from ThermoScreening.exceptions import TSValueError
 from ThermoScreening.utils.custom_logging import setup_logger
 
-from .api import dftbplus_thermo, xtb_thermo
+from .api import dftbplus_thermo, xtb_thermo, xtb_cli_thermo
 
 logger = logging.getLogger(__package_name__).getChild("screening")
 logger = setup_logger(logger)
@@ -183,19 +183,21 @@ def screen(
         (recommended for flexible molecules with low-frequency modes). Default
         False (pure harmonic oscillator).
     engine : str
-        Calculation engine: ``"dftb+"`` (default) or ``"xtb"`` (GFN-xTB via
-        tblite). The ``parameter_set``/``solvent`` options apply only to DFTB+.
+        Calculation engine: ``"dftb+"`` (default), ``"xtb"`` (GFN-xTB via tblite,
+        gas-phase) or ``"xtb-cli"`` (native ``xtb`` binary, which additionally
+        supports implicit solvation of charged radicals). ``parameter_set``
+        applies only to DFTB+; ``solvent`` applies to DFTB+ and xtb-cli.
     method : str
-        GFN-xTB parametrisation when ``engine="xtb"`` (``"GFN2-xTB"`` default).
+        GFN-xTB parametrisation for the xtb engines (``"GFN2-xTB"`` default).
 
     Returns
     -------
     list of dict
         One result record per molecule, including failed ones (status="error").
     """
-    if engine not in ("dftb+", "xtb"):
+    if engine not in ("dftb+", "xtb", "xtb-cli"):
         raise TSValueError(
-            f"Unknown engine {engine!r}; choose 'dftb+' or 'xtb'."
+            f"Unknown engine {engine!r}; choose 'dftb+', 'xtb' or 'xtb-cli'."
         )
 
     if engine == "dftb+":
@@ -217,7 +219,19 @@ def screen(
         logger.info(f"Screening {job.name} (charge {job.charge})")
         try:
             atoms = ase.io.read(str(job.path))
-            if engine == "xtb":
+            if engine == "xtb-cli":
+                thermo = xtb_cli_thermo(
+                    atoms,
+                    temperature=temperature,
+                    pressure=pressure,
+                    charge=job.charge,
+                    directory=str(root / job.name),
+                    spin=job.spin,
+                    method=method,
+                    solvent=solvent,
+                    quasi_rrho=quasi_rrho,
+                )
+            elif engine == "xtb":
                 thermo = xtb_thermo(
                     atoms,
                     temperature=temperature,
