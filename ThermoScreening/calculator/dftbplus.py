@@ -141,6 +141,62 @@ def _spin_kwargs(atoms, spin, spin_constants=SPIN_CONSTANTS_3OB):
     return kwargs
 
 
+def _solvation_kwargs(solvent=None, param_file=None, install_root=None):
+    """
+    ASE ``Dftb`` keyword arguments enabling GBSA/ALPB implicit solvation.
+
+    Returns an empty dict when neither ``solvent`` nor ``param_file`` is given,
+    so the gas-phase calculation is left exactly as before. Otherwise it enables
+    ``Solvation = GeneralizedBorn`` with the solvent's parameter file. DFTB+
+    includes the solvation term in the energy, gradient, and Hessian, so the
+    geometry, energy, and frequencies are all computed in solution consistently.
+
+    The parameter files (grimme-lab/gbsa-parameters) are fit for GFN-xTB; used
+    with the DFTB (3ob/mio) Hamiltonians they are an approximation. Pass an
+    explicit ``param_file`` to use a method-consistent set instead.
+
+    Parameters
+    ----------
+    solvent : str, optional
+        Solvent name (e.g. ``"water"``). Resolved to a downloaded parameter file.
+    param_file : str, optional
+        Explicit path to a GBSA parameter file (overrides ``solvent``).
+    install_root : str or Path, optional
+        Root used to locate downloaded solvent parameters.
+
+    Raises
+    ------
+    FileNotFoundError
+        If the resolved parameter file does not exist.
+    """
+    if solvent is None and param_file is None:
+        return {}
+
+    if param_file is not None:
+        path = os.path.abspath(os.path.expanduser(str(param_file)))
+        if not os.path.isfile(path):
+            raise FileNotFoundError(
+                f"GBSA solvation parameter file does not exist: {path}"
+            )
+    else:
+        # Lazy import: this is an environment/paths lookup, not a core dependency.
+        from ..cli.dftb_setup import gbsa_param_path
+
+        path = os.path.abspath(str(gbsa_param_path(solvent, install_root)))
+        if not os.path.isfile(path):
+            raise FileNotFoundError(
+                f"No GBSA parameter file for solvent {solvent!r} at {path}. "
+                f"Download it first, e.g. `thermo setup-dftb --solvent {solvent}`."
+            )
+
+    # DFTB+ resolves ParamFile relative to the run directory, so pass an absolute
+    # path (jobs run in per-molecule working directories).
+    return {
+        "Hamiltonian_Solvation": "GeneralizedBorn {",
+        "Hamiltonian_Solvation_ParamFile": path,
+    }
+
+
 class Geoopt(Dftb):
     """
     Custom DFTB+ calculator to optimize the system with the 'GeometryOptimisation' driver (Rational).

@@ -471,5 +471,32 @@ def test_dftbplus_thermo_uses_given_spin_constants(monkeypatch, tmp_path):
     assert seen["hessian_kwargs"]["Hamiltonian_SpinConstants_O"] == "{ -0.099 }"
 
 
+def test_dftbplus_thermo_injects_solvation_into_both_steps(monkeypatch, tmp_path):
+    api, seen = _mock_pipeline(monkeypatch)
+    param = tmp_path / "param_gbsa_h2o.txt"
+    param.write_text("data", encoding="utf-8")
+
+    api.dftbplus_thermo(
+        Atoms("OH2", positions=[[0, 0, 0.12], [0, 0.76, -0.48], [0, -0.76, -0.48]]),
+        directory=str(tmp_path / "j"),
+        solvation_param_file=str(param),
+    )
+
+    # the optimisation and the Hessian both run in solvent (consistent geometry
+    # and frequencies)
+    assert seen["geoopt_kwargs"]["Hamiltonian_Solvation"] == "GeneralizedBorn {"
+    assert seen["hessian_kwargs"]["Hamiltonian_Solvation"] == "GeneralizedBorn {"
+
+
+def test_dftbplus_thermo_gas_phase_has_no_solvation(monkeypatch, tmp_path):
+    api, seen = _mock_pipeline(monkeypatch)
+    api.dftbplus_thermo(
+        Atoms("OH2", positions=[[0, 0, 0.12], [0, 0.76, -0.48], [0, -0.76, -0.48]]),
+        directory=str(tmp_path / "j"),
+    )
+
+    assert "Hamiltonian_Solvation" not in seen["geoopt_kwargs"]
+
+
 if __name__ == "__main__":
     unittest.main()

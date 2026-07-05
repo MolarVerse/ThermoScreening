@@ -31,9 +31,11 @@ _RESULT_FIELDS = [
     "path",
     "charge",
     "status",
+    "Eelec_hartree",
     "E_hartree",
     "H_hartree",
     "G_hartree",
+    "G_total_hartree",
     "S_cal_per_mol_K",
     "Cv_cal_per_mol_K",
     "error",
@@ -98,10 +100,15 @@ def _load_jobs(source, charge: float, spin=None):
 
 
 def _thermo_summary(thermo):
+    # Eelec_hartree is the DFTB+ electronic (SCC) energy, which carries the
+    # implicit-solvation term; E/H/G_hartree are the thermal corrections and
+    # G_total_hartree = Eelec + G correction is the absolute Gibbs free energy.
     return {
+        "Eelec_hartree": thermo.electronic_energy(),
         "E_hartree": thermo.total_energy("H"),
         "H_hartree": thermo.total_enthalpy("H"),
         "G_hartree": thermo.total_gibbs_free_energy("H"),
+        "G_total_hartree": thermo.total_EeGtot(),
         "S_cal_per_mol_K": thermo.total_entropy("cal/(mol*K)"),
         "Cv_cal_per_mol_K": thermo.total_heat_capacity("cal/(mol*K)"),
     }
@@ -135,6 +142,7 @@ def screen(
     parameters=None,
     spin=None,
     parameter_set="3ob",
+    solvent=None,
 ):
     """
     Run a thermochemistry screen over a set of molecules.
@@ -163,6 +171,10 @@ def screen(
     parameter_set : str
         Slater-Koster parameter set to use (``"3ob"`` or ``"mio"``). Selects both
         the default Hamiltonian parameters and the matching spin constants.
+    solvent : str, optional
+        Solvent name for GBSA/ALPB implicit solvation applied to every molecule
+        (e.g. ``"water"``). Defaults to gas phase. The solvent parameter file
+        must be installed (``thermo setup-dftb --solvent <name>``).
 
     Returns
     -------
@@ -194,6 +206,7 @@ def screen(
                 directory=str(root / job.name),
                 spin=job.spin,
                 spin_constants=spin_constants,
+                solvent=solvent,
                 **parameters,
             )
             record.update(_thermo_summary(thermo))

@@ -18,7 +18,7 @@ from .system import System, dof
 from .thermo import Thermo
 from .atoms import Atom
 from ..calculator import Geoopt, Hessian, Modes
-from ..calculator.dftbplus import _spin_kwargs, SPIN_CONSTANTS_3OB
+from ..calculator.dftbplus import _spin_kwargs, _solvation_kwargs, SPIN_CONSTANTS_3OB
 
 
 logger = logging.getLogger(__package_name__).getChild("api")
@@ -505,6 +505,8 @@ def dftbplus_thermo(
         directory=None,
         spin=None,
         spin_constants=None,
+        solvent=None,
+        solvation_param_file=None,
         **kwargs
     ):
     """
@@ -534,6 +536,14 @@ def dftbplus_thermo(
         Element -> spin-constant mapping matching the Slater-Koster set in use.
         Defaults to the 3ob constants; pass ``SPIN_CONSTANTS_MIO`` (or the value
         from :func:`resolve_parameter_set`) when running the mio set.
+    solvent : str, optional
+        Solvent name (e.g. ``"water"``) for GBSA/ALPB implicit solvation. When
+        set, the optimisation, energy, and Hessian all run in solution. Requires
+        the solvent's parameter file (``thermo setup-dftb --solvent <name>``).
+        Defaults to a gas-phase calculation.
+    solvation_param_file : str, optional
+        Explicit path to a GBSA parameter file, overriding ``solvent`` (use a
+        method-consistent set instead of the default GFN-fit one).
 
     Other Parameters
     ----------------
@@ -557,14 +567,19 @@ def dftbplus_thermo(
 
     spin_kwargs = _spin_kwargs(atoms, spin, spin_constants)
 
+    # Implicit solvation (empty for the gas-phase default). Applied to both the
+    # optimisation and the Hessian so the geometry and frequencies are consistent.
+    solvation_kwargs = _solvation_kwargs(solvent, solvation_param_file)
+    engine_kwargs = {**spin_kwargs, **solvation_kwargs, **kwargs}
+
     with _run_in_directory(directory):
         # run geometry optimization
-        geoopt = Geoopt(atoms=atoms, charge=charge, **spin_kwargs, **kwargs)
+        geoopt = Geoopt(atoms=atoms, charge=charge, **engine_kwargs)
         potential_energy = geoopt.potential_energy()
         optimized_atoms = geoopt.read()
 
         # run hessian calculation
-        Hessian(atoms=optimized_atoms, charge=charge, **spin_kwargs, **kwargs)
+        Hessian(atoms=optimized_atoms, charge=charge, **engine_kwargs)
 
         # run normal mode calculation
         modes = Modes()

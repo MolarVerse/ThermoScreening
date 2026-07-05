@@ -8,6 +8,7 @@ from ThermoScreening.cli.dftb_setup import (
     check_dftb_setup,
     dftb_prefix_export,
     format_diagnostics,
+    install_gbsa_param,
     install_slakos,
 )
 from ThermoScreening.thermo.api import execute
@@ -52,6 +53,12 @@ def _command_parser():
         help="Archive URL override (defaults to the release URL for the set).",
     )
     setup_parser.add_argument(
+        "--solvent",
+        default=None,
+        help="Instead of a parameter set, download the GBSA implicit-solvation "
+        "parameter file for this solvent (e.g. 'water').",
+    )
+    setup_parser.add_argument(
         "--force",
         action="store_true",
         help="Download and extract even when the parameter set already exists.",
@@ -94,6 +101,11 @@ def _command_parser():
         help="Slater-Koster parameter set (default '3ob'). Selects the Hamiltonian "
         "parameters and matching spin constants.",
     )
+    screen_parser.add_argument(
+        "--solvent", default=None,
+        help="GBSA/ALPB implicit-solvation solvent (e.g. 'water') applied to every "
+        "molecule. Default gas phase. Install with 'setup-dftb --solvent <name>'.",
+    )
 
     return parser
 
@@ -123,8 +135,18 @@ def parse_args(argv=None):
 
 def run_setup_dftb(parser_args):
     """
-    Download the default DFTB+ Slater-Koster parameter set.
+    Download a DFTB+ Slater-Koster parameter set, or a GBSA solvent parameter.
     """
+
+    if parser_args.solvent is not None:
+        param_file = install_gbsa_param(
+            parser_args.solvent,
+            install_root=parser_args.install_root,
+            url=parser_args.url,
+            force=parser_args.force,
+        )
+        print("GBSA solvation parameters:", param_file)
+        return 0
 
     parameter_dir = install_slakos(
         install_root=parser_args.install_root,
@@ -164,6 +186,7 @@ def run_screen(parser_args):
         pressure=parser_args.pressure,
         directory=parser_args.directory,
         parameter_set=parser_args.parameter_set,
+        solvent=parser_args.solvent,
     )
 
     failed = sum(1 for record in results if record["status"] != "ok")
