@@ -146,6 +146,26 @@ def test_screen_passes_solvent_to_dftbplus_thermo(monkeypatch, tmp_path):
     assert captured["solvent"] == "water"
 
 
+def test_screen_passes_quasi_rrho_to_dftbplus_thermo(monkeypatch, tmp_path):
+    _write_xyz(tmp_path / "mol.xyz")
+
+    captured = {}
+
+    def fake_thermo(atoms, quasi_rrho=False, **kwargs):
+        captured["quasi_rrho"] = quasi_rrho
+        return _FakeThermo()
+
+    monkeypatch.setattr(screening, "dftbplus_thermo", fake_thermo)
+    screening.screen(
+        str(tmp_path),
+        out=str(tmp_path / "r"),
+        directory=str(tmp_path / "runs"),
+        quasi_rrho=True,
+    )
+
+    assert captured["quasi_rrho"] is True
+
+
 def test_load_jobs_rejects_unknown_source(tmp_path):
     bad = tmp_path / "thing.txt"
     bad.write_text("x", encoding="utf-8")
@@ -253,6 +273,10 @@ def test_cli_parse_args_routes_screen():
 
     solv_args = cli.parse_args(["screen", "molecules.csv", "--solvent", "water"])
     assert solv_args.solvent == "water"
+    assert solv_args.quasi_rrho is False  # harmonic by default
+
+    qrrho_args = cli.parse_args(["screen", "molecules.csv", "--quasi-rrho"])
+    assert qrrho_args.quasi_rrho is True
 
 
 def test_cli_run_screen_returns_failure_count(monkeypatch):
@@ -265,7 +289,7 @@ def test_cli_run_screen_returns_failure_count(monkeypatch):
     args = Namespace(
         source="x", out="res", charge=0.0, temperature=298.15,
         pressure=101325.0, directory="screening", parameter_set="3ob",
-        solvent=None,
+        solvent=None, quasi_rrho=False,
     )
 
     assert cli.run_screen(args) == 1  # one molecule failed

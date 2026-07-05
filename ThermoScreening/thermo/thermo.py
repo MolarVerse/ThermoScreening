@@ -49,8 +49,19 @@ class Thermo:
     logger = logging.getLogger(__package_name__).getChild(__name__)
     logger = setup_logger(logger)
 
+    # Quasi-RRHO constants (Grimme, Chem. Eur. J. 2012, 18, 9955): the damping
+    # frequency and the average molecular moment of inertia used for the
+    # free-rotor limit of low-frequency modes.
+    _QRRHO_FREQ_CM = 100.0  # cm^-1
+    _QRRHO_BAV = 1.0e-44  # kg m^2
+
     def __init__(
-        self, temperature: float, pressure: float, system: System, engine: str
+        self,
+        temperature: float,
+        pressure: float,
+        system: System,
+        engine: str,
+        quasi_rrho: bool = False,
     ):
         """
         Initializes the Thermo class with the temperature, pressure, system information
@@ -66,6 +77,10 @@ class Thermo:
         engine : str
             The engine used for the calculation to compute the thermochemical
             properties with correct units.
+        quasi_rrho : bool
+            If True, use Grimme's quasi-RRHO treatment for the vibrational
+            entropy (interpolating low-frequency modes towards a free rotor)
+            instead of the pure rigid-rotor-harmonic-oscillator model.
 
         Raises
         ------
@@ -96,6 +111,7 @@ class Thermo:
         self._pressure = pressure
         self._system = system
         self._engine = engine
+        self._quasi_rrho = quasi_rrho
 
         if self._engine != "dftb+":
             raise TSValueError("The engine is not supported.")
@@ -352,24 +368,72 @@ class Thermo:
         """
         Computes the vibrational entropy of the system.
 
+        Uses the harmonic-oscillator model, or Grimme's quasi-RRHO interpolation
+        towards a free rotor for low-frequency modes when ``quasi_rrho`` is set.
+
         Returns
         -------
         None
         """
 
-        self._vibrational_entropy = np.subtract(
-            np.divide(
-                (self._vib_temp_K / self._temperature),
-                (np.exp(self._vib_temp_K / self._temperature) - 1),
-            ),
-            np.log(1 - np.exp(-self._vib_temp_K / self._temperature)),
+        # Per-mode harmonic-oscillator entropy (in units of R).
+        x = self._vib_temp_K / self._temperature
+        harmonic = np.subtract(
+            np.divide(x, (np.exp(x) - 1)),
+            np.log(1 - np.exp(-x)),
+        )
+
+        entropy_per_mode = (
+            self._quasi_rrho_entropy(harmonic)
+            if self._quasi_rrho
+            else harmonic
         )
 
         self._vibrational_entropy = (
             PhysicalConstants["R"]
-            * np.sum(self._vibrational_entropy)
+            * np.sum(entropy_per_mode)
             / PhysicalConstants["cal"]
         )
+
+
+    def _quasi_rrho_entropy(self, harmonic):
+        """
+        Grimme's quasi-RRHO per-mode entropy (Chem. Eur. J. 2012, 18, 9955).
+
+        Each mode's entropy is interpolated between the harmonic-oscillator value
+        and the free-rotor value, weighted by ``w = 1 / (1 + (nu0/nu)^4)`` so that
+        high-frequency modes stay harmonic while low-frequency modes (whose HO
+        entropy diverges as nu -> 0) approach the finite free-rotor limit.
+
+        Parameters
+        ----------
+        harmonic : np.ndarray
+            Per-mode harmonic-oscillator entropy in units of R.
+
+        Returns
+        -------
+        np.ndarray
+            Per-mode quasi-RRHO entropy in units of R.
+        """
+        h = PhysicalConstants["h"]
+        kB = PhysicalConstants["kB"]
+        temperature = self._temperature
+
+        # Moment of inertia of each mode (h*nu = kB*theta, so mu = h^2 / (8 pi^2 kB theta)),
+        # then damped towards an average molecular moment B_av for the free rotor.
+        moment = h**2 / (8 * np.pi**2 * kB * self._vib_temp_K)
+        effective_moment = moment * self._QRRHO_BAV / (moment + self._QRRHO_BAV)
+
+        free_rotor = 0.5 + np.log(
+            np.sqrt(8 * np.pi**3 * effective_moment * kB * temperature / h**2)
+        )
+
+        weight = 1.0 / (
+            1.0
+            + (self._QRRHO_FREQ_CM / self._system.real_vibrational_frequencies) ** 4
+        )
+
+        return weight * harmonic + (1.0 - weight) * free_rotor
 
 
     def _compute_vibrational_energy(self):

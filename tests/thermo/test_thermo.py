@@ -126,14 +126,17 @@ _T, _P = 298.15, 101325.0
 _R_CALMOLK = 8.314462618 / 4.184
 
 
-def _ts_thermo(symbols, positions, real_freqs, dof):
+def _ts_thermo(symbols, positions, real_freqs, dof, quasi_rrho=False):
     atoms = [Atom(symbol=s, position=np.array(p, float)) for s, p in zip(symbols, positions)]
     pad = np.concatenate([np.zeros(3 * len(atoms) - dof), np.asarray(real_freqs, float)])
     system = System(
         atoms, periodicity=False, cell=None, charge=0,
         electronic_energy=0.0, vibrational_frequencies=pad,
     )
-    thermo = Thermo(temperature=_T, pressure=_P, system=system, engine="dftb+")
+    thermo = Thermo(
+        temperature=_T, pressure=_P, system=system, engine="dftb+",
+        quasi_rrho=quasi_rrho,
+    )
     thermo.run()
     return thermo
 
@@ -166,6 +169,34 @@ def test_total_entropy_matches_ase(symbols, positions, freqs, dof, geometry, sig
 
     assert np.isfinite(ts_total)
     assert ts_total == pytest.approx(ase_total, abs=0.05)
+
+
+def test_quasi_rrho_matches_harmonic_for_high_frequencies():
+    # water: all modes are high (>1500 cm^-1) -> weight ~ 1 -> qRRHO == harmonic
+    args = (["O", "H", "H"],
+            [[0, 0, 0.119], [0, 0.763, -0.477], [0, -0.763, -0.477]],
+            [1595.0, 3657.0, 3756.0], 3)
+    harmonic = _ts_thermo(*args).total_entropy("cal/(mol*K)")
+    qrrho = _ts_thermo(*args, quasi_rrho=True).total_entropy("cal/(mol*K)")
+
+    assert qrrho == pytest.approx(harmonic, abs=0.05)
+
+
+def test_quasi_rrho_reduces_low_frequency_entropy():
+    # a floppy molecule with very low modes: harmonic overestimates their entropy
+    # (S_HO -> inf as nu -> 0), quasi-RRHO tames it towards the free rotor
+    args = (["C", "C", "H", "H", "H", "H", "H", "H"],
+            [[0, 0, 0], [1.5, 0, 0], [-0.4, 1.0, 0], [-0.4, -0.5, 0.87],
+             [-0.4, -0.5, -0.87], [1.9, 1.0, 0], [1.9, -0.5, 0.87], [1.9, -0.5, -0.87]],
+            [25.0, 40.0, 820.0, 995.0, 1206.0, 1388.0, 1469.0, 1479.0,
+             2896.0, 2915.0, 2954.0, 2969.0, 2985.0, 2985.0, 1206.0, 1486.0, 995.0, 300.0],
+            18)
+    harmonic = _ts_thermo(*args).total_entropy("cal/(mol*K)")
+    qrrho = _ts_thermo(*args, quasi_rrho=True).total_entropy("cal/(mol*K)")
+
+    # the low modes' spurious harmonic entropy is removed -> qRRHO is lower, finite
+    assert qrrho < harmonic - 1.0
+    assert np.isfinite(qrrho)
 
 
 def test_thermo_rejects_imaginary_vibrational_mode():
