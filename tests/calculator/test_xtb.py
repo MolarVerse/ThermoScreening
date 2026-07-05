@@ -44,17 +44,88 @@ def test_optimise_and_frequencies_with_emt(monkeypatch, tmp_path):
     assert frequencies[-1] > 0
 
 
+def test_xtb_thermo_has_no_solvation_parameter():
+    # regression guard: xTB-side implicit solvation is intentionally not wired up
+    import inspect
+    from ThermoScreening.thermo.api import xtb_thermo
+
+    assert "solvent" not in inspect.signature(xtb_thermo).parameters
+
+
 tblite_available = importlib.util.find_spec("tblite") is not None
+xtb_skip = pytest.mark.skipif(not tblite_available, reason="tblite (GFN-xTB) is not installed.")
 
 
-@pytest.mark.skipif(not tblite_available, reason="tblite (GFN-xTB) is not installed.")
-def test_xtb_thermo_runs_real_gfn2(tmp_path):
-    # real GFN2-xTB end-to-end: gas-phase water entropy is close to experiment
+@xtb_skip
+@pytest.mark.parametrize("name,exp_S", [("H2O", 45.1), ("CH4", 44.5), ("N2", 45.8)])
+def test_xtb_thermo_entropy_vs_experiment(name, exp_S, tmp_path):
+    # real GFN2-xTB gas-phase entropy is within ~2 cal/mol/K of experiment
     from ase.build import molecule
     from ThermoScreening.thermo.api import xtb_thermo
 
-    thermo = xtb_thermo(molecule("H2O"), directory=str(tmp_path / "w"))
-    entropy = thermo.total_entropy("cal/(mol*K)")
+    thermo = xtb_thermo(molecule(name), pressure=100000.0, directory=str(tmp_path / name))
+    assert thermo.total_entropy("cal/(mol*K)") == pytest.approx(exp_S, abs=2.0)
 
-    # experimental standard molar entropy of gaseous water ~ 45.1 cal/mol/K
-    assert entropy == pytest.approx(45.1, abs=2.0)
+
+# n-octane geometry (embedded so the test needs only tblite, not a 3D builder)
+_OCTANE = [
+    ("C", (4.1592, -0.4455, -0.0648)), ("C", (2.7620, 0.1265, 0.1227)),
+    ("C", (1.7204, -0.9840, 0.2660)), ("C", (0.3124, -0.4653, 0.5771)),
+    ("C", (-0.3124, 0.3231, -0.5771)), ("C", (-1.7204, 0.8418, -0.2660)),
+    ("C", (-2.7620, -0.2686, -0.1227)), ("C", (-4.1592, 0.3033, 0.0648)),
+    ("H", (4.8889, 0.3636, -0.1690)), ("H", (4.4517, -1.0575, 0.7944)),
+    ("H", (4.2106, -1.0677, -0.9640)), ("H", (2.5272, 0.7621, -0.7373)),
+    ("H", (2.7520, 0.7646, 1.0138)), ("H", (1.6959, -1.5906, -0.6475)),
+    ("H", (2.0238, -1.6535, 1.0806)), ("H", (0.3407, 0.1568, 1.4797)),
+    ("H", (-0.3149, -1.3331, 0.8095)), ("H", (-0.3407, -0.2989, -1.4797)),
+    ("H", (0.3149, 1.1909, -0.8095)), ("H", (-1.6959, 1.4484, 0.6475)),
+    ("H", (-2.0238, 1.5113, -1.0806)), ("H", (-2.5272, -0.9043, 0.7374)),
+    ("H", (-2.7520, -0.9068, -1.0137)), ("H", (-4.8889, -0.5058, 0.1691)),
+    ("H", (-4.4517, 0.9153, -0.7944)), ("H", (-4.2106, 0.9255, 0.9640)),
+]
+
+
+@xtb_skip
+def test_xtb_quasi_rrho_on_real_floppy_molecule(tmp_path):
+    # a real molecule with engine-generated sub-100 cm^-1 modes; quasi-RRHO tames
+    # them, and (optimising once) leaves enthalpy and Cv invariant.
+    import numpy as np
+    from ase import Atoms
+    from ThermoScreening.calculator.xtb import optimise_and_frequencies, xtb_calculator
+    from ThermoScreening.thermo.api import run_thermo
+
+    octane = Atoms([s for s, _ in _OCTANE], positions=[p for _, p in _OCTANE])
+    octane.info["charge"] = 0
+    octane.info["spin"] = 0
+    opt, energy, freqs = optimise_and_frequencies(
+        octane.copy(), xtb_calculator("GFN2-xTB"), fmax=0.02
+    )
+
+    kept = np.sort(freqs)[-(3 * len(opt) - 6):]
+    assert np.any(kept < 100.0)  # genuine engine-generated low-frequency modes
+
+    common = dict(atoms=opt, energy=energy, engine="xtb", pressure=101325)
+    harmonic = run_thermo(freqs, quasi_rrho=False, **common)
+    qrrho = run_thermo(freqs, quasi_rrho=True, **common)
+
+    assert qrrho.total_entropy("cal/(mol*K)") < harmonic.total_entropy("cal/(mol*K)") - 2.0
+    # invariance (same optimised freqs -> only entropy differs)
+    assert qrrho.total_enthalpy("H") == pytest.approx(harmonic.total_enthalpy("H"), abs=1e-12)
+    assert qrrho.total_heat_capacity("cal/(mol*K)") == pytest.approx(
+        harmonic.total_heat_capacity("cal/(mol*K)"), abs=1e-12
+    )
+
+
+@xtb_skip
+def test_xtb_thermo_is_reproducible_single_thread(monkeypatch, tmp_path):
+    # same inputs + OMP_NUM_THREADS=1 -> bit-identical energy, thread-invariant S
+    from ase import Atoms
+    from ThermoScreening.thermo.api import xtb_thermo
+
+    monkeypatch.setenv("OMP_NUM_THREADS", "1")
+    oh = lambda: Atoms("OH", positions=[[0, 0, 0], [0, 0, 0.97]])
+    a = xtb_thermo(oh(), directory=str(tmp_path / "a"), fmax=1e-3)
+    b = xtb_thermo(oh(), directory=str(tmp_path / "b"), fmax=1e-3)
+
+    assert abs(a.electronic_energy() - b.electronic_energy()) < 1e-9
+    assert abs(a.total_entropy("cal/(mol*K)") - b.total_entropy("cal/(mol*K)")) < 1e-6

@@ -9,7 +9,12 @@ from ase import Atoms
 import ThermoScreening.calculator.dftbplus as dftbplus_module
 from ThermoScreening.calculator import Geoopt, Hessian, Modes
 from ThermoScreening.calculator.dftbplus import _slako_dir, dftb_3ob_parameters
+from ThermoScreening.cli.dftb_setup import gbsa_param_path
 from ThermoScreening.thermo.api import dftbplus_thermo
+
+_solvent_params_ready = all(
+    gbsa_param_path(name).exists() for name in ("dmso", "thf", "water")
+)
 
 # --------------------------------------------------------------------------- #
 
@@ -582,3 +587,64 @@ class TestDftbplus:
         assert np.allclose(thermo.total_EeGtot(),
                            -4.0595598803365744,
                            atol=1e-5)
+
+    @pytest.mark.parametrize("name,exp_S", [("H2O", 45.1), ("CH4", 44.5), ("N2", 45.8)])
+    def test_dftbplus_entropy_vs_experiment(self, name, exp_S, tmp_path):
+        # DFTB+ 3ob gas-phase entropy within ~2 cal/mol/K of experiment, and the
+        # rotational symmetry number is auto-detected correctly
+        from ase.build import molecule
+
+        thermo = dftbplus_thermo(
+            molecule(name), pressure=100000.0,
+            directory=str(tmp_path / name), **dftb_3ob_parameters,
+        )
+        assert thermo.total_entropy("cal/(mol*K)") == pytest.approx(exp_S, abs=2.0)
+        assert thermo._system.rotational_symmetry_number == {"H2O": 2, "CH4": 12, "N2": 2}[name]
+
+    def test_dftbplus_thermo_is_reproducible(self, tmp_path):
+        # identical inputs on the same machine give bit-identical DFTB+ results
+        def oh():
+            return Atoms("OH", positions=[[0, 0, 0], [0, 0, 0.97]])
+
+        a = dftbplus_thermo(oh(), directory=str(tmp_path / "a"), **dftb_3ob_parameters)
+        b = dftbplus_thermo(oh(), directory=str(tmp_path / "b"), **dftb_3ob_parameters)
+
+        assert abs(a.electronic_energy() - b.electronic_energy()) < 1e-12
+        assert abs(a.total_entropy("cal/(mol*K)") - b.total_entropy("cal/(mol*K)")) < 1e-9
+        # loose, version-robust regression anchors
+        assert a.electronic_energy() == pytest.approx(-3.579083, abs=1e-5)
+        assert a.total_entropy("cal/(mol*K)") == pytest.approx(42.6520, abs=1e-3)
+
+    @pytest.mark.skipif(
+        not _solvent_params_ready,
+        reason="GBSA params for dmso/thf/water not installed "
+        "(run: thermo setup-dftb --solvent <name>).",
+    )
+    def test_dftbplus_solvation_across_solvents(self, tmp_path):
+        # several solvents each apply a GBSA block; dmso/thf stabilise the solute
+        # and solvation enters the Hessian (frequencies shift). Magnitudes and the
+        # solvent ordering are conformer-sensitive, so only robust facts are asserted.
+        from ase.build import molecule
+
+        def run(name, solvent=None):
+            return dftbplus_thermo(
+                molecule("CH3OH"), directory=str(tmp_path / name),
+                solvent=solvent, **dftb_3ob_parameters,
+            )
+
+        gas = run("gas")
+        assert "GeneralizedBorn" not in (tmp_path / "gas" / "dftb_in.hsd").read_text()
+        e_gas = gas.electronic_energy()
+
+        solvated = {s: run(s, solvent=s) for s in ("dmso", "thf", "water")}
+        for s in solvated:
+            assert "GeneralizedBorn" in (tmp_path / s / "dftb_in.hsd").read_text()
+
+        # mid/polar solvents stabilise the solute (sign robust; magnitude is not)
+        assert solvated["dmso"].electronic_energy() - e_gas < -1e-3
+        assert solvated["thf"].electronic_energy() - e_gas < -1e-3
+
+        # solvation enters the Hessian: the lowest mode shifts by several cm^-1
+        gas_low = np.sort(gas._system.real_vibrational_frequencies)[0]
+        dmso_low = np.sort(solvated["dmso"]._system.real_vibrational_frequencies)[0]
+        assert abs(dmso_low - gas_low) > 5.0
