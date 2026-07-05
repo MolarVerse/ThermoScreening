@@ -346,6 +346,7 @@ def run_thermo(
     charge=0.0,
     atoms=None,
     spin=None,
+    quasi_rrho=False,
 ):
     """
     Run the thermo calculation. Returns thermo calculation object.
@@ -369,6 +370,9 @@ def run_thermo(
         The system charge.
     atoms : ase.Atoms, optional
         An optimized geometry to use directly instead of reading ``coord_file``.
+    quasi_rrho : bool
+        If True, use Grimme's quasi-RRHO treatment for the vibrational entropy
+        instead of the pure harmonic oscillator. Default False.
 
     The coordinate file should be in xyz format.
 
@@ -411,7 +415,11 @@ def run_thermo(
     )
 
     thermo_setup = Thermo(
-        system=system_info, temperature=temperature, pressure=pressure, engine=engine
+        system=system_info,
+        temperature=temperature,
+        pressure=pressure,
+        engine=engine,
+        quasi_rrho=quasi_rrho,
     )
 
     thermo_setup.run()
@@ -507,6 +515,7 @@ def dftbplus_thermo(
         spin_constants=None,
         solvent=None,
         solvation_param_file=None,
+        quasi_rrho=False,
         **kwargs
     ):
     """
@@ -544,6 +553,9 @@ def dftbplus_thermo(
     solvation_param_file : str, optional
         Explicit path to a GBSA parameter file, overriding ``solvent`` (use a
         method-consistent set instead of the default GFN-fit one).
+    quasi_rrho : bool
+        If True, use Grimme's quasi-RRHO treatment for the vibrational entropy,
+        which tames the entropy of low-frequency modes. Default False.
 
     Other Parameters
     ----------------
@@ -596,6 +608,7 @@ def dftbplus_thermo(
             engine='dftb+',
             charge=charge,
             spin=spin,
+            quasi_rrho=quasi_rrho,
         )
 
     return thermo

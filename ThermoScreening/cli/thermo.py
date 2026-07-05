@@ -106,6 +106,11 @@ def _command_parser():
         help="GBSA/ALPB implicit-solvation solvent (e.g. 'water') applied to every "
         "molecule. Default gas phase. Install with 'setup-dftb --solvent <name>'.",
     )
+    screen_parser.add_argument(
+        "--quasi-rrho", action="store_true",
+        help="Use Grimme's quasi-RRHO vibrational entropy (better for low-frequency "
+        "modes) instead of the pure harmonic oscillator.",
+    )
 
     return parser
 
@@ -187,6 +192,7 @@ def run_screen(parser_args):
         directory=parser_args.directory,
         parameter_set=parser_args.parameter_set,
         solvent=parser_args.solvent,
+        quasi_rrho=parser_args.quasi_rrho,
     )
 
     failed = sum(1 for record in results if record["status"] != "ok")

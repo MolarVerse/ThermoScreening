@@ -143,6 +143,7 @@ def screen(
     spin=None,
     parameter_set="3ob",
     solvent=None,
+    quasi_rrho=False,
 ):
     """
     Run a thermochemistry screen over a set of molecules.
@@ -175,6 +176,10 @@ def screen(
         Solvent name for GBSA/ALPB implicit solvation applied to every molecule
         (e.g. ``"water"``). Defaults to gas phase. The solvent parameter file
         must be installed (``thermo setup-dftb --solvent <name>``).
+    quasi_rrho : bool
+        If True, use Grimme's quasi-RRHO treatment for the vibrational entropy
+        (recommended for flexible molecules with low-frequency modes). Default
+        False (pure harmonic oscillator).
 
     Returns
     -------
@@ -207,6 +212,7 @@ def screen(
                 spin=job.spin,
                 spin_constants=spin_constants,
                 solvent=solvent,
+                quasi_rrho=quasi_rrho,
                 **parameters,
             )
             record.update(_thermo_summary(thermo))

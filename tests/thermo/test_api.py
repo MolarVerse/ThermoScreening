@@ -408,8 +408,9 @@ def _mock_pipeline(monkeypatch):
         def __init__(self):
             self.wave_numbers = np.array([1.0, 2.0, 3.0])
 
-    def fake_run_thermo(frequencies, atoms=None, spin=None, **kwargs):
+    def fake_run_thermo(frequencies, atoms=None, spin=None, quasi_rrho=False, **kwargs):
         seen["run_thermo_spin"] = spin
+        seen["run_thermo_quasi_rrho"] = quasi_rrho
         return "thermo-result"
 
     monkeypatch.setattr(api, "Geoopt", FakeGeoopt)
@@ -496,6 +497,17 @@ def test_dftbplus_thermo_gas_phase_has_no_solvation(monkeypatch, tmp_path):
     )
 
     assert "Hamiltonian_Solvation" not in seen["geoopt_kwargs"]
+
+
+def test_dftbplus_thermo_forwards_quasi_rrho(monkeypatch, tmp_path):
+    api, seen = _mock_pipeline(monkeypatch)
+    api.dftbplus_thermo(
+        Atoms("OH2", positions=[[0, 0, 0.12], [0, 0.76, -0.48], [0, -0.76, -0.48]]),
+        directory=str(tmp_path / "j"),
+        quasi_rrho=True,
+    )
+
+    assert seen["run_thermo_quasi_rrho"] is True
 
 
 if __name__ == "__main__":
