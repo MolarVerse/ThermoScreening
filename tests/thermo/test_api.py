@@ -510,5 +510,49 @@ def test_dftbplus_thermo_forwards_quasi_rrho(monkeypatch, tmp_path):
     assert seen["run_thermo_quasi_rrho"] is True
 
 
+def test_xtb_thermo_pipeline(monkeypatch, tmp_path):
+    import ThermoScreening.thermo.api as api
+
+    seen = {}
+
+    def fake_calculator(method):
+        seen["method"] = method
+        return "xtb-calc"
+
+    def fake_optimise(atoms, calc, fmax=0.01):
+        seen["info"] = dict(atoms.info)
+        seen["calc"] = calc
+        return "optimized-atoms", -5.0, np.array([1500.0, 3600.0, 3700.0])
+
+    def fake_run_thermo(frequencies, atoms=None, engine=None, spin=None,
+                        quasi_rrho=False, **kwargs):
+        seen["engine"] = engine
+        seen["spin"] = spin
+        seen["quasi_rrho"] = quasi_rrho
+        seen["energy"] = kwargs.get("energy")
+        return "thermo-result"
+
+    monkeypatch.setattr(api, "xtb_calculator", fake_calculator)
+    monkeypatch.setattr(api, "optimise_and_frequencies", fake_optimise)
+    monkeypatch.setattr(api, "run_thermo", fake_run_thermo)
+
+    # OH radical: 9 electrons -> auto doublet -> 1 unpaired electron for xTB
+    result = api.xtb_thermo(
+        Atoms("OH", positions=[[0, 0, 0], [0, 0, 0.97]]),
+        directory=str(tmp_path / "j"),
+        method="GFN1-xTB",
+        quasi_rrho=True,
+    )
+
+    assert result == "thermo-result"
+    assert seen["engine"] == "xtb"
+    assert seen["spin"] == 0.5           # auto electron-count guess
+    assert seen["info"]["spin"] == 1     # unpaired electrons passed to xTB
+    assert seen["info"]["charge"] == 0
+    assert seen["method"] == "GFN1-xTB"
+    assert seen["quasi_rrho"] is True
+    assert seen["energy"] == -5.0
+
+
 if __name__ == "__main__":
     unittest.main()

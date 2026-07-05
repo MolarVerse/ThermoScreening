@@ -146,6 +146,40 @@ def test_screen_passes_solvent_to_dftbplus_thermo(monkeypatch, tmp_path):
     assert captured["solvent"] == "water"
 
 
+def test_screen_dispatches_to_xtb_engine(monkeypatch, tmp_path):
+    _write_xyz(tmp_path / "mol.xyz")
+
+    captured = {}
+
+    def fake_xtb(atoms, method="GFN2-xTB", **kwargs):
+        captured["method"] = method
+        captured["called"] = "xtb"
+        return _FakeThermo()
+
+    def fake_dftb(*args, **kwargs):
+        captured["called"] = "dftb+"
+        return _FakeThermo()
+
+    monkeypatch.setattr(screening, "xtb_thermo", fake_xtb)
+    monkeypatch.setattr(screening, "dftbplus_thermo", fake_dftb)
+    screening.screen(
+        str(tmp_path),
+        out=str(tmp_path / "r"),
+        directory=str(tmp_path / "runs"),
+        engine="xtb",
+        method="GFN1-xTB",
+    )
+
+    assert captured["called"] == "xtb"
+    assert captured["method"] == "GFN1-xTB"
+
+
+def test_screen_rejects_unknown_engine(tmp_path):
+    _write_xyz(tmp_path / "mol.xyz")
+    with pytest.raises(TSValueError, match="Unknown engine"):
+        screening.screen(str(tmp_path), out=str(tmp_path / "r"), engine="orca")
+
+
 def test_screen_passes_quasi_rrho_to_dftbplus_thermo(monkeypatch, tmp_path):
     _write_xyz(tmp_path / "mol.xyz")
 
@@ -277,6 +311,14 @@ def test_cli_parse_args_routes_screen():
 
     qrrho_args = cli.parse_args(["screen", "molecules.csv", "--quasi-rrho"])
     assert qrrho_args.quasi_rrho is True
+    assert args.engine == "dftb+"  # default engine
+    assert args.method == "GFN2-xTB"
+
+    xtb_args = cli.parse_args(
+        ["screen", "molecules.csv", "--engine", "xtb", "--method", "GFN1-xTB"]
+    )
+    assert xtb_args.engine == "xtb"
+    assert xtb_args.method == "GFN1-xTB"
 
 
 def test_cli_run_screen_returns_failure_count(monkeypatch):
@@ -289,7 +331,7 @@ def test_cli_run_screen_returns_failure_count(monkeypatch):
     args = Namespace(
         source="x", out="res", charge=0.0, temperature=298.15,
         pressure=101325.0, directory="screening", parameter_set="3ob",
-        solvent=None, quasi_rrho=False,
+        solvent=None, quasi_rrho=False, engine="dftb+", method="GFN2-xTB",
     )
 
     assert cli.run_screen(args) == 1  # one molecule failed

@@ -111,6 +111,15 @@ def _command_parser():
         help="Use Grimme's quasi-RRHO vibrational entropy (better for low-frequency "
         "modes) instead of the pure harmonic oscillator.",
     )
+    screen_parser.add_argument(
+        "--engine", default="dftb+", choices=["dftb+", "xtb"],
+        help="Calculation engine (default 'dftb+'). 'xtb' uses GFN-xTB via tblite "
+        "(no Slater-Koster files); parameter-set/solvent apply only to dftb+.",
+    )
+    screen_parser.add_argument(
+        "--method", default="GFN2-xTB", choices=["GFN2-xTB", "GFN1-xTB"],
+        help="GFN-xTB parametrisation when --engine xtb (default 'GFN2-xTB').",
+    )
 
     return parser
 
@@ -193,6 +202,8 @@ def run_screen(parser_args):
         parameter_set=parser_args.parameter_set,
         solvent=parser_args.solvent,
         quasi_rrho=parser_args.quasi_rrho,
+        engine=parser_args.engine,
+        method=parser_args.method,
     )
 
     failed = sum(1 for record in results if record["status"] != "ok")

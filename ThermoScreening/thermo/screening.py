@@ -20,7 +20,7 @@ from ThermoScreening.calculator.dftbplus import resolve_parameter_set
 from ThermoScreening.exceptions import TSValueError
 from ThermoScreening.utils.custom_logging import setup_logger
 
-from .api import dftbplus_thermo
+from .api import dftbplus_thermo, xtb_thermo
 
 logger = logging.getLogger(__package_name__).getChild("screening")
 logger = setup_logger(logger)
@@ -144,6 +144,8 @@ def screen(
     parameter_set="3ob",
     solvent=None,
     quasi_rrho=False,
+    engine="dftb+",
+    method="GFN2-xTB",
 ):
     """
     Run a thermochemistry screen over a set of molecules.
@@ -180,14 +182,26 @@ def screen(
         If True, use Grimme's quasi-RRHO treatment for the vibrational entropy
         (recommended for flexible molecules with low-frequency modes). Default
         False (pure harmonic oscillator).
+    engine : str
+        Calculation engine: ``"dftb+"`` (default) or ``"xtb"`` (GFN-xTB via
+        tblite). The ``parameter_set``/``solvent`` options apply only to DFTB+.
+    method : str
+        GFN-xTB parametrisation when ``engine="xtb"`` (``"GFN2-xTB"`` default).
 
     Returns
     -------
     list of dict
         One result record per molecule, including failed ones (status="error").
     """
-    default_parameters, spin_constants = resolve_parameter_set(parameter_set)
-    parameters = default_parameters if parameters is None else parameters
+    if engine not in ("dftb+", "xtb"):
+        raise TSValueError(
+            f"Unknown engine {engine!r}; choose 'dftb+' or 'xtb'."
+        )
+
+    if engine == "dftb+":
+        default_parameters, spin_constants = resolve_parameter_set(parameter_set)
+        parameters = default_parameters if parameters is None else parameters
+
     jobs = _load_jobs(source, charge, spin)
     root = Path(directory)
 
@@ -203,18 +217,30 @@ def screen(
         logger.info(f"Screening {job.name} (charge {job.charge})")
         try:
             atoms = ase.io.read(str(job.path))
-            thermo = dftbplus_thermo(
-                atoms,
-                temperature=temperature,
-                pressure=pressure,
-                charge=job.charge,
-                directory=str(root / job.name),
-                spin=job.spin,
-                spin_constants=spin_constants,
-                solvent=solvent,
-                quasi_rrho=quasi_rrho,
-                **parameters,
-            )
+            if engine == "xtb":
+                thermo = xtb_thermo(
+                    atoms,
+                    temperature=temperature,
+                    pressure=pressure,
+                    charge=job.charge,
+                    directory=str(root / job.name),
+                    spin=job.spin,
+                    method=method,
+                    quasi_rrho=quasi_rrho,
+                )
+            else:
+                thermo = dftbplus_thermo(
+                    atoms,
+                    temperature=temperature,
+                    pressure=pressure,
+                    charge=job.charge,
+                    directory=str(root / job.name),
+                    spin=job.spin,
+                    spin_constants=spin_constants,
+                    solvent=solvent,
+                    quasi_rrho=quasi_rrho,
+                    **parameters,
+                )
             record.update(_thermo_summary(thermo))
         except Exception as exc:  # pylint: disable=broad-except
             # isolate failures so one bad molecule does not abort the screen

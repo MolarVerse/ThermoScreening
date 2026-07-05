@@ -102,7 +102,15 @@ def _valid_system():
 
 def test_thermo_rejects_unsupported_engine():
     with pytest.raises(TSValueError, match="engine is not supported"):
-        Thermo(temperature=298.15, pressure=101325, system=_valid_system(), engine="xtb")
+        Thermo(temperature=298.15, pressure=101325, system=_valid_system(), engine="orca")
+
+
+def test_thermo_accepts_xtb_engine():
+    # xtb is a supported engine (GFN-xTB via tblite)
+    thermo = Thermo(
+        temperature=298.15, pressure=101325, system=_valid_system(), engine="xtb"
+    )
+    assert thermo._engine == "xtb"
 
 
 def test_thermo_rejects_negative_temperature():
