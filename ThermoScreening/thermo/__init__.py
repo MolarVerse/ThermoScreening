@@ -7,3 +7,4 @@ from .inputFileReader import InputFileReader
 from .system import System
 from .thermo import Thermo
 from .screening import screen
+from .conformers import generate as generate_conformers, write_conformers

@@ -13,10 +13,11 @@ from ThermoScreening.cli.dftb_setup import (
 )
 from ThermoScreening.thermo.api import execute
 from ThermoScreening.thermo.screening import screen
+from ThermoScreening.thermo.conformers import generate as generate_conformers, write_conformers
 from ThermoScreening.version import __version__
 
 
-SUBCOMMANDS = {"setup-dftb", "doctor", "screen"}
+SUBCOMMANDS = {"setup-dftb", "doctor", "screen", "conformers"}
 
 
 def _run_parser():
@@ -128,6 +129,29 @@ def _command_parser():
         "the missing/failed molecules.",
     )
 
+    conf_parser = subparsers.add_parser(
+        "conformers",
+        help="Generate conformers from a SMILES (RDKit ETKDG) and write them as "
+        ".xyz files ready to screen.",
+    )
+    conf_parser.add_argument("smiles", help="Molecule as a SMILES string.")
+    conf_parser.add_argument(
+        "-o", "--out-dir", default="conformers",
+        help="Directory to write <prefix>_<i>.xyz files (default 'conformers').",
+    )
+    conf_parser.add_argument(
+        "--max-conformers", type=int, default=10,
+        help="Maximum number of conformers to embed (default 10).",
+    )
+    conf_parser.add_argument(
+        "--energy-window", type=float, default=None,
+        help="Keep only conformers within this many kcal/mol of the lowest.",
+    )
+    conf_parser.add_argument(
+        "--no-optimize", action="store_true",
+        help="Skip MMFF force-field optimisation of the embedded conformers.",
+    )
+
     return parser
 
 
@@ -222,6 +246,24 @@ def run_screen(parser_args):
     return 1 if failed else 0
 
 
+def run_conformers(parser_args):
+    """
+    Generate conformers from a SMILES and write them as .xyz files.
+    """
+
+    conformers = generate_conformers(
+        parser_args.smiles,
+        max_conformers=parser_args.max_conformers,
+        optimize=not parser_args.no_optimize,
+        energy_window=parser_args.energy_window,
+    )
+    paths = write_conformers(conformers, parser_args.out_dir)
+
+    print(f"Generated {len(paths)} conformer(s) in {parser_args.out_dir}/")
+    print(f"Screen them with: thermo screen {parser_args.out_dir}")
+    return 0
+
+
 def main():
     """
     Main function to run the thermo cli. It parses the command line arguments
@@ -248,6 +290,9 @@ def main():
 
     if command == "screen":
         return run_screen(parser_args)
+
+    if command == "conformers":
+        return run_conformers(parser_args)
 
     input_file = parser_args.input_file
     verbose = parser_args.verbose

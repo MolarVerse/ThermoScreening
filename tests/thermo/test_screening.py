@@ -428,3 +428,46 @@ def test_cli_run_screen_returns_failure_count(monkeypatch):
     )
 
     assert cli.run_screen(args) == 1  # one molecule failed
+
+
+def test_cli_parse_args_routes_conformers():
+    import ThermoScreening.cli.thermo as cli
+
+    args = cli.parse_args(
+        ["conformers", "CCCC", "-o", "confs", "--max-conformers", "5",
+         "--energy-window", "2.0", "--no-optimize"]
+    )
+    assert args.command == "conformers"
+    assert args.smiles == "CCCC"
+    assert args.out_dir == "confs"
+    assert args.max_conformers == 5
+    assert args.energy_window == 2.0
+    assert args.no_optimize is True
+
+
+def test_cli_run_conformers(monkeypatch, tmp_path):
+    import ThermoScreening.cli.thermo as cli
+
+    captured = {}
+
+    def fake_generate(smiles, max_conformers=10, optimize=True, energy_window=None):
+        captured.update(smiles=smiles, max_conformers=max_conformers,
+                        optimize=optimize, energy_window=energy_window)
+        return ["conf_a", "conf_b"]
+
+    def fake_write(conformers, out_dir, prefix="conformer"):
+        captured["written"] = len(conformers)
+        return [tmp_path / "a.xyz", tmp_path / "b.xyz"]
+
+    monkeypatch.setattr(cli, "generate_conformers", fake_generate)
+    monkeypatch.setattr(cli, "write_conformers", fake_write)
+
+    args = Namespace(smiles="CCO", out_dir=str(tmp_path / "out"),
+                     max_conformers=7, energy_window=1.5, no_optimize=True)
+
+    assert cli.run_conformers(args) == 0
+    assert captured["smiles"] == "CCO"
+    assert captured["max_conformers"] == 7
+    assert captured["optimize"] is False  # --no-optimize
+    assert captured["energy_window"] == 1.5
+    assert captured["written"] == 2
