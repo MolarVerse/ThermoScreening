@@ -72,6 +72,41 @@ Conformers, then screen the ensemble:
    write_conformers(conformers, "butanol_confs")
    results = screen("butanol_confs", engine="xtb-cli")
 
+Reactions and redox
+-------------------
+
+Once you have a ``Thermo`` object per species (from any engine, under the same
+conditions), combine them into reaction free energies and reduction potentials:
+
+.. code-block:: python
+
+   from ase.build import molecule
+   from ThermoScreening.thermo.api import xtb_cli_thermo
+   from ThermoScreening.thermo.conformers import generate
+   from ThermoScreening.thermo import reaction_free_energy, reduction_potential
+
+   # reaction free energy (stoichiometry via (coefficient, Thermo) tuples)
+   h2  = xtb_cli_thermo(molecule("H2"))
+   o2  = xtb_cli_thermo(molecule("O2"), spin=1.0)   # S = 1, triplet
+   h2o = xtb_cli_thermo(molecule("H2O"))
+   dG = reaction_free_energy([(2, h2), o2], [(2, h2o)], unit="kcal")   # 2 H2 + O2 -> 2 H2O
+
+   # one-electron reduction potential (Ox + e- -> Red), both in solvent
+   mol = generate("O=C1C=CC(=O)C=C1", max_conformers=1)[0]   # benzoquinone
+   neutral = xtb_cli_thermo(mol, charge=0,  solvent="water")
+   anion   = xtb_cli_thermo(mol, charge=-1, solvent="water")   # radical anion, auto open-shell
+   E = reduction_potential(neutral, anion)          # vs SHE (default reference 4.44 V)
+   E_abs = reduction_potential(neutral, anion, reference_potential=0.0)
+
+.. warning::
+
+   ``reaction_free_energy`` / ``reduction_potential`` are exact given the input
+   energies, but the *accuracy* is set by the underlying method. GFN-xTB and DFTB
+   give poor **absolute** electron affinities and redox potentials (benzoquinone's
+   GFN2 EA is ~7 eV vs ~1.9 eV experimental). Use them for **relative** trends
+   across similar species, with a higher-accuracy method, or with a
+   ``reference_potential`` calibrated against experiment.
+
 End-to-end example
 ------------------
 
