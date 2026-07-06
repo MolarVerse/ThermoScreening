@@ -214,6 +214,9 @@ def test_load_completed_handles_missing_and_corrupt(tmp_path):
     # unreadable/corrupt json -> empty, does not crash
     (tmp_path / "bad.json").write_text("{ not valid json", encoding="utf-8")
     assert screening._load_completed(str(tmp_path / "bad")) == {}
+    # valid JSON but not a list of records -> empty, does not crash
+    (tmp_path / "scalar.json").write_text("42", encoding="utf-8")
+    assert screening._load_completed(str(tmp_path / "scalar")) == {}
 
 
 def test_screen_writes_results_incrementally(monkeypatch, tmp_path):

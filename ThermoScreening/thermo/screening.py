@@ -10,6 +10,7 @@ with an error status and does not stop the run.
 import csv
 import json
 import logging
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -129,6 +130,8 @@ def _load_completed(out):
         prior = json.loads(json_path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
         return {}
+    if not isinstance(prior, list):
+        return {}
     return {
         record["name"]: record
         for record in prior
@@ -136,20 +139,32 @@ def _load_completed(out):
     }
 
 
+def _atomic_write(path, write_fn):
+    """
+    Write via a temp file + ``os.replace`` so an interrupted write never leaves a
+    truncated (unresumable) file behind.
+    """
+    tmp = path.with_name(path.name + ".tmp")
+    with open(tmp, "w", newline="", encoding="utf-8") as handle:
+        write_fn(handle)
+    os.replace(tmp, path)
+
+
 def _write_results(results, out):
     stem = Path(str(out)).with_suffix("")
     if stem.parent != Path(""):
         stem.parent.mkdir(parents=True, exist_ok=True)
 
-    csv_path = stem.with_suffix(".csv")
-    with open(csv_path, "w", newline="", encoding="utf-8") as handle:
+    def write_csv(handle):
         writer = csv.DictWriter(handle, fieldnames=_RESULT_FIELDS)
         writer.writeheader()
         for record in results:
             writer.writerow({field: record.get(field, "") for field in _RESULT_FIELDS})
 
+    csv_path = stem.with_suffix(".csv")
     json_path = stem.with_suffix(".json")
-    json_path.write_text(json.dumps(results, indent=2), encoding="utf-8")
+    _atomic_write(csv_path, write_csv)
+    _atomic_write(json_path, lambda handle: handle.write(json.dumps(results, indent=2)))
 
     return csv_path, json_path
 
