@@ -218,7 +218,8 @@ def test_check_dftb_setup_reports_ready_environment(monkeypatch, tmp_path):
 
     diagnostics = check_dftb_setup({"DFTB_PREFIX": str(tmp_path)})
 
-    assert [(item.name, item.ok) for item in diagnostics] == [
+    required = [(item.name, item.ok) for item in diagnostics if not item.optional]
+    assert required == [
         ("dftb+", True),
         ("modes", True),
         ("DFTB_PREFIX", True),
@@ -231,7 +232,8 @@ def test_check_dftb_setup_reports_missing_environment(monkeypatch):
 
     diagnostics = check_dftb_setup({})
 
-    assert [(item.name, item.ok) for item in diagnostics] == [
+    required = [(item.name, item.ok) for item in diagnostics if not item.optional]
+    assert required == [
         ("dftb+", False),
         ("modes", False),
         ("DFTB_PREFIX", False),
@@ -239,13 +241,41 @@ def test_check_dftb_setup_reports_missing_environment(monkeypatch):
     ]
 
 
+def test_check_dftb_setup_reports_xtb_toolchain_as_optional(monkeypatch):
+    # xtb resolved via XTB_COMMAND; tblite importable
+    monkeypatch.setattr(dftb_setup.shutil, "which", lambda command: "/bin/" + command)
+    monkeypatch.setattr(
+        dftb_setup.importlib.util, "find_spec",
+        lambda name: object() if name == "tblite" else None,
+    )
+
+    optional = {
+        item.name: item
+        for item in check_dftb_setup({"XTB_COMMAND": "/opt/xtb"})
+        if item.optional
+    }
+    assert set(optional) == {"xtb", "tblite"}
+    assert optional["xtb"].ok is True
+    assert optional["tblite"].ok is True
+
+    # missing xtb toolchain -> reported, still optional
+    monkeypatch.setattr(dftb_setup.shutil, "which", lambda command: None)
+    monkeypatch.setattr(dftb_setup.importlib.util, "find_spec", lambda name: None)
+    missing = {item.name: item for item in check_dftb_setup({}) if item.optional}
+    assert missing["xtb"].ok is False and missing["xtb"].optional
+    assert missing["tblite"].ok is False
+
+
 def test_format_diagnostics_aligns_statuses():
     output = format_diagnostics(
         [
             Diagnostic("dftb+", True, "/usr/bin/dftb+"),
             Diagnostic("DFTB_PREFIX", False, "not set"),
+            Diagnostic("xtb", False, "not found", optional=True),
         ]
     )
 
     assert "dftb+        found" in output
     assert "DFTB_PREFIX  missing" in output
+    # a missing optional backend is marked so it doesn't read as a hard failure
+    assert "xtb          missing  not found  (optional)" in output

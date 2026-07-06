@@ -4,8 +4,10 @@ Helpers for installing and validating external DFTB+ dependencies.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
+import importlib.util
 import os
 import shutil
 import tarfile
@@ -70,6 +72,7 @@ class Diagnostic:
     name: str
     ok: bool
     detail: str
+    optional: bool = False
 
 
 def default_install_root() -> Path:
@@ -287,9 +290,42 @@ def dftb_prefix_export(parameter_dir: str | Path) -> str:
     return f'export DFTB_PREFIX="{Path(parameter_dir).expanduser().resolve()}{os.sep}"'
 
 
+def _xtb_diagnostics(env: Mapping[str, str]) -> list[Diagnostic]:
+    """
+    Optional checks for the xTB engines (``--engine xtb`` and ``xtb-cli``).
+    """
+
+    # native xtb binary (for --engine xtb-cli): honour XTB_COMMAND, then PATH
+    xtb_command = env.get("XTB_COMMAND") or "xtb"
+    xtb_path = shutil.which(xtb_command)
+    xtb = Diagnostic(
+        "xtb",
+        xtb_path is not None,
+        xtb_path or "not found (set XTB_COMMAND or `conda install -c conda-forge xtb`; "
+        "needed for --engine xtb-cli)",
+        optional=True,
+    )
+
+    # tblite python package (for the in-process --engine xtb)
+    tblite_ok = importlib.util.find_spec("tblite") is not None
+    tblite = Diagnostic(
+        "tblite",
+        tblite_ok,
+        "importable" if tblite_ok
+        else "not importable (`conda install -c conda-forge tblite-python`; "
+        "needed for --engine xtb)",
+        optional=True,
+    )
+
+    return [xtb, tblite]
+
+
 def check_dftb_setup(env: dict[str, str] | None = None) -> list[Diagnostic]:
     """
-    Check whether DFTB+ executables and parameters are available.
+    Check whether the calculation backends are available.
+
+    Reports the DFTB+ toolchain (dftb+, modes, DFTB_PREFIX + a Slater-Koster
+    file) as required, and the xTB toolchain (xtb binary, tblite) as optional.
     """
 
     current_env = os.environ if env is None else env
@@ -314,25 +350,25 @@ def check_dftb_setup(env: dict[str, str] | None = None) -> list[Diagnostic]:
                 Diagnostic(REQUIRED_PARAMETER_FILE, False, "DFTB_PREFIX is not set"),
             ]
         )
-        return diagnostics
+    else:
+        parameter_dir = Path(prefix).expanduser()
+        parameter_file = parameter_dir / REQUIRED_PARAMETER_FILE
+        diagnostics.extend(
+            [
+                Diagnostic(
+                    "DFTB_PREFIX",
+                    parameter_dir.is_dir(),
+                    str(parameter_dir.resolve()) if parameter_dir.is_dir() else "directory not found",
+                ),
+                Diagnostic(
+                    REQUIRED_PARAMETER_FILE,
+                    parameter_file.is_file(),
+                    str(parameter_file.resolve()) if parameter_file.is_file() else "not found",
+                ),
+            ]
+        )
 
-    parameter_dir = Path(prefix).expanduser()
-    parameter_file = parameter_dir / REQUIRED_PARAMETER_FILE
-    diagnostics.extend(
-        [
-            Diagnostic(
-                "DFTB_PREFIX",
-                parameter_dir.is_dir(),
-                str(parameter_dir.resolve()) if parameter_dir.is_dir() else "directory not found",
-            ),
-            Diagnostic(
-                REQUIRED_PARAMETER_FILE,
-                parameter_file.is_file(),
-                str(parameter_file.resolve()) if parameter_file.is_file() else "not found",
-            ),
-        ]
-    )
-
+    diagnostics.extend(_xtb_diagnostics(current_env))
     return diagnostics
 
 
@@ -346,6 +382,7 @@ def format_diagnostics(diagnostics: list[Diagnostic]) -> str:
 
     for item in diagnostics:
         status = "found" if item.ok else "missing"
-        lines.append(f"{item.name:<{width}}  {status:<7}  {item.detail}")
+        suffix = "  (optional)" if item.optional and not item.ok else ""
+        lines.append(f"{item.name:<{width}}  {status:<7}  {item.detail}{suffix}")
 
     return "\n".join(lines)

@@ -154,7 +154,7 @@ def test_main_setup_dftb_downloads_solvent(monkeypatch, tmp_path, capsys):
 
 
 def test_main_runs_doctor(monkeypatch, capsys):
-    diagnostic = type("DiagnosticStub", (), {"ok": False})()
+    diagnostic = type("DiagnosticStub", (), {"ok": False, "optional": False})()
 
     monkeypatch.setattr(
         thermo,
@@ -166,6 +166,23 @@ def test_main_runs_doctor(monkeypatch, capsys):
 
     assert thermo.main() == 1
     assert capsys.readouterr().out == "not ready\n"
+
+
+def test_main_doctor_ignores_missing_optional_backend(monkeypatch, capsys):
+    required_ok = type("D", (), {"ok": True, "optional": False})()
+    optional_missing = type("D", (), {"ok": False, "optional": True})()
+
+    monkeypatch.setattr(
+        thermo, "parse_args", lambda: argparse.Namespace(command="doctor")
+    )
+    monkeypatch.setattr(
+        thermo, "check_dftb_setup", lambda: [required_ok, optional_missing]
+    )
+    monkeypatch.setattr(thermo, "format_diagnostics", lambda diagnostics: "ok")
+
+    # a missing optional backend (xtb/tblite) must not fail the doctor
+    assert thermo.main() == 0
+
 
 if __name__ == '__main__':
     unittest.main()
