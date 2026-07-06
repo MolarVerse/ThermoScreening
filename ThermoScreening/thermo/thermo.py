@@ -227,7 +227,7 @@ class Thermo:
 
         if self._n_rot == 0:
             # monatomic: no rotational degrees of freedom
-            self._eigenvalues_I_SI = np.array([])
+            self._inertia_eigenvalues_si = np.array([])
             self._rotational_temperature = np.array([])
             self._rotational_constant = np.array([])
             self._rotational_temperature_xyz = np.nan
@@ -238,17 +238,17 @@ class Thermo:
         # rotor, the two equal perpendicular moments for a linear molecule
         # (eigenvalues are sorted ascending, so the smallest, ~zero for a linear
         # molecule, is dropped)
-        self._eigenvalues_I_SI = (
-            self._eigenvalues_I[-self._n_rot:]
+        self._inertia_eigenvalues_si = (
+            self._inertia_eigenvalues[-self._n_rot:]
             * PhysicalConstants["u"]
             * PhysicalConstants["A"] ** 2
         )
         self._rotational_temperature = (
             PhysicalConstants["h"] ** 2 / (8 * np.pi**2 * PhysicalConstants["kB"])
-        ) / self._eigenvalues_I_SI
+        ) / self._inertia_eigenvalues_si
 
         self._rotational_constant = (
-            (((PhysicalConstants["hbar"] ** 2) / 2) / self._eigenvalues_I_SI)
+            (((PhysicalConstants["hbar"] ** 2) / 2) / self._inertia_eigenvalues_si)
             / PhysicalConstants["h"]
             * PhysicalConstants["HztoGHz"]
         )
@@ -322,7 +322,7 @@ class Thermo:
         self._compute_inertia_tensor()
         # the inertia tensor is symmetric by construction; eigvalsh returns real,
         # ascending eigenvalues (eig may emit spurious imaginary parts)
-        self._eigenvalues_I = np.linalg.eigvalsh(self._inertia_tensor)
+        self._inertia_eigenvalues = np.linalg.eigvalsh(self._inertia_tensor)
         self._n_rot = self._rotational_dof()
         self._compute_rotational_partition_function()
         self._compute_rotational_entropy()
