@@ -16,7 +16,9 @@ from ..utils.physicalConstants import PhysicalConstants
 SHE_ABSOLUTE_POTENTIAL = 4.44
 
 _HARTREE_TO_EV = PhysicalConstants["H"] / PhysicalConstants["eV"]
-_HARTREE_TO_KCAL_PER_MOL = PhysicalConstants["H"] * PhysicalConstants["N_A"] / 4184.0
+_HARTREE_TO_KCAL_PER_MOL = (
+    PhysicalConstants["H"] * PhysicalConstants["N_A"] / (PhysicalConstants["cal"] * 1000.0)
+)
 _HARTREE_TO_KJ_PER_MOL = PhysicalConstants["H"] * PhysicalConstants["N_A"] / 1000.0
 
 _UNIT_FACTORS = {
@@ -105,7 +107,15 @@ def reduction_potential(
     -------
     float
         The reduction potential in volts (versus ``reference_potential``).
+
+    Raises
+    ------
+    ValueError
+        If ``n_electrons`` is zero.
     """
+    if n_electrons == 0:
+        raise ValueError("n_electrons must be non-zero.")
+
     delta_g_hartree = reduced.total_EeGtot() - oxidized.total_EeGtot()
     absolute = -delta_g_hartree * _HARTREE_TO_EV / n_electrons
     return absolute - reference_potential

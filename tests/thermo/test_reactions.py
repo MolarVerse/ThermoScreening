@@ -12,6 +12,7 @@ from ThermoScreening.thermo.reactions import (
 
 _H_TO_EV = 27.211386245988034
 _H_TO_KCAL = 627.5094740631  # 1 Hartree in kcal/mol
+_H_TO_KJ = 2625.4996394798254  # 1 Hartree in kJ/mol
 
 
 class _FakeThermo:
@@ -31,6 +32,9 @@ def test_reaction_free_energy_units():
     assert reaction_free_energy([a, b], [c], unit="eV") == pytest.approx(-0.5 * _H_TO_EV)
     assert reaction_free_energy([a, b], [c], unit="kcal") == pytest.approx(
         -0.5 * _H_TO_KCAL, rel=1e-4
+    )
+    assert reaction_free_energy([a, b], [c], unit="kJ") == pytest.approx(
+        -0.5 * _H_TO_KJ, rel=1e-4
     )
 
 
@@ -62,6 +66,12 @@ def test_reduction_potential_n_electrons():
     assert reduction_potential(ox, red, n_electrons=2, reference_potential=0.0) == pytest.approx(
         _H_TO_EV / 2
     )
+
+
+def test_reduction_potential_rejects_zero_electrons():
+    ox, red = _FakeThermo(0.0), _FakeThermo(-0.5)
+    with pytest.raises(ValueError, match="non-zero"):
+        reduction_potential(ox, red, n_electrons=0)
 
 
 def test_public_api_exported():
