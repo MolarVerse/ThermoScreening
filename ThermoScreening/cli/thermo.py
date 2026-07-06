@@ -251,14 +251,18 @@ def run_conformers(parser_args):
     Generate conformers from a SMILES and write them as .xyz files.
     """
 
-    conformers = generate_conformers(
-        parser_args.smiles,
-        max_conformers=parser_args.max_conformers,
-        optimize=not parser_args.no_optimize,
-        energy_window=parser_args.energy_window,
-    )
-    paths = write_conformers(conformers, parser_args.out_dir)
+    try:
+        conformers = generate_conformers(
+            parser_args.smiles,
+            max_conformers=parser_args.max_conformers,
+            optimize=not parser_args.no_optimize,
+            energy_window=parser_args.energy_window,
+        )
+    except (ValueError, ImportError) as exc:
+        print(f"Conformer generation failed: {exc}", file=sys.stderr)
+        return 1
 
+    paths = write_conformers(conformers, parser_args.out_dir)
     print(f"Generated {len(paths)} conformer(s) in {parser_args.out_dir}/")
     print(f"Screen them with: thermo screen {parser_args.out_dir}")
     return 0

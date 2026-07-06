@@ -1,8 +1,8 @@
 """Conformer generation for molecule screening.
 
 RDKit is the conformer backend: ETKDG distance-geometry embedding, optional
-MMFF/UFF force-field optimisation, and RMSD + energy-window pruning. Conformers
-are returned as ASE ``Atoms`` so they feed straight into the screening pipeline
+MMFF force-field optimisation, and RMSD + energy-window pruning. Conformers are
+returned as ASE ``Atoms`` so they feed straight into the screening pipeline
 (e.g. generate -> ``write_conformers`` -> ``screen`` that directory).
 """
 

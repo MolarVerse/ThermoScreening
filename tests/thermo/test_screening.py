@@ -471,3 +471,18 @@ def test_cli_run_conformers(monkeypatch, tmp_path):
     assert captured["optimize"] is False  # --no-optimize
     assert captured["energy_window"] == 1.5
     assert captured["written"] == 2
+
+
+def test_cli_run_conformers_reports_bad_smiles(monkeypatch, capsys):
+    import ThermoScreening.cli.thermo as cli
+
+    def fail(*args, **kwargs):
+        raise ValueError("Could not parse SMILES: 'oops'")
+
+    monkeypatch.setattr(cli, "generate_conformers", fail)
+    args = Namespace(smiles="oops", out_dir="out", max_conformers=10,
+                     energy_window=None, no_optimize=False)
+
+    # clean exit code + message on stderr, not a traceback
+    assert cli.run_conformers(args) == 1
+    assert "Conformer generation failed" in capsys.readouterr().err
