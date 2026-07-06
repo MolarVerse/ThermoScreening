@@ -3,7 +3,10 @@ channels:
   - conda-forge
 dependencies:
   - python>=3.12
-  - dftbplus
+  # calculation backends (compiled programs; pip cannot install these)
+  - dftbplus        # DFTB+ engine: provides `dftb+` and `modes`
+  - xtb             # native xtb binary, for `--engine xtb-cli`
+  - tblite-python   # GFN-xTB via tblite, for `--engine xtb`
   - pip
   - pip:
       - "-e .[test,lint]"
