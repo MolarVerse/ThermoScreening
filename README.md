@@ -124,7 +124,10 @@ DFTB+ integration tests run only when the executables are available and `DFTB_PR
 
 ## Roadmap
 
-Planned work is tracked in GitHub issues rather than in this README. Current roadmap areas include additional engines, conformer generation, broader test coverage, documentation, and batch screening workflows.
+Planned work is tracked in GitHub issues rather than in this README. The tool
+supports the DFTB+, GFN-xTB (tblite) and native-xtb engines, implicit solvation,
+quasi-RRHO, batch screening with resume, and RDKit conformer generation; see the
+issue tracker for further enhancements.
 
 ## License
 

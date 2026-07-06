@@ -168,6 +168,22 @@ def test_main_runs_doctor(monkeypatch, capsys):
     assert capsys.readouterr().out == "not ready\n"
 
 
+def test_main_runs_conformers(monkeypatch):
+    monkeypatch.setattr(
+        thermo, "parse_args", lambda: argparse.Namespace(command="conformers")
+    )
+    called = {}
+
+    def fake_run_conformers(args):
+        called["ran"] = True
+        return 0
+
+    monkeypatch.setattr(thermo, "run_conformers", fake_run_conformers)
+
+    assert thermo.main() == 0
+    assert called["ran"] is True
+
+
 def test_main_doctor_ignores_missing_optional_backend(monkeypatch, capsys):
     required_ok = type("D", (), {"ok": True, "optional": False})()
     optional_missing = type("D", (), {"ok": False, "optional": True})()
