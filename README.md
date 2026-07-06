@@ -5,6 +5,16 @@
 
 ThermoScreening calculates thermochemical properties for molecular systems and provides a foundation for screening molecule sets. It currently supports thermochemistry workflows from DFTB+ inputs and exposes Python APIs for reading coordinates, parsing vibrational data, and running thermodynamic post-processing.
 
+## Documentation
+
+Structured documentation (installation, usage, configuration, and the API
+reference) is built with Sphinx from the `docs/` directory:
+
+```bash
+python -m pip install -e ".[docs]"
+python -m sphinx -b html docs docs/_build/html   # open docs/_build/html/index.html
+```
+
 ## Features
 
 - Thermochemistry calculations for molecular systems
