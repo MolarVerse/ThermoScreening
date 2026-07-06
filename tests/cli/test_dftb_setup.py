@@ -157,6 +157,26 @@ def test_install_gbsa_param_downloads_file(tmp_path):
     assert installed.read_text(encoding="utf-8") == "solvent parameters"
 
 
+@pytest.mark.parametrize(
+    "solvent,stem",
+    [("water", "h2o"), ("dmso", "dmso"), ("acetonitrile", "acetonitrile"), ("thf", "thf")],
+)
+def test_gbsa_plumbing_for_multiple_solvents(monkeypatch, tmp_path, solvent, stem):
+    assert _solvent_stem(solvent) == stem
+
+    path = gbsa_param_path(solvent, install_root=tmp_path)
+    assert path.name == f"param_gbsa_{stem}.txt"
+    assert path.parent.name == "gfn2-0-1"
+
+    # a mocked download lands the file at the resolved path
+    def fake_download(url, destination):
+        destination.write_text("params", encoding="utf-8")
+
+    monkeypatch.setattr(dftb_setup, "_download_file", fake_download)
+    installed = install_gbsa_param(solvent, install_root=tmp_path)
+    assert installed == path.resolve()
+
+
 def test_install_gbsa_param_requires_downloaded_file(monkeypatch, tmp_path):
     # a "download" that writes nothing must not silently succeed
     monkeypatch.setattr(dftb_setup, "_download_file", lambda url, destination: None)

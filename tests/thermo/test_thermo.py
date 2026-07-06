@@ -130,15 +130,16 @@ from ase.thermochemistry import IdealGasThermo  # noqa: E402
 
 _CM_TO_EV = 1.23984198e-4
 _EVK_TO_CALMOLK = 1.602176634e-19 * 6.02214076e23 / 4.184
+_EV_TO_KCAL = 1.602176634e-19 * 6.02214076e23 / 4184.0
 _T, _P = 298.15, 101325.0
 _R_CALMOLK = 8.314462618 / 4.184
 
 
-def _ts_thermo(symbols, positions, real_freqs, dof, quasi_rrho=False):
+def _ts_thermo(symbols, positions, real_freqs, dof, quasi_rrho=False, charge=0, spin=None):
     atoms = [Atom(symbol=s, position=np.array(p, float)) for s, p in zip(symbols, positions)]
     pad = np.concatenate([np.zeros(3 * len(atoms) - dof), np.asarray(real_freqs, float)])
     system = System(
-        atoms, periodicity=False, cell=None, charge=0,
+        atoms, periodicity=False, cell=None, charge=charge, spin=spin,
         electronic_energy=0.0, vibrational_frequencies=pad,
     )
     thermo = Thermo(
@@ -177,6 +178,125 @@ def test_total_entropy_matches_ase(symbols, positions, freqs, dof, geometry, sig
 
     assert np.isfinite(ts_total)
     assert ts_total == pytest.approx(ase_total, abs=0.05)
+
+
+from ase.build import molecule  # noqa: E402
+
+
+def _nh4_cation():
+    s = 1.03 / np.sqrt(3.0)
+    return Atoms(
+        "NH4",
+        positions=[[0, 0, 0], [s, s, s], [s, -s, -s], [-s, s, -s], [-s, -s, s]],
+    )
+
+
+# name/factory, freqs (cm^-1), dof, ASE geometry, symmetry number, charge
+_SHG_CASES = [
+    ("H2O", lambda: molecule("H2O"), [1595, 3657, 3756], 3, "nonlinear", 2, 0),
+    ("CO2", lambda: molecule("CO2"), [667, 667, 1333, 2349], 4, "linear", 2, 0),
+    ("N2", lambda: molecule("N2"), [2359], 1, "linear", 2, 0),
+    ("NH3", lambda: molecule("NH3"), [950, 1627, 1627, 3337, 3444, 3444], 6, "nonlinear", 3, 0),
+    ("CH4", lambda: molecule("CH4"),
+     [1306, 1306, 1306, 1534, 1534, 2917, 3019, 3019, 3019], 9, "nonlinear", 12, 0),
+    ("CO", lambda: molecule("CO"), [2143], 1, "linear", 1, 0),
+    ("HCN", lambda: molecule("HCN"), [712, 712, 2089, 3311], 4, "linear", 1, 0),
+    ("C2H2", lambda: molecule("C2H2"),
+     [612, 612, 730, 730, 1974, 3289, 3374], 7, "linear", 2, 0),
+    ("C2H6", lambda: molecule("C2H6"),
+     [289, 822, 822, 995, 1190, 1190, 1379, 1388, 1468, 1468, 1469, 1469,
+      2896, 2954, 2969, 2969, 2985, 2985], 18, "nonlinear", 6, 0),
+    ("CH3OH", lambda: molecule("CH3OH"),
+     [295, 1033, 1060, 1165, 1345, 1455, 1477, 1477, 2844, 2960, 3000, 3681],
+     12, "nonlinear", 1, 0),
+    ("Ar", lambda: Atoms("Ar", positions=[[0, 0, 0]]), [], 0, "monatomic", 1, 0),
+    # charged species exercise the charge path (10 electrons each -> spin 0, so
+    # thermochemically identical to their neutral RRHO)
+    ("OH-", lambda: Atoms("OH", positions=[[0, 0, 0], [0, 0, 0.97]]),
+     [3700], 1, "linear", 1, -1),
+    ("NH4+", _nh4_cation,
+     [1400, 1400, 1400, 1680, 1680, 3040, 3145, 3145, 3145], 9, "nonlinear", 12, 1),
+]
+
+
+@pytest.mark.parametrize(
+    "name,factory,freqs,dof,geometry,sigma,charge", _SHG_CASES,
+    ids=[c[0] for c in _SHG_CASES],
+)
+def test_S_H_G_match_ase(name, factory, freqs, dof, geometry, sigma, charge):
+    atoms = factory()
+    symbols = list(atoms.get_chemical_symbols())
+    positions = atoms.get_positions()
+
+    thermo = _ts_thermo(symbols, positions, freqs, dof, charge=charge)
+
+    # ASE reference with masses pinned to the tool's atomic masses
+    ase_atoms = Atoms(symbols=symbols, positions=positions)
+    ase_atoms.set_masses(
+        [Atom(symbol=s, position=np.zeros(3)).mass for s in symbols]
+    )
+    igt = IdealGasThermo(
+        vib_energies=[f * _CM_TO_EV for f in freqs],
+        geometry=geometry, atoms=ase_atoms,
+        symmetrynumber=sigma, spin=0, potentialenergy=0.0,
+    )
+    s_ase = igt.get_entropy(_T, _P, verbose=False) * _EVK_TO_CALMOLK
+    h_ase = igt.get_enthalpy(_T, verbose=False) * _EV_TO_KCAL
+    g_ase = igt.get_gibbs_energy(_T, _P, verbose=False) * _EV_TO_KCAL
+
+    assert thermo._system.rotational_symmetry_number == sigma
+    assert thermo.total_entropy("cal/(mol*K)") == pytest.approx(s_ase, abs=2e-3)
+    assert thermo.total_enthalpy("kcal") == pytest.approx(h_ase, abs=2e-3)
+    assert thermo.total_gibbs_free_energy("kcal") == pytest.approx(g_ase, abs=2e-3)
+
+
+def _grimme_vib_entropy(freqs_cm, quasi):
+    """Independent Grimme quasi-RRHO / harmonic vibrational entropy (cal/mol/K)."""
+    h, kB, c, R, cal = 6.62607015e-34, 1.380649e-23, 299792458.0, 8.314462618, 4.184
+    Bav, nu0 = 1.0e-44, 100.0
+    total = 0.0
+    for nu_cm in freqs_cm:
+        nu_hz = nu_cm * c * 100.0
+        x = h * nu_hz / (kB * _T)
+        s_ho = x / (np.exp(x) - 1) - np.log(1 - np.exp(-x))
+        if not quasi:
+            total += s_ho
+            continue
+        mu = h / (8 * np.pi**2 * nu_hz)
+        mu_eff = mu * Bav / (mu + Bav)
+        s_fr = 0.5 + np.log(np.sqrt(8 * np.pi**3 * mu_eff * kB * _T / h**2))
+        w = 1.0 / (1.0 + (nu0 / nu_cm) ** 4)
+        total += w * s_ho + (1 - w) * s_fr
+    return R * total / cal
+
+
+def test_quasi_rrho_matches_independent_grimme_and_is_invariant():
+    # ethane geometry with genuine low modes (25/40/90 cm^-1)
+    symbols = ["C", "C", "H", "H", "H", "H", "H", "H"]
+    positions = [[0, 0, 0], [1.5, 0, 0], [-0.4, 1.0, 0], [-0.4, -0.5, 0.87],
+                 [-0.4, -0.5, -0.87], [1.9, 1.0, 0], [1.9, -0.5, 0.87], [1.9, -0.5, -0.87]]
+    freqs = [25.0, 40.0, 90.0, 300.0, 820.0, 995.0, 995.0, 1206.0, 1206.0,
+             1388.0, 1469.0, 1479.0, 1486.0, 2896.0, 2915.0, 2954.0, 2969.0, 2985.0]
+
+    harmonic = _ts_thermo(symbols, positions, freqs, 18)
+    qrrho = _ts_thermo(symbols, positions, freqs, 18, quasi_rrho=True)
+    modes = harmonic._system.real_vibrational_frequencies
+
+    s_ho = harmonic.total_entropy("cal/(mol*K)")
+    s_q = qrrho.total_entropy("cal/(mol*K)")
+
+    # quasi-RRHO lowers the entropy (low modes tamed)
+    assert s_q < s_ho - 2.0
+    # non-circular: the tool's HO->qRRHO shift equals the independent Grimme shift
+    tool_shift = s_q - s_ho
+    indep_shift = _grimme_vib_entropy(modes, quasi=True) - _grimme_vib_entropy(modes, quasi=False)
+    assert tool_shift == pytest.approx(indep_shift, abs=0.02)
+
+    # quasi_rrho changes ONLY the entropy: enthalpy and Cv are invariant
+    assert qrrho.total_enthalpy("H") == pytest.approx(harmonic.total_enthalpy("H"), abs=1e-12)
+    assert qrrho.total_heat_capacity("cal/(mol*K)") == pytest.approx(
+        harmonic.total_heat_capacity("cal/(mol*K)"), abs=1e-12
+    )
 
 
 def test_quasi_rrho_matches_harmonic_for_high_frequencies():

@@ -567,6 +567,17 @@ def dftbplus_thermo(
     -------
     Thermo
         The thermo calculation object.
+
+    Notes
+    -----
+    Reproducibility: identical inputs on the same machine give bit-identical
+    results (DFTB+ is thread-invariant). Across machines the optimiser stopping
+    point can vary by ~3e-5 A, giving ~2e-9 Hartree / ~3e-4 cal/mol/K scatter --
+    physically negligible (~1e-6 of the method error).
+
+    Solvation accuracy: with 3ob/mio the GBSA parameters are GFN-xTB-fit, so
+    solvation free energies are only qualitative and for small neutral solutes
+    can be positive/non-monotonic in the solvent dielectric.
     """
 
     # Resolve the spin (electron-count guess when not given) so the calculation
@@ -662,6 +673,13 @@ def xtb_thermo(
     -------
     Thermo
         The thermo calculation object.
+
+    Notes
+    -----
+    Reproducibility: with ``OMP_NUM_THREADS=1`` identical inputs give
+    bit-identical energies on the same machine; the entropy is thread-invariant
+    regardless. The optimiser stopping point is geometry/tolerance sensitive, so
+    tighten ``fmax`` (e.g. 1e-3) for more environment-stable geometries.
     """
 
     # Resolve the spin the same way as the DFTB+ path so the calculation and the

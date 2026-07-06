@@ -177,7 +177,10 @@ def screen(
     solvent : str, optional
         Solvent name for GBSA/ALPB implicit solvation applied to every molecule
         (e.g. ``"water"``). Defaults to gas phase. The solvent parameter file
-        must be installed (``thermo setup-dftb --solvent <name>``).
+        must be installed (``thermo setup-dftb --solvent <name>``). With the
+        DFTB+ engine the GBSA parameters are GFN-xTB-fit, so solvation free
+        energies are only qualitative (and can be non-monotonic in the dielectric
+        for small neutral solutes).
     quasi_rrho : bool
         If True, use Grimme's quasi-RRHO treatment for the vibrational entropy
         (recommended for flexible molecules with low-frequency modes). Default

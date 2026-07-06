@@ -33,7 +33,7 @@ class Thermo:
     temperature : float
         The temperature of the system in Kelvin.
     pressure : float
-        The pressure of the system in bar.
+        The pressure of the system in Pa.
     system : System
         The system information of the system.
     engine : str
@@ -71,7 +71,7 @@ class Thermo:
         temperature : float
             The temperature of the system in Kelvin.
         pressure : float
-            The pressure of the system in bar.
+            The pressure of the system in Pa.
         system : System
             The system information of the system.
         engine : str
@@ -882,7 +882,12 @@ class Thermo:
 
     def total_heat_capacity(self, unit: str) -> float:
         """
-        Returns the total heat capacity of the system based on the unit.
+        Returns the constant-volume (ideal-gas) heat capacity Cv of the system.
+
+        Cv = translational (3/2 R) + rotational (n_rot/2 R) + vibrational +
+        electronic (0). For the constant-pressure heat capacity of an ideal gas
+        add R: Cp = Cv + R. (Cross-checked against native xTB, whose reported
+        heat capacity is Cp: tool Cv == xtb Cp - R.)
 
         Parameters
         ----------
@@ -897,7 +902,7 @@ class Thermo:
         Returns
         -------
         float
-            The total heat capacity of the system.
+            The total constant-volume heat capacity Cv of the system.
         """
 
         if unit == "cal/(mol*K)":
