@@ -23,6 +23,12 @@ Conformer generation
 .. autofunction:: ThermoScreening.thermo.conformers.generate
 .. autofunction:: ThermoScreening.thermo.conformers.write_conformers
 
+Reactions and redox
+-------------------
+
+.. autofunction:: ThermoScreening.thermo.reactions.reaction_free_energy
+.. autofunction:: ThermoScreening.thermo.reactions.reduction_potential
+
 Thermochemistry core
 --------------------
 
