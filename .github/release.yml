@@ -1,0 +1,30 @@
+# Configuration for GitHub's auto-generated release notes
+# (used by `gh release create --generate-notes` and the "Generate release notes"
+# button). Merged pull requests are grouped by label; unlabelled PRs fall into
+# "Other Changes".
+changelog:
+  exclude:
+    labels:
+      - no-changelog
+    authors:
+      - dependabot[bot]
+      - github-actions[bot]
+  categories:
+    - title: Features
+      labels:
+        - enhancement
+        - feature
+    - title: Fixes
+      labels:
+        - bug
+        - fix
+    - title: Documentation
+      labels:
+        - documentation
+        - docs
+    - title: Dependencies
+      labels:
+        - dependencies
+    - title: Other Changes
+      labels:
+        - "*"
