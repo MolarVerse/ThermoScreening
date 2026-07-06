@@ -739,12 +739,18 @@ class System:
 
     def coord(self) -> np.ndarray:
         """
-        The atom positions of the system.
+        The atom positions of the system, as originally provided.
+
+        These are the input coordinates; they are not centred on the centre of
+        mass. The centre-of-mass relocation used for the moment-of-inertia /
+        rotational analysis is an internal detail of the thermo pipeline
+        (``Thermo._relocate_to_cm`` stores it in ``Thermo._reloc_coord``) and
+        does not modify the coordinates returned here.
 
         Returns
         -------
         np.ndarray
-            The atom positions of the system.
+            The (original, non-relocated) atom positions of the system.
         """
         return np.array([atom.position for atom in self._atoms])
 

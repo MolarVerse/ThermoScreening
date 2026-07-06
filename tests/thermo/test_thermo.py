@@ -180,6 +180,47 @@ def test_total_entropy_matches_ase(symbols, positions, freqs, dof, geometry, sig
     assert ts_total == pytest.approx(ase_total, abs=0.05)
 
 
+@pytest.mark.parametrize(
+    "symbols,positions,freqs,dof",
+    [
+        # nonlinear (H2O) and linear (CO2) -> one ~zero moment for the linear case
+        (["O", "H", "H"], [[0, 0, 0.12], [0, 0.76, -0.48], [0, -0.76, -0.48]],
+         [1595.0, 3657.0, 3756.0], 3),
+        (["C", "O", "O"], [[0, 0, 0], [0, 0, 1.16], [0, 0, -1.16]],
+         [667.0, 667.0, 1333.0, 2349.0], 4),
+    ],
+)
+def test_inertia_eigenvalues_match_ase(symbols, positions, freqs, dof):
+    # the principal moments of inertia (amu*A^2, before the SI conversion) must
+    # match ASE's get_moments_of_inertia for the same geometry and masses
+    thermo = _ts_thermo(symbols, positions, freqs, dof)
+
+    ase_atoms = Atoms(symbols=symbols, positions=positions)
+    ase_atoms.set_masses([Atom(symbol=s, position=np.zeros(3)).mass for s in symbols])
+    ase_moments = np.sort(ase_atoms.get_moments_of_inertia())
+
+    np.testing.assert_allclose(
+        np.sort(thermo._inertia_eigenvalues), ase_moments, atol=1e-6
+    )
+
+
+def test_inertia_eigenvalues_are_translation_invariant():
+    # relocating to the centre of mass must make the moments independent of where
+    # the molecule sits in space
+    symbols = ["O", "H", "H"]
+    positions = np.array([[0, 0, 0.12], [0, 0.76, -0.48], [0, -0.76, -0.48]])
+    freqs, dof = [1595.0, 3657.0, 3756.0], 3
+
+    centred = _ts_thermo(symbols, positions, freqs, dof)
+    shifted = _ts_thermo(symbols, positions + np.array([10.0, -5.0, 3.0]), freqs, dof)
+
+    np.testing.assert_allclose(
+        np.sort(centred._inertia_eigenvalues),
+        np.sort(shifted._inertia_eigenvalues),
+        atol=1e-8,
+    )
+
+
 from ase.build import molecule  # noqa: E402
 
 
@@ -465,7 +506,7 @@ class TestThermo(unittest.TestCase):
         np.testing.assert_allclose(thermo._inertia_tensor, np.array([[477.579476, -0.002293, 0.023808], [-0.002293, 1612.635725, 0.000317],[0.023808, 0.000317, 1135.056249]]), atol=1e-4)
 
         # somewhere in the array the values should be the same
-        np.testing.assert_allclose(np.sort(thermo._eigenvalues_I), np.sort(
+        np.testing.assert_allclose(np.sort(thermo._inertia_eigenvalues), np.sort(
             np.array([1612.635724886585, 477.579474789699, 1135.056250097402])), atol=1e-10)
 
         np.testing.assert_allclose(np.sort(thermo._rotational_temperature), np.sort(
