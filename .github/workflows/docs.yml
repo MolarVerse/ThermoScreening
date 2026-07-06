@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main, dev]
 
+# Allow the deploy job to publish to GitHub Pages.
+permissions:
+  contents: read
+
 jobs:
   build-docs:
     runs-on: ubuntu-latest
@@ -20,7 +24,23 @@ jobs:
         run: python -m pip install -e ".[docs]"
       - name: Build the documentation
         run: python -m sphinx -b html docs docs/_build/html
-      - uses: actions/upload-artifact@v4
+      - name: Upload the Pages artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          name: docs-html
           path: docs/_build/html
+
+  # Publish the built docs to GitHub Pages on pushes to the default branch.
+  deploy-docs:
+    needs: build-docs
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write       # to deploy to Pages
+      id-token: write    # to verify the deployment origin
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -35,3 +35,6 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 html_theme = "alabaster"
 html_static_path = []
+
+# Canonical location of the published documentation (GitHub Pages).
+html_baseurl = "https://molarverse.github.io/ThermoScreening/"

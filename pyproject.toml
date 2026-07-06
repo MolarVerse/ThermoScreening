@@ -38,6 +38,7 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://github.com/MolarVerse/ThermoScreening"
+Documentation = "https://molarverse.github.io/ThermoScreening/"
 Repository = "https://github.com/MolarVerse/ThermoScreening"
 Issues = "https://github.com/MolarVerse/ThermoScreening/issues"
 
