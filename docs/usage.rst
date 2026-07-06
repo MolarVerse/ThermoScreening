@@ -72,6 +72,32 @@ Conformers, then screen the ensemble:
    write_conformers(conformers, "butanol_confs")
    results = screen("butanol_confs", engine="xtb-cli")
 
+Conformer ensembles
+-------------------
+
+A flexible molecule is a Boltzmann ensemble of conformers, not a single
+structure. Generate and compute each conformer, then combine their free energies
+into ensemble properties:
+
+.. code-block:: python
+
+   from ThermoScreening.thermo.api import xtb_cli_thermo
+   from ThermoScreening.thermo.conformers import generate
+   from ThermoScreening.thermo import (
+       boltzmann_weights, ensemble_free_energy, lowest_gibbs,
+   )
+
+   conformers = generate("CCCCO", max_conformers=10)          # n-butanol
+   thermos = [xtb_cli_thermo(c, solvent="water") for c in conformers]
+
+   weights = boltzmann_weights(thermos)          # populations at 298.15 K
+   G = ensemble_free_energy(thermos, unit="kcal")  # Boltzmann-averaged free energy
+   best = lowest_gibbs(thermos)                   # the single lowest-G conformer
+
+The ensemble free energy lies at or below the lowest conformer's by the mixing
+(conformational) entropy; use ``lowest_gibbs`` when you instead want the single
+dominant structure to carry forward (e.g. into :func:`reaction_free_energy`).
+
 Reactions and redox
 -------------------
 

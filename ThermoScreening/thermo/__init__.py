@@ -9,3 +9,4 @@ from .thermo import Thermo
 from .screening import screen
 from .conformers import generate as generate_conformers, write_conformers
 from .reactions import reaction_free_energy, reduction_potential
+from .ensemble import boltzmann_weights, ensemble_free_energy, lowest_gibbs
