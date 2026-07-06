@@ -20,6 +20,7 @@ from .atoms import Atom
 from ..calculator import Geoopt, Hessian, Modes
 from ..calculator.dftbplus import _spin_kwargs, _solvation_kwargs, SPIN_CONSTANTS_3OB
 from ..calculator.xtb import optimise_and_frequencies, xtb_calculator
+from ..calculator.xtb_cli import run_xtb
 
 
 logger = logging.getLogger(__package_name__).getChild("api")
@@ -695,6 +696,82 @@ def xtb_thermo(
     with _run_in_directory(directory):
         optimized_atoms, potential_energy, frequencies = optimise_and_frequencies(
             prepared, xtb_calculator(method), fmax=fmax
+        )
+
+        thermo = run_thermo(
+            frequencies,
+            atoms=optimized_atoms,
+            temperature=temperature,
+            pressure=pressure,
+            energy=potential_energy,
+            engine="xtb",
+            charge=charge,
+            spin=spin,
+            quasi_rrho=quasi_rrho,
+        )
+
+    return thermo
+
+
+def xtb_cli_thermo(
+        atoms,
+        temperature=298.15,
+        pressure=101325,
+        charge=0.0,
+        spin=None,
+        method="GFN2-xTB",
+        solvent=None,
+        directory=None,
+        quasi_rrho=False,
+    ):
+    """
+    Run the thermo pipeline with the native ``xtb`` program (GFN-xTB).
+
+    Unlike :func:`xtb_thermo` (in-process tblite, gas-phase), this uses the
+    ``xtb`` binary, which natively supports open-shell (``--uhf``), charge
+    (``--chrg``) and implicit solvation (``--alpb``) -- so charged radicals in
+    solution are handled with method-consistent parameters. A single
+    ``xtb --ohess`` optimises and computes the Hessian.
+
+    Parameters
+    ----------
+    atoms : ase.Atoms
+        The initial geometry.
+    temperature : float
+        Temperature in K. Default 298.15.
+    pressure : float
+        Pressure in Pa. Default 101325.
+    charge : float
+        System charge. Default 0.0.
+    spin : float, optional
+        Spin quantum number S. Defaults to the minimum-spin electron-count guess
+        (even -> 0, odd -> 0.5); ``round(2*S)`` unpaired electrons are passed to
+        xtb, so radicals run open-shell automatically.
+    method : str
+        GFN parametrisation: ``"GFN2-xTB"`` (default), ``"GFN1-xTB"`` or
+        ``"GFN0-xTB"``.
+    solvent : str, optional
+        ALPB implicit-solvation solvent (e.g. ``"water"``). Native to xtb, so the
+        parameters are method-consistent. Defaults to gas phase.
+    directory : str, optional
+        Working directory (created if needed). Defaults to the current directory.
+    quasi_rrho : bool
+        If True, use Grimme's quasi-RRHO vibrational entropy. Default False.
+
+    Returns
+    -------
+    Thermo
+        The thermo calculation object.
+    """
+
+    if spin is None:
+        electrons = round(float(sum(atoms.get_atomic_numbers())) - charge)
+        spin = 0.0 if electrons % 2 == 0 else 0.5
+    unpaired = int(round(2.0 * float(spin)))
+
+    with _run_in_directory(directory):
+        optimized_atoms, potential_energy, frequencies = run_xtb(
+            atoms, charge=charge, unpaired=unpaired, method=method, solvent=solvent,
         )
 
         thermo = run_thermo(
