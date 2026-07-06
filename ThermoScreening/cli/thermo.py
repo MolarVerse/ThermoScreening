@@ -180,13 +180,14 @@ def run_setup_dftb(parser_args):
 
 def run_doctor():
     """
-    Check whether DFTB+ executables and parameters are available.
+    Check whether the calculation backends are available.
     """
 
     diagnostics = check_dftb_setup()
     print(format_diagnostics(diagnostics))
 
-    return 0 if all(item.ok for item in diagnostics) else 1
+    # optional backends (xtb, tblite) do not fail the check
+    return 0 if all(item.ok for item in diagnostics if not item.optional) else 1
 
 
 def run_screen(parser_args):
