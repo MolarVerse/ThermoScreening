@@ -25,8 +25,8 @@ there is no manual upload step and no stored API token.
 
 - The version is derived from the git tag by `setuptools_scm`; never hardcode a
   version in `pyproject.toml`.
-- Between releases the version is a development version (e.g.
-  `0.2.0.dev5+g<sha>`), a PEP 440 *local* version that PyPI rejects — so only a
+- Between releases the version is a development version (e.g. after `v0.2.0`,
+  `0.2.1.dev5+g<sha>`), a PEP 440 *local* version that PyPI rejects — so only a
   tagged release can be published (a built-in safety net against accidental
   uploads).
 
