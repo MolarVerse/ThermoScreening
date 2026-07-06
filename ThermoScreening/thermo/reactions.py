@@ -8,25 +8,12 @@ same conditions -- ideally the same solvent, and open-shell/charged as
 appropriate -- then combine them here.
 """
 
-from ..utils.physicalConstants import PhysicalConstants
+from ._units import HARTREE_TO_EV as _HARTREE_TO_EV, convert_from_hartree
 
 # Absolute potential of the standard hydrogen electrode (V). Convention-dependent
 # (values from ~4.28 to ~4.44 V are used); this is the IUPAC-recommended value.
 # Override ``reference_potential`` for a calibrated reference.
 SHE_ABSOLUTE_POTENTIAL = 4.44
-
-_HARTREE_TO_EV = PhysicalConstants["H"] / PhysicalConstants["eV"]
-_HARTREE_TO_KCAL_PER_MOL = (
-    PhysicalConstants["H"] * PhysicalConstants["N_A"] / (PhysicalConstants["cal"] * 1000.0)
-)
-_HARTREE_TO_KJ_PER_MOL = PhysicalConstants["H"] * PhysicalConstants["N_A"] / 1000.0
-
-_UNIT_FACTORS = {
-    "H": 1.0,
-    "eV": _HARTREE_TO_EV,
-    "kcal": _HARTREE_TO_KCAL_PER_MOL,
-    "kJ": _HARTREE_TO_KJ_PER_MOL,
-}
 
 
 def _total_gibbs(species):
@@ -67,17 +54,11 @@ def reaction_free_energy(reactants, products, unit="kcal"):
     ValueError
         If ``unit`` is not supported.
     """
-    try:
-        factor = _UNIT_FACTORS[unit]
-    except KeyError:
-        known = ", ".join(_UNIT_FACTORS)
-        raise ValueError(f"Unknown unit {unit!r}; choose one of: {known}.")
-
     delta = (
         sum(_total_gibbs(product) for product in products)
         - sum(_total_gibbs(reactant) for reactant in reactants)
     )
-    return delta * factor
+    return convert_from_hartree(delta, unit)
 
 
 def reduction_potential(
