@@ -114,6 +114,28 @@ def _thermo_summary(thermo):
     }
 
 
+def _load_completed(out):
+    """
+    Load the successfully-completed records from a prior ``<out>.json``.
+
+    Returns a ``{name: record}`` mapping of the records whose ``status`` is
+    ``"ok"``, so a resumed screen can skip them. A missing or unreadable file
+    yields an empty mapping (nothing to resume).
+    """
+    json_path = Path(str(out)).with_suffix(".json")
+    if not json_path.exists():
+        return {}
+    try:
+        prior = json.loads(json_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return {}
+    return {
+        record["name"]: record
+        for record in prior
+        if isinstance(record, dict) and record.get("status") == "ok" and "name" in record
+    }
+
+
 def _write_results(results, out):
     stem = Path(str(out)).with_suffix("")
     if stem.parent != Path(""):
@@ -146,6 +168,7 @@ def screen(
     quasi_rrho=False,
     engine="dftb+",
     method="GFN2-xTB",
+    resume=False,
 ):
     """
     Run a thermochemistry screen over a set of molecules.
@@ -192,6 +215,11 @@ def screen(
         applies only to DFTB+; ``solvent`` applies to DFTB+ and xtb-cli.
     method : str
         GFN-xTB parametrisation for the xtb engines (``"GFN2-xTB"`` default).
+    resume : bool
+        If True, reuse the successful (``status="ok"``) records from a prior
+        ``<out>.json`` and skip those molecules; molecules that previously failed
+        (or were never run) are (re-)run. Results are written incrementally after
+        every molecule regardless, so an interrupted screen can be resumed.
 
     Returns
     -------
@@ -210,8 +238,16 @@ def screen(
     jobs = _load_jobs(source, charge, spin)
     root = Path(directory)
 
+    completed = _load_completed(out) if resume else {}
+
     results = []
+    csv_path = json_path = None
     for job in jobs:
+        if job.name in completed:
+            logger.info(f"Skipping {job.name} (already completed)")
+            results.append(completed[job.name])
+            csv_path, json_path = _write_results(results, out)
+            continue
         record = {
             "name": job.name,
             "path": str(job.path),
@@ -267,7 +303,8 @@ def screen(
             # we must keep screening the remaining molecules
             logger.warning(f"Screening failed for {job.name}: {exc}")
         results.append(record)
+        # write after every molecule so an interrupted run stays resumable
+        csv_path, json_path = _write_results(results, out)
 
-    csv_path, json_path = _write_results(results, out)
     logger.info(f"Wrote {csv_path} and {json_path}")
     return results
