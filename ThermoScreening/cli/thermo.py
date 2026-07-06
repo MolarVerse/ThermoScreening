@@ -122,6 +122,11 @@ def _command_parser():
         "--method", default="GFN2-xTB", choices=["GFN2-xTB", "GFN1-xTB"],
         help="GFN-xTB parametrisation for the xtb engines (default 'GFN2-xTB').",
     )
+    screen_parser.add_argument(
+        "--resume", action="store_true",
+        help="Reuse successful results from a prior <out>.json and only (re)run "
+        "the missing/failed molecules.",
+    )
 
     return parser
 
@@ -207,6 +212,7 @@ def run_screen(parser_args):
         quasi_rrho=parser_args.quasi_rrho,
         engine=parser_args.engine,
         method=parser_args.method,
+        resume=parser_args.resume,
     )
 
     failed = sum(1 for record in results if record["status"] != "ok")

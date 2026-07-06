@@ -174,6 +174,70 @@ def test_screen_dispatches_to_xtb_engine(monkeypatch, tmp_path):
     assert captured["method"] == "GFN1-xTB"
 
 
+def test_screen_resume_skips_completed_and_reruns_failed(monkeypatch, tmp_path):
+    from pathlib import Path
+
+    _write_xyz(tmp_path / "mol_a.xyz")
+    _write_xyz(tmp_path / "mol_b.xyz")
+    out = tmp_path / "out"
+
+    calls = []
+
+    def thermo_fail_b(atoms, directory=None, **kwargs):
+        name = Path(directory).name
+        calls.append(name)
+        if name == "mol_b":
+            raise RuntimeError("boom")
+        return _FakeThermo()
+
+    # first run: mol_a ok, mol_b fails
+    monkeypatch.setattr(screening, "dftbplus_thermo", thermo_fail_b)
+    first = screening.screen(str(tmp_path), out=str(out), directory=str(tmp_path / "r1"))
+    assert {r["name"]: r["status"] for r in first} == {"mol_a": "ok", "mol_b": "error"}
+
+    # resume: mol_a (ok) skipped, only mol_b (was error) re-run
+    calls.clear()
+    monkeypatch.setattr(
+        screening, "dftbplus_thermo",
+        lambda atoms, directory=None, **kw: (calls.append(Path(directory).name), _FakeThermo())[1],
+    )
+    second = screening.screen(
+        str(tmp_path), out=str(out), directory=str(tmp_path / "r2"), resume=True
+    )
+    assert calls == ["mol_b"]  # only the previously-failed molecule re-run
+    assert {r["name"]: r["status"] for r in second} == {"mol_a": "ok", "mol_b": "ok"}
+
+
+def test_load_completed_handles_missing_and_corrupt(tmp_path):
+    # no prior file -> nothing to resume
+    assert screening._load_completed(str(tmp_path / "nope")) == {}
+    # unreadable/corrupt json -> empty, does not crash
+    (tmp_path / "bad.json").write_text("{ not valid json", encoding="utf-8")
+    assert screening._load_completed(str(tmp_path / "bad")) == {}
+    # valid JSON but not a list of records -> empty, does not crash
+    (tmp_path / "scalar.json").write_text("42", encoding="utf-8")
+    assert screening._load_completed(str(tmp_path / "scalar")) == {}
+
+
+def test_screen_writes_results_incrementally(monkeypatch, tmp_path):
+    for name in ("mol_a", "mol_b", "mol_c"):
+        _write_xyz(tmp_path / f"{name}.xyz")
+
+    writes = []
+    real_write = screening._write_results
+
+    def spy_write(results, out):
+        writes.append(len(results))
+        return real_write(results, out)
+
+    monkeypatch.setattr(screening, "_write_results", spy_write)
+    monkeypatch.setattr(screening, "dftbplus_thermo", lambda atoms, **kw: _FakeThermo())
+
+    screening.screen(str(tmp_path), out=str(tmp_path / "out"), directory=str(tmp_path / "r"))
+    # written after each molecule with a growing result set (durable/resumable)
+    assert writes == [1, 2, 3]
+
+
 def test_screen_dispatches_to_xtb_cli_engine(monkeypatch, tmp_path):
     _write_xyz(tmp_path / "mol.xyz")
 
@@ -345,6 +409,9 @@ def test_cli_parse_args_routes_screen():
     cli_args = cli.parse_args(["screen", "molecules.csv", "--engine", "xtb-cli"])
     assert cli_args.engine == "xtb-cli"
 
+    assert args.resume is False  # default
+    assert cli.parse_args(["screen", "molecules.csv", "--resume"]).resume is True
+
 
 def test_cli_run_screen_returns_failure_count(monkeypatch):
     import ThermoScreening.cli.thermo as cli
@@ -357,6 +424,7 @@ def test_cli_run_screen_returns_failure_count(monkeypatch):
         source="x", out="res", charge=0.0, temperature=298.15,
         pressure=101325.0, directory="screening", parameter_set="3ob",
         solvent=None, quasi_rrho=False, engine="dftb+", method="GFN2-xTB",
+        resume=False,
     )
 
     assert cli.run_screen(args) == 1  # one molecule failed
