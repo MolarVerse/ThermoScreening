@@ -27,12 +27,15 @@ For development and tests:
 python -m pip install -e ".[test,lint]"
 ```
 
-For a Conda-based development environment with DFTB+ included:
+For a Conda-based development environment with all calculation backends
+(DFTB+, `modes`, xtb, tblite) included:
 
 ```bash
 conda env create -f environment.yml
 conda activate thermoscreening
 ```
+
+Then `thermo doctor` should report every backend as found.
 
 ## DFTB+ Setup
 
