@@ -1,5 +1,6 @@
 [![Python application](https://github.com/MolarVerse/ThermoScreening/actions/workflows/python-app.yml/badge.svg)](https://github.com/MolarVerse/ThermoScreening/actions/workflows/python-app.yml)
 [![codecov](https://codecov.io/gh/MolarVerse/ThermoScreening/graph/badge.svg?token=KhrG0zVZmS)](https://codecov.io/gh/MolarVerse/ThermoScreening)
+[![Docs](https://github.com/MolarVerse/ThermoScreening/actions/workflows/docs.yml/badge.svg)](https://molarverse.github.io/ThermoScreening/)
 
 # ThermoScreening
 
@@ -7,8 +8,10 @@ ThermoScreening calculates thermochemical properties for molecular systems and p
 
 ## Documentation
 
-Structured documentation (installation, usage, configuration, and the API
-reference) is built with Sphinx from the `docs/` directory:
+The documentation is published at **https://molarverse.github.io/ThermoScreening/**.
+
+It (installation, usage, configuration, and the API reference) is built with
+Sphinx from the `docs/` directory, and you can also build it locally:
 
 ```bash
 python -m pip install -e ".[docs]"
