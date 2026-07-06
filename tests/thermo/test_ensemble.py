@@ -90,9 +90,10 @@ def test_empty_ensemble_raises(func):
 
 
 @pytest.mark.parametrize("func", [boltzmann_weights, ensemble_free_energy])
-def test_non_positive_temperature_raises(func):
+@pytest.mark.parametrize("temperature", [0.0, -10.0])
+def test_non_positive_temperature_raises(func, temperature):
     with pytest.raises(ValueError, match="temperature must be positive"):
-        func([_FakeThermo(0.0)], temperature=0.0)
+        func([_FakeThermo(0.0)], temperature=temperature)
 
 
 def test_public_api_exported():

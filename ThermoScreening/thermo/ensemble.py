@@ -60,7 +60,7 @@ def boltzmann_weights(thermos, temperature=298.15):
 
 def ensemble_free_energy(thermos, temperature=298.15, unit="H"):
     """
-    Boltzmann-averaged (ensemble) free energy of a conformer set.
+    Ensemble (Boltzmann) free energy of a conformer set.
 
     ``G_ensemble = -k_B T ln( sum_i exp(-G_i / k_B T) )``, which lies at or below
     the lowest conformer free energy by the mixing (conformational) entropy.
