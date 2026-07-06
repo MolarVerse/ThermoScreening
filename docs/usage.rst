@@ -77,4 +77,8 @@ End-to-end example
 
 The ``examples/`` directory in the repository contains a complete DFTB+
 thermochemistry input (``thermo.in``) together with the optimised geometry,
-frequencies and energy it consumes.
+frequencies and energy it consumes. Run it directly with:
+
+.. code-block:: bash
+
+   thermo examples/thermo.in
