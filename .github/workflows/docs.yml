@@ -6,7 +6,7 @@ on:
   pull_request:
     branches: [main, dev]
 
-# Allow the deploy job to publish to GitHub Pages.
+# Default token scope; the deploy job overrides it with pages/id-token below.
 permissions:
   contents: read
 
@@ -34,6 +34,11 @@ jobs:
     needs: build-docs
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    # Serialise deployments so overlapping main pushes don't race; let an
+    # in-flight deploy finish rather than cancelling it mid-publish.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
     permissions:
       pages: write       # to deploy to Pages
       id-token: write    # to verify the deployment origin
