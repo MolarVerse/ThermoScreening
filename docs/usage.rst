@@ -101,6 +101,26 @@ The ensemble free energy lies at or below the lowest conformer's by the mixing
 (conformational) entropy; use ``lowest_gibbs`` when you instead want the single
 dominant structure to carry forward (e.g. into :func:`reaction_free_energy`).
 
+DFT-quality thermochemistry (ORCA)
+----------------------------------
+
+GFN-xTB/DFTB absolute energies are semiempirical. To get DFT-accurate
+thermochemistry (e.g. for reliable reaction/redox free energies), feed an ORCA
+frequency calculation's ``.hess`` file straight in:
+
+.. code-block:: python
+
+   from ThermoScreening.thermo.api import orca_thermo
+   from ThermoScreening.thermo import reduction_potential
+
+   ox  = orca_thermo("oxidized.hess")   # geometry, frequencies and energy read
+   red = orca_thermo("reduced.hess")    # from the ORCA $act_energy block
+   E = reduction_potential(ox, red)     # now on DFT energetics
+
+Pass ``energy=`` to override the file's ``$act_energy`` (e.g. a higher-level
+single-point). ``read_orca_hess`` exposes the parsed geometry/frequencies/energy
+directly if you need them.
+
 Temperature scans
 -----------------
 

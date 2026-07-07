@@ -19,6 +19,7 @@ from .thermo import Thermo
 from .atoms import Atom
 from ..calculator import Geoopt, Hessian, Modes
 from ..calculator.dftbplus import _spin_kwargs, _solvation_kwargs, _dispersion_kwargs, SPIN_CONSTANTS_3OB
+from ..calculator.orca import read_orca_hess
 from ..calculator.xtb import optimise_and_frequencies, xtb_calculator
 from ..calculator.xtb_cli import run_xtb
 
@@ -427,6 +428,75 @@ def run_thermo(
     thermo_setup.run()
 
     return thermo_setup
+
+
+def orca_thermo(
+    hess_file,
+    energy=None,
+    temperature=298.15,
+    pressure=101325,
+    charge=0.0,
+    spin=None,
+    quasi_rrho=False,
+):
+    """
+    Run the thermochemistry from an ORCA ``.hess`` file (DFT-quality data).
+
+    Reads the geometry, vibrational frequencies and energy from the ORCA
+    frequency output and evaluates the RRHO thermochemistry on them, so the
+    absolute energetics (e.g. reaction/redox free energies) are DFT-accurate
+    rather than semiempirical.
+
+    Parameters
+    ----------
+    hess_file : str
+        Path to an ORCA ``.hess`` file.
+    energy : float, optional
+        Electronic energy in Hartree. Defaults to the file's ``$act_energy``;
+        pass this to override it (or when the file has no energy block).
+    temperature : float
+        Temperature in K. Default 298.15.
+    pressure : float
+        Pressure in Pa. Default 101325.
+    charge : float
+        System charge. Default 0.0.
+    spin : float, optional
+        Spin quantum number S. Defaults to the minimum-spin electron-count guess.
+    quasi_rrho : bool
+        If True, use Grimme's quasi-RRHO vibrational entropy. Default False.
+
+    Returns
+    -------
+    Thermo
+        The thermo calculation object.
+
+    Raises
+    ------
+    TSValueError
+        If no energy is available (no ``$act_energy`` block and no ``energy``).
+    """
+    atoms, frequencies, file_energy = read_orca_hess(hess_file)
+    if energy is None:
+        energy = file_energy
+    if energy is None:
+        raise TSValueError(
+            f"No energy for '{hess_file}': it has no $act_energy block, so pass "
+            "energy=... explicitly."
+        )
+
+    # The RRHO treatment is engine-agnostic (frequencies are cm^-1 and the energy
+    # is Hartree, as the DFTB+ path also provides); reuse that code path.
+    return run_thermo(
+        vibrational_frequencies=frequencies,
+        atoms=atoms,
+        energy=energy,
+        temperature=temperature,
+        pressure=pressure,
+        charge=charge,
+        spin=spin,
+        engine="dftb+",
+        quasi_rrho=quasi_rrho,
+    )
 
 
 def execute(input_file: str) -> Thermo:
