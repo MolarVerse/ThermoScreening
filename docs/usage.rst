@@ -121,6 +121,20 @@ Pass ``energy=`` to override the file's ``$act_energy`` (e.g. a higher-level
 single-point). ``read_orca_hess`` exposes the parsed geometry/frequencies/energy
 directly if you need them.
 
+For **Gaussian, Turbomole, Psi4, NWChem** (and ORCA) in one call, install the
+``qm`` extra (``pip install thermoscreening[qm]``) and use ``cclib_thermo``,
+which auto-detects the program via `cclib <https://cclib.github.io/>`_:
+
+.. code-block:: python
+
+   from ThermoScreening.thermo.api import cclib_thermo
+
+   thermo = cclib_thermo("freq.log")        # Gaussian, Turbomole, ORCA, ...
+   print(thermo.total_gibbs_free_energy())  # energy read from the output, in Hartree
+
+``read_cclib`` returns the parsed ``(atoms, frequencies, energy)`` if you want
+them directly; ``energy=`` overrides the parsed energy.
+
 Temperature scans
 -----------------
 

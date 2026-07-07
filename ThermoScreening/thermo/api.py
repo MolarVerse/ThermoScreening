@@ -20,6 +20,7 @@ from .atoms import Atom
 from ..calculator import Geoopt, Hessian, Modes
 from ..calculator.dftbplus import _spin_kwargs, _solvation_kwargs, _dispersion_kwargs, SPIN_CONSTANTS_3OB
 from ..calculator.orca import read_orca_hess
+from ..calculator.qm import read_cclib
 from ..calculator.xtb import optimise_and_frequencies, xtb_calculator
 from ..calculator.xtb_cli import run_xtb
 
@@ -486,6 +487,74 @@ def orca_thermo(
 
     # The RRHO treatment is engine-agnostic (frequencies are cm^-1 and the energy
     # is Hartree, as the DFTB+ path also provides); reuse that code path.
+    return run_thermo(
+        vibrational_frequencies=frequencies,
+        atoms=atoms,
+        energy=energy,
+        temperature=temperature,
+        pressure=pressure,
+        charge=charge,
+        spin=spin,
+        engine="dftb+",
+        quasi_rrho=quasi_rrho,
+    )
+
+
+def cclib_thermo(
+    output_file,
+    energy=None,
+    temperature=298.15,
+    pressure=101325,
+    charge=0.0,
+    spin=None,
+    quasi_rrho=False,
+):
+    """
+    Run the thermochemistry from a QM output file via cclib.
+
+    Consumes a frequency calculation from any cclib-supported program (Gaussian,
+    Turbomole, ORCA, Psi4, NWChem, ...) and evaluates the RRHO thermochemistry on
+    its DFT-quality geometry, frequencies and energy. Requires the optional
+    ``qm`` extra (``pip install thermoscreening[qm]``).
+
+    Parameters
+    ----------
+    output_file : str
+        Path to a QM frequency-calculation output file.
+    energy : float, optional
+        Electronic energy in Hartree. Defaults to the best energy cclib parses
+        from the file; pass this to override it (e.g. a higher-level single
+        point) or when cclib finds no energy.
+    temperature : float
+        Temperature in K. Default 298.15.
+    pressure : float
+        Pressure in Pa. Default 101325.
+    charge : float
+        System charge. Default 0.0.
+    spin : float, optional
+        Spin quantum number S. Defaults to the minimum-spin electron-count guess.
+    quasi_rrho : bool
+        If True, use Grimme's quasi-RRHO vibrational entropy. Default False.
+
+    Returns
+    -------
+    Thermo
+        The thermo calculation object.
+
+    Raises
+    ------
+    TSValueError
+        If cclib is missing, the file cannot be parsed, or no energy is available.
+    """
+    atoms, frequencies, file_energy = read_cclib(output_file)
+    if energy is None:
+        energy = file_energy
+    if energy is None:
+        raise TSValueError(
+            f"No energy for '{output_file}': cclib parsed none, so pass energy=... "
+            "explicitly."
+        )
+
     return run_thermo(
         vibrational_frequencies=frequencies,
         atoms=atoms,

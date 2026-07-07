@@ -43,10 +43,15 @@ Repository = "https://github.com/MolarVerse/ThermoScreening"
 Issues = "https://github.com/MolarVerse/ThermoScreening/issues"
 
 [project.optional-dependencies]
+# QM-output import (Gaussian, Turbomole, ORCA, Psi4, NWChem, ...) via cclib
+qm = [
+    "cclib >= 1.8",
+]
 test = [
     "pytest",
     "coverage",
-    "pytest-cov"
+    "pytest-cov",
+    "cclib >= 1.8",
 ]
 lint = [
     "pylint >= 4.0, < 5",
