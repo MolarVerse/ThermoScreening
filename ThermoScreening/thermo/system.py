@@ -462,7 +462,8 @@ def frequency_dof(frequency: np.ndarray, dof: int) -> np.ndarray:
             f"of freedom, got {N}"
         )
 
-    return np.asarray(frequency)[N - dof:]
+    # copy so the result does not alias the caller's raw frequency array
+    return np.asarray(frequency)[N - dof:].copy()
 
 
 def check_frequency_length(frequency: np.ndarray, dof: int) -> bool:
