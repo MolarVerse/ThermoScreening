@@ -1,6 +1,5 @@
 import importlib.util
 import math
-import sys
 
 import numpy as np
 import pytest
@@ -56,9 +55,19 @@ def test_pyscf_thermo_hessian_path(monkeypatch):
 
 
 def test_pyscf_frequencies_from_hessian_missing_dependency(monkeypatch):
-    # force the pyscf import inside the helper to fail, regardless of whether
-    # pyscf happens to be installed in the test environment (None -> ImportError)
-    monkeypatch.setitem(sys.modules, "pyscf.hessian.thermo", None)
+    # force the pyscf import inside the helper to fail, robustly -- independent
+    # of whether pyscf is installed or already imported (which would defeat a
+    # sys.modules sentinel) -- by intercepting the import itself
+    import builtins
+
+    real_import = builtins.__import__
+
+    def fake_import(name, *args, **kwargs):
+        if name.startswith("pyscf"):
+            raise ImportError("no pyscf")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", fake_import)
     with pytest.raises(TSValueError, match="pyscf is required"):
         _pyscf_frequencies_from_hessian(object(), object())
 
