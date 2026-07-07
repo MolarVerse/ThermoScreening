@@ -433,11 +433,28 @@ def test_cli_parse_args_routes_screen():
     assert cli.parse_args(["screen", "molecules.csv", "--resume"]).resume is True
 
 
-def test_cli_run_screen_returns_failure_count(monkeypatch):
+def test_rank_by_gibbs_sorts_and_filters():
+    from ThermoScreening.thermo.screening import rank_by_gibbs
+
+    results = [
+        {"name": "a", "status": "ok", "G_total_hartree": -1.0},
+        {"name": "b", "status": "ok", "G_total_hartree": -3.0},
+        {"name": "c", "status": "error", "error": "boom"},
+        {"name": "d", "status": "ok", "G_total_hartree": -2.0},
+        {"name": "e", "status": "ok"},  # ok but no Gibbs value -> dropped
+    ]
+    ranked = rank_by_gibbs(results)
+    assert [record["name"] for record in ranked] == ["b", "d", "a"]
+
+
+def test_cli_run_screen_returns_failure_count(monkeypatch, capsys):
     import ThermoScreening.cli.thermo as cli
 
     monkeypatch.setattr(
-        cli, "screen", lambda *args, **kwargs: [{"status": "ok"}, {"status": "error"}]
+        cli, "screen", lambda *args, **kwargs: [
+            {"name": "m1", "status": "ok", "G_total_hartree": -2.0},
+            {"name": "m2", "status": "error", "error": "boom"},
+        ]
     )
 
     args = Namespace(
@@ -448,6 +465,32 @@ def test_cli_run_screen_returns_failure_count(monkeypatch):
     )
 
     assert cli.run_screen(args) == 1  # one molecule failed
+    out = capsys.readouterr().out
+    assert "Ranked by Gibbs free energy" in out
+    assert "1. m1" in out
+    assert "m2: boom" in out
+
+
+def test_cli_run_screen_all_ok_returns_zero(monkeypatch, capsys):
+    import ThermoScreening.cli.thermo as cli
+
+    monkeypatch.setattr(
+        cli, "screen", lambda *args, **kwargs: [
+            {"name": "m1", "status": "ok", "G_total_hartree": -2.0},
+            {"name": "m2", "status": "ok", "G_total_hartree": -3.0},
+        ]
+    )
+    args = Namespace(
+        source="x", out="res", charge=0.0, temperature=298.15,
+        pressure=101325.0, directory="screening", parameter_set="3ob",
+        solvent=None, dispersion=None, quasi_rrho=False, engine="dftb+",
+        method="GFN2-xTB", resume=False,
+    )
+
+    assert cli.run_screen(args) == 0  # no failures
+    out = capsys.readouterr().out
+    assert "1. m2" in out and "2. m1" in out  # most stable (m2) first
+    assert "Failed" not in out
 
 
 def test_cli_parse_args_routes_conformers():

@@ -115,6 +115,30 @@ def _thermo_summary(thermo):
     }
 
 
+def rank_by_gibbs(results):
+    """
+    Return the successful screen records sorted by Gibbs free energy.
+
+    Parameters
+    ----------
+    results : list of dict
+        Records as returned by :func:`screen`.
+
+    Returns
+    -------
+    list of dict
+        The records whose ``status`` is ``"ok"`` (and that carry a
+        ``G_total_hartree``), sorted by total Gibbs free energy ascending --
+        i.e. the most stable molecule first. Failed records are omitted.
+    """
+    ranked = [
+        record
+        for record in results
+        if record.get("status") == "ok" and record.get("G_total_hartree") is not None
+    ]
+    return sorted(ranked, key=lambda record: record["G_total_hartree"])
+
+
 def _load_completed(out):
     """
     Load the successfully-completed records from a prior ``<out>.json``.
