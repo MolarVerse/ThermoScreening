@@ -98,6 +98,22 @@ The ensemble free energy lies at or below the lowest conformer's by the mixing
 (conformational) entropy; use ``lowest_gibbs`` when you instead want the single
 dominant structure to carry forward (e.g. into :func:`reaction_free_energy`).
 
+Temperature scans
+-----------------
+
+The electronic energy, geometry and frequencies do not depend on temperature,
+so a single (expensive) DFTB+/Hessian run can be reused across many
+temperatures:
+
+.. code-block:: python
+
+   thermo = dftbplus_thermo(molecule("H2O"), **dftb_3ob_parameters)
+   scan = thermo.temperature_scan([250, 273.15, 298.15, 350, 400])
+   gibbs = [(t._temperature, t.total_gibbs_free_energy("H")) for t in scan]
+
+Each entry is a fully-evaluated ``Thermo`` at that temperature; the original
+object is left unchanged.
+
 Reactions and redox
 -------------------
 

@@ -142,6 +142,41 @@ class Thermo:
         self._summary()
 
 
+    def temperature_scan(self, temperatures):
+        """
+        Recompute the thermochemistry at each of ``temperatures`` (in Kelvin).
+
+        The electronic energy, geometry, and vibrational frequencies are
+        temperature-independent, so this reuses the same :class:`System` (and
+        this object's pressure, engine, and quasi-RRHO setting) and only the
+        thermal terms are recomputed -- i.e. a temperature scan from a single
+        Hessian. This object is left unchanged.
+
+        Parameters
+        ----------
+        temperatures : iterable of float
+            Temperatures in Kelvin.
+
+        Returns
+        -------
+        list of Thermo
+            A ``Thermo`` computed (``run()`` already called) for each
+            temperature, in the given order.
+        """
+        scan = []
+        for temperature in temperatures:
+            thermo = Thermo(
+                temperature=temperature,
+                pressure=self._pressure,
+                system=self._system,
+                engine=self._engine,
+                quasi_rrho=self._quasi_rrho,
+            )
+            thermo.run()
+            scan.append(thermo)
+        return scan
+
+
     def _transform_units(self):
         """
         Transforms the units of the system to the correct units.

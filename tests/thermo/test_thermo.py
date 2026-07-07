@@ -123,6 +123,30 @@ def test_thermo_rejects_negative_pressure():
         Thermo(temperature=298.15, pressure=-1.0, system=_valid_system(), engine="dftb+")
 
 
+def test_temperature_scan_reuses_system_and_varies_with_temperature():
+    system = _valid_system()
+    thermo = Thermo(temperature=298.15, pressure=101325, system=system, engine="dftb+")
+
+    temperatures = [250.0, 298.15, 350.0]
+    scan = thermo.temperature_scan(temperatures)
+
+    assert [t._temperature for t in scan] == temperatures
+    # the expensive System (geometry/frequencies) is reused, not rebuilt
+    assert all(t._system is system for t in scan)
+    # temperature actually changes the thermochemistry
+    gibbs = [t.total_gibbs_free_energy("H") for t in scan]
+    assert len(set(gibbs)) == 3
+    # the scan leaves this object untouched
+    assert thermo._temperature == 298.15
+
+
+def test_temperature_scan_empty_and_invalid():
+    thermo = Thermo(temperature=298.15, pressure=101325, system=_valid_system(), engine="dftb+")
+    assert thermo.temperature_scan([]) == []
+    with pytest.raises(TSValueError, match="temperature is negative"):
+        thermo.temperature_scan([300.0, -5.0])
+
+
 # --- geometry-dependent thermochemistry, validated against ASE IdealGasThermo --- #
 
 from ase import Atoms  # noqa: E402
