@@ -11,7 +11,7 @@ from ase import Atoms
 
 from ..exceptions import TSValueError
 
-# 1 Hartree in eV (cclib reports energies in eV).
+# 1 Hartree in eV (cclib 1.x reports energies in eV; the qm extra pins < 2.0).
 _EV_PER_HARTREE = 27.211386245988
 
 
@@ -69,6 +69,14 @@ def read_cclib(path):
     energy : float or None
         The electronic energy in Hartree (converted from cclib's eV), or ``None``
         if the output has no parseable energy.
+
+    Notes
+    -----
+    cclib returns only the real vibrational modes (3N-6, or 3N-5 for a linear
+    molecule). The thermochemistry keeps the top ``dof`` modes for the geometry's
+    own linearity classification, so this matches for clearly (non)linear
+    molecules; a near-linear geometry where the classification disagrees with the
+    QM program's mode count could drop or miss a mode.
 
     Raises
     ------

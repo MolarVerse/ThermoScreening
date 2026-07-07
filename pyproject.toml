@@ -43,15 +43,17 @@ Repository = "https://github.com/MolarVerse/ThermoScreening"
 Issues = "https://github.com/MolarVerse/ThermoScreening/issues"
 
 [project.optional-dependencies]
-# QM-output import (Gaussian, Turbomole, ORCA, Psi4, NWChem, ...) via cclib
+# QM-output import (Gaussian, Turbomole, ORCA, Psi4, NWChem, ...) via cclib.
+# Capped below the 2.0 rearchitecture (breaking data model / units handling);
+# the reader targets the cclib 1.x model (plain arrays, energies in eV).
 qm = [
-    "cclib >= 1.8",
+    "cclib >= 1.8, < 2.0",
 ]
 test = [
     "pytest",
     "coverage",
     "pytest-cov",
-    "cclib >= 1.8",
+    "cclib >= 1.8, < 2.0",
 ]
 lint = [
     "pylint >= 4.0, < 5",
