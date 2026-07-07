@@ -395,6 +395,30 @@ def test_modes_pipeline_parses_authentic_dftbplus_layout(monkeypatch, tmp_path):
     assert hessian.read().shape == (9, 9)
 
 
+def test_dispersion_kwargs_none_is_empty():
+    assert dftbplus_module._dispersion_kwargs() == {}
+    assert dftbplus_module._dispersion_kwargs(None) == {}
+
+
+def test_dispersion_kwargs_d3_bj_parameters():
+    kw = dftbplus_module._dispersion_kwargs("d3-bj")
+    assert kw["Hamiltonian_Dispersion"] == "DftD3 {"
+    assert kw["Hamiltonian_Dispersion_Damping"] == "BeckeJohnson {"
+    assert kw["Hamiltonian_Dispersion_Damping_a1"] == 0.5719
+    assert kw["Hamiltonian_Dispersion_Damping_a2"] == 3.6017
+    assert kw["Hamiltonian_Dispersion_s6"] == 1.0
+    assert kw["Hamiltonian_Dispersion_s8"] == 0.5883
+
+
+def test_dispersion_kwargs_is_case_insensitive():
+    assert dftbplus_module._dispersion_kwargs("D3-BJ") == dftbplus_module._dispersion_kwargs("d3-bj")
+
+
+def test_dispersion_kwargs_rejects_unknown_model():
+    with pytest.raises(ValueError, match="Unknown dispersion model"):
+        dftbplus_module._dispersion_kwargs("d4")
+
+
 def test_spin_kwargs_restricted_and_fractional():
     h2 = Atoms("H2", positions=[[0, 0, 0], [0, 0, 0.74]])
     assert dftbplus_module._spin_kwargs(h2, None) == {}

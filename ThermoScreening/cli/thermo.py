@@ -108,6 +108,11 @@ def _command_parser():
         "molecule. Default gas phase. Install with 'setup-dftb --solvent <name>'.",
     )
     screen_parser.add_argument(
+        "--dispersion", default=None, choices=["d3-bj"],
+        help="Add a Grimme dispersion correction to the DFTB+ Hamiltonian "
+        "('d3-bj', 3ob-recommended parameters). Default none.",
+    )
+    screen_parser.add_argument(
         "--quasi-rrho", action="store_true",
         help="Use Grimme's quasi-RRHO vibrational entropy (better for low-frequency "
         "modes) instead of the pure harmonic oscillator.",
@@ -233,6 +238,7 @@ def run_screen(parser_args):
         directory=parser_args.directory,
         parameter_set=parser_args.parameter_set,
         solvent=parser_args.solvent,
+        dispersion=parser_args.dispersion,
         quasi_rrho=parser_args.quasi_rrho,
         engine=parser_args.engine,
         method=parser_args.method,

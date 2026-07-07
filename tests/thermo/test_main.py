@@ -168,6 +168,29 @@ def test_main_runs_doctor(monkeypatch, capsys):
     assert capsys.readouterr().out == "not ready\n"
 
 
+def test_run_screen_forwards_dispersion(monkeypatch):
+    captured = {}
+
+    def fake_screen(source, **kwargs):
+        captured.update(kwargs)
+        return []
+
+    monkeypatch.setattr(thermo, "screen", fake_screen)
+    args = argparse.Namespace(
+        source="mols", out="results", charge=0.0, temperature=298.15,
+        pressure=101325, directory="screening", parameter_set="3ob",
+        solvent=None, dispersion="d3-bj", quasi_rrho=False, engine="dftb+",
+        method="GFN2-xTB", resume=False,
+    )
+    assert thermo.run_screen(args) == 0
+    assert captured["dispersion"] == "d3-bj"
+
+
+def test_parse_args_screen_dispersion_choice():
+    assert thermo.parse_args(["screen", "mols"]).dispersion is None
+    assert thermo.parse_args(["screen", "mols", "--dispersion", "d3-bj"]).dispersion == "d3-bj"
+
+
 def test_main_runs_conformers(monkeypatch):
     monkeypatch.setattr(
         thermo, "parse_args", lambda: argparse.Namespace(command="conformers")

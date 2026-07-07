@@ -29,8 +29,8 @@ The ``thermo`` command has four subcommands.
 
     .. code-block:: bash
 
-       # DFTB+ (3ob) with water solvation and quasi-RRHO entropy
-       thermo screen molecules/ --parameter-set 3ob --solvent water --quasi-rrho
+       # DFTB+ (3ob) with water solvation, D3(BJ) dispersion and quasi-RRHO entropy
+       thermo screen molecules/ --parameter-set 3ob --solvent water --dispersion d3-bj --quasi-rrho
 
        # native xtb, radical anions in solution
        thermo screen molecules/ --engine xtb-cli --solvent water
