@@ -128,7 +128,7 @@ def rank_by_gibbs(results):
     -------
     list of dict
         The records whose ``status`` is ``"ok"`` (and that carry a
-        ``G_total_hartree``), sorted by absolute Gibbs free energy ascending --
+        ``G_total_hartree``), sorted by total Gibbs free energy ascending --
         i.e. the most stable molecule first. Failed records are omitted.
     """
     ranked = [

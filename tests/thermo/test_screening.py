@@ -471,6 +471,28 @@ def test_cli_run_screen_returns_failure_count(monkeypatch, capsys):
     assert "m2: boom" in out
 
 
+def test_cli_run_screen_all_ok_returns_zero(monkeypatch, capsys):
+    import ThermoScreening.cli.thermo as cli
+
+    monkeypatch.setattr(
+        cli, "screen", lambda *args, **kwargs: [
+            {"name": "m1", "status": "ok", "G_total_hartree": -2.0},
+            {"name": "m2", "status": "ok", "G_total_hartree": -3.0},
+        ]
+    )
+    args = Namespace(
+        source="x", out="res", charge=0.0, temperature=298.15,
+        pressure=101325.0, directory="screening", parameter_set="3ob",
+        solvent=None, dispersion=None, quasi_rrho=False, engine="dftb+",
+        method="GFN2-xTB", resume=False,
+    )
+
+    assert cli.run_screen(args) == 0  # no failures
+    out = capsys.readouterr().out
+    assert "1. m2" in out and "2. m1" in out  # most stable (m2) first
+    assert "Failed" not in out
+
+
 def test_cli_parse_args_routes_conformers():
     import ThermoScreening.cli.thermo as cli
 
