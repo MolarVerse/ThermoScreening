@@ -43,7 +43,8 @@ Thermochemistry core
 
 .. autoclass:: ThermoScreening.thermo.thermo.Thermo
    :members: total_energy, total_enthalpy, total_gibbs_free_energy,
-             total_entropy, total_heat_capacity, total_EeGtot, electronic_energy
+             total_entropy, total_heat_capacity, total_EeGtot, electronic_energy,
+             temperature_scan
 
 Coordinate and frequency readers
 --------------------------------

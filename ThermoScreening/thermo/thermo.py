@@ -132,6 +132,9 @@ class Thermo:
         -------
         None
         """
+        # Disabled: _transform_units is the only method that mutates the shared
+        # System in place (frequencies/energy). temperature_scan relies on run()
+        # leaving the System untouched, so keep this off (or make it copy first).
         # self._transform_units()
         self._rotational_contribution()
         self._vibrational_contribution()
@@ -140,6 +143,41 @@ class Thermo:
 
         self._compute_thermochemical_properties()
         self._summary()
+
+
+    def temperature_scan(self, temperatures):
+        """
+        Recompute the thermochemistry at each of ``temperatures`` (in Kelvin).
+
+        The electronic energy, geometry, and vibrational frequencies are
+        temperature-independent, so this reuses the same :class:`System` (and
+        this object's pressure, engine, and quasi-RRHO setting) and only the
+        thermal terms are recomputed -- i.e. a temperature scan from a single
+        Hessian. This object is left unchanged.
+
+        Parameters
+        ----------
+        temperatures : iterable of float
+            Temperatures in Kelvin.
+
+        Returns
+        -------
+        list of Thermo
+            A ``Thermo`` computed (``run()`` already called) for each
+            temperature, in the given order.
+        """
+        scan = []
+        for temperature in temperatures:
+            thermo = Thermo(
+                temperature=temperature,
+                pressure=self._pressure,
+                system=self._system,
+                engine=self._engine,
+                quasi_rrho=self._quasi_rrho,
+            )
+            thermo.run()
+            scan.append(thermo)
+        return scan
 
 
     def _transform_units(self):
