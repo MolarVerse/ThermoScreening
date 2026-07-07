@@ -135,6 +135,20 @@ which auto-detects the program via `cclib <https://cclib.github.io/>`_:
 ``read_cclib`` returns the parsed ``(atoms, frequencies, energy)`` if you want
 them directly; ``energy=`` overrides the parsed energy.
 
+**PySCF** results live in memory, so pass the mean-field object directly (with
+the ``pyscf`` extra, ``pip install thermoscreening[pyscf]``):
+
+.. code-block:: python
+
+   from ThermoScreening.thermo.api import pyscf_thermo
+
+   mf = mol.RKS(xc="b3lyp").run()
+   hessian = mf.Hessian().kernel()
+   thermo = pyscf_thermo(mf, hessian=hessian)   # or frequencies=<cm^-1 array>
+
+The geometry and energy (``mf.e_tot``) come from the mean field; frequencies are
+taken from ``frequencies=`` or derived from ``hessian=`` via ``pyscf.hessian``.
+
 Temperature scans
 -----------------
 
