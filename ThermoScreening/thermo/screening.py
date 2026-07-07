@@ -94,12 +94,26 @@ def _jobs_from_manifest(manifest: Path, charge: float, spin=None):
 def _load_jobs(source, charge: float, spin=None):
     source = Path(source)
     if source.is_dir():
-        return _jobs_from_directory(source, charge, spin)
-    if source.suffix.lower() == ".csv":
-        return _jobs_from_manifest(source, charge, spin)
-    raise TSValueError(
-        f"Screening input must be a directory or a .csv manifest, got '{source}'."
-    )
+        jobs = _jobs_from_directory(source, charge, spin)
+    elif source.suffix.lower() == ".csv":
+        jobs = _jobs_from_manifest(source, charge, spin)
+    else:
+        raise TSValueError(
+            f"Screening input must be a directory or a .csv manifest, got '{source}'."
+        )
+
+    # Names key the result records and the per-molecule working directory, so a
+    # collision would silently drop a result and (in parallel) race two jobs into
+    # the same directory. Reject duplicates up front. (E.g. a directory holding
+    # both mol.xyz and mol.gen, or a manifest listing a name twice.)
+    names = [job.name for job in jobs]
+    duplicates = sorted({name for name in names if names.count(name) > 1})
+    if duplicates:
+        raise TSValueError(
+            f"Duplicate molecule name(s) in the screen: {', '.join(duplicates)}. "
+            "Each molecule needs a unique name."
+        )
+    return jobs
 
 
 def _thermo_summary(thermo):
@@ -409,14 +423,27 @@ def screen(
         csv_path, json_path = _write_results(_ordered(), out)
 
     if jobs > 1 and len(pending) > 1:
-        with ProcessPoolExecutor(max_workers=jobs) as executor:
+        with ProcessPoolExecutor(max_workers=min(jobs, len(pending))) as executor:
             future_to_job = {}
             for job in pending:
                 logger.info(f"Screening {job.name} (charge {job.charge})")
                 future_to_job[executor.submit(run_one, job)] = job
             for future in as_completed(future_to_job):
                 job = future_to_job[future]
-                _store(job, future.result())
+                try:
+                    record = future.result()
+                except Exception as exc:  # pylint: disable=broad-except
+                    # the worker process itself died (BrokenProcessPool, OOM, a
+                    # segfault in a C extension); record this job as failed and
+                    # keep going instead of aborting the whole screen
+                    record = {
+                        "name": job.name,
+                        "path": str(job.path),
+                        "charge": job.charge,
+                        "status": "error",
+                        "error": str(exc),
+                    }
+                _store(job, record)
     else:
         for job in pending:
             logger.info(f"Screening {job.name} (charge {job.charge})")

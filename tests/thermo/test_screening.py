@@ -30,6 +30,15 @@ class _SyncExecutor:
         return future
 
 
+class _BrokenExecutor(_SyncExecutor):
+    """Simulates a dead worker: every future's result() raises."""
+
+    def submit(self, fn, *args, **kwargs):
+        future = Future()
+        future.set_exception(RuntimeError("worker died"))
+        return future
+
+
 class _FakeThermo:
     def electronic_energy(self):
         return -100.0
@@ -192,12 +201,39 @@ def test_screen_rejects_non_positive_jobs(tmp_path):
         screening.screen(str(tmp_path), out=str(tmp_path / "r"), jobs=0)
 
 
+def test_load_jobs_rejects_duplicate_names(tmp_path):
+    # mol.xyz and mol.gen both have stem "mol" -> would collide on name/directory
+    _write_xyz(tmp_path / "mol.xyz")
+    (tmp_path / "mol.gen").write_text("dummy", encoding="utf-8")
+    with pytest.raises(TSValueError, match="Duplicate molecule name"):
+        screening._load_jobs(tmp_path, charge=0.0)
+
+
+def test_run_job_worker_is_picklable():
+    # spawn-based pools pickle the worker partial and each job; guard that here
+    # since the in-process fake executor never exercises pickling.
+    import pickle
+    import functools
+
+    job = screening.ScreeningJob(name="m", path=Path("m.xyz"), charge=0.0, spin=None)
+    assert pickle.loads(pickle.dumps(job)).name == "m"
+
+    partial = functools.partial(
+        screening._run_job, engine="dftb+", temperature=298.15, pressure=101325,
+        root=Path("runs"), method="GFN2-xTB", solvent=None, dispersion=None,
+        quasi_rrho=False, parameters={}, spin_constants=None,
+    )
+    pickle.loads(pickle.dumps(partial))  # must round-trip for ProcessPoolExecutor
+
+
 def test_screen_parallel_runs_all_and_preserves_order(monkeypatch, tmp_path):
     for name in ("mol_a", "mol_b", "mol_c"):
         _write_xyz(tmp_path / f"{name}.xyz")
 
     monkeypatch.setattr(screening, "dftbplus_thermo", lambda atoms, **kwargs: _FakeThermo())
     monkeypatch.setattr(screening, "ProcessPoolExecutor", _SyncExecutor)
+    # force completion order to be the reverse of submission order
+    monkeypatch.setattr(screening, "as_completed", lambda futures: list(futures)[::-1])
 
     results = screening.screen(
         str(tmp_path), out=str(tmp_path / "r"), directory=str(tmp_path / "runs"), jobs=3,
@@ -207,6 +243,22 @@ def test_screen_parallel_runs_all_and_preserves_order(monkeypatch, tmp_path):
     assert [r["name"] for r in results] == ["mol_a", "mol_b", "mol_c"]
     assert all(r["status"] == "ok" for r in results)
     assert all(r["G_total_hartree"] == -111.0 for r in results)
+
+
+def test_screen_parallel_survives_worker_death(monkeypatch, tmp_path):
+    for name in ("m1", "m2"):
+        _write_xyz(tmp_path / f"{name}.xyz")
+
+    monkeypatch.setattr(screening, "dftbplus_thermo", lambda atoms, **kwargs: _FakeThermo())
+    monkeypatch.setattr(screening, "ProcessPoolExecutor", _BrokenExecutor)
+
+    results = screening.screen(
+        str(tmp_path), out=str(tmp_path / "r"), directory=str(tmp_path / "runs"), jobs=2,
+    )
+
+    # a dead worker becomes a per-job error, not an aborted screen
+    assert len(results) == 2
+    assert all(r["status"] == "error" and "worker died" in r["error"] for r in results)
 
 
 def test_screen_parallel_isolates_failures(monkeypatch, tmp_path):
