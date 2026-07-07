@@ -808,14 +808,15 @@ class Thermo:
         )
 
 
-    def total_energy(self, unit: str) -> float:
+    def total_energy(self, unit: str = "H") -> float:
         """
         Returns the total energy of the system based on the unit.
 
         Parameters
         ----------
         unit : str
-            The unit of the total energy.
+            The unit of the total energy (``"H"``, ``"kcal"`` or ``"cal"``).
+            Defaults to ``"H"`` (Hartree).
 
         Raises
         ------
@@ -836,14 +837,15 @@ class Thermo:
             return _real_scalar(self._total_energy)
         raise TSValueError("The unit is not supported.")
 
-    def total_enthalpy(self, unit: str) -> float:
+    def total_enthalpy(self, unit: str = "H") -> float:
         """
         Returns the total enthalpy of the system based on the unit.
 
         Parameters
         ----------
         unit : str
-            The unit of the total enthalpy.
+            The unit of the total enthalpy (``"H"``, ``"kcal"`` or ``"cal"``).
+            Defaults to ``"H"`` (Hartree).
 
         Raises
         ------
@@ -864,14 +866,15 @@ class Thermo:
             return _real_scalar(self._total_enthalpy)
         raise TSValueError("The unit is not supported.")
 
-    def total_entropy(self, unit: str) -> float:
+    def total_entropy(self, unit: str = "cal/(mol*K)") -> float:
         """
         Returns the total entropy of the system based on the unit.
 
         Parameters
         ----------
         unit : str
-            The unit of the total entropy.
+            The unit of the total entropy (``"cal/(mol*K)"`` or ``"H/T"``).
+            Defaults to ``"cal/(mol*K)"``.
 
         Raises
         ------
@@ -890,14 +893,15 @@ class Thermo:
             return _real_scalar(self._total_entropy)
         raise TSValueError("The unit is not supported.")
 
-    def total_gibbs_free_energy(self, unit: str) -> float:
+    def total_gibbs_free_energy(self, unit: str = "H") -> float:
         """
         Returns the total Gibbs free energy of the system based on the unit.
 
         Parameters
         ----------
         unit : str
-            The unit of the total Gibbs free energy.
+            The unit of the total Gibbs free energy (``"H"``, ``"kcal"`` or
+            ``"cal"``). Defaults to ``"H"`` (Hartree).
 
         Raises
         ------
@@ -918,7 +922,7 @@ class Thermo:
             return _real_scalar(self._total_gibbs_free_energy)
         raise TSValueError("The unit is not supported.")
 
-    def total_heat_capacity(self, unit: str) -> float:
+    def total_heat_capacity(self, unit: str = "cal/(mol*K)") -> float:
         """
         Returns the constant-volume (ideal-gas) heat capacity Cv of the system.
 
@@ -930,7 +934,8 @@ class Thermo:
         Parameters
         ----------
         unit : str
-            The unit of the total heat capacity.
+            The unit of the total heat capacity (``"cal/(mol*K)"`` or
+            ``"H/T"``). Defaults to ``"cal/(mol*K)"``.
 
         Raises
         ------
