@@ -132,6 +132,9 @@ class Thermo:
         -------
         None
         """
+        # Disabled: _transform_units is the only method that mutates the shared
+        # System in place (frequencies/energy). temperature_scan relies on run()
+        # leaving the System untouched, so keep this off (or make it copy first).
         # self._transform_units()
         self._rotational_contribution()
         self._vibrational_contribution()
