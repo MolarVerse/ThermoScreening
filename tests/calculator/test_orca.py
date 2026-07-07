@@ -72,6 +72,33 @@ def test_read_orca_hess_malformed_atom_count(tmp_path):
         read_orca_hess(_write_hess(tmp_path, text, "b.hess"))
 
 
+def test_read_orca_hess_malformed_atom_coordinate(tmp_path):
+    text = (
+        "$atoms\n1\nO 15.999 notanumber 0.0 0.0\n"
+        "$vibrational_frequencies\n1\n0 0.0\n$end\n"
+    )
+    with pytest.raises(TSValueError, match=r"Malformed \$atoms block"):
+        read_orca_hess(_write_hess(tmp_path, text, "b.hess"))
+
+
+def test_read_orca_hess_malformed_frequency(tmp_path):
+    text = (
+        "$atoms\n1\nH 1.008 0.0 0.0 0.0\n"
+        "$vibrational_frequencies\n1\n0 notanumber\n$end\n"
+    )
+    with pytest.raises(TSValueError, match=r"Malformed \$vibrational_frequencies block"):
+        read_orca_hess(_write_hess(tmp_path, text, "b.hess"))
+
+
+def test_read_orca_hess_frequency_count_mismatch(tmp_path):
+    text = (
+        "$atoms\n1\nH 1.008 0.0 0.0 0.0\n"
+        "$vibrational_frequencies\n5\n0 0.0\n$end\n"  # declares 5, lists 1
+    )
+    with pytest.raises(TSValueError, match="declares 5 entries"):
+        read_orca_hess(_write_hess(tmp_path, text, "b.hess"))
+
+
 def test_orca_thermo_uses_file_energy(tmp_path):
     thermo = orca_thermo(_write_hess(tmp_path))
     assert thermo.electronic_energy() == pytest.approx(-76.4)
