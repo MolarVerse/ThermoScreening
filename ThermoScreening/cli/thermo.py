@@ -133,6 +133,11 @@ def _command_parser():
         help="Reuse successful results from a prior <out>.json and only (re)run "
         "the missing/failed molecules.",
     )
+    screen_parser.add_argument(
+        "-j", "--jobs", type=int, default=1,
+        help="Number of molecules to run concurrently (default 1). Each job runs "
+        "in its own process and directory.",
+    )
 
     conf_parser = subparsers.add_parser(
         "conformers",
@@ -243,6 +248,7 @@ def run_screen(parser_args):
         engine=parser_args.engine,
         method=parser_args.method,
         resume=parser_args.resume,
+        jobs=parser_args.jobs,
     )
 
     ranked = rank_by_gibbs(results)

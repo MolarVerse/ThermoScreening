@@ -38,6 +38,9 @@ The ``thermo`` command has four subcommands.
        # resume an interrupted screen
        thermo screen molecules/ -o results --resume
 
+       # run 4 molecules at a time (each in its own process/directory)
+       thermo screen molecules/ --jobs 4
+
 Python API
 ----------
 
