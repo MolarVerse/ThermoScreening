@@ -49,6 +49,11 @@ def read_orca_hess(path):
         The electronic energy in Hartree from the ``$act_energy`` block, or
         ``None`` if the file has no such block.
 
+    Notes
+    -----
+    The per-atom mass column is not used; ASE's standard isotope masses are used
+    for the rotational/translational terms (as with the other engines).
+
     Raises
     ------
     TSValueError

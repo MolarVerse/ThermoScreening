@@ -83,6 +83,40 @@ def test_orca_thermo_energy_override(tmp_path):
     assert thermo.electronic_energy() == pytest.approx(-77.0)
 
 
+_CO2_HESS = """\
+$act_energy
+    -188.500000
+
+$vibrational_frequencies
+9
+  0     0.000000
+  1     0.000000
+  2     0.000000
+  3     0.000000
+  4     0.000000
+  5   667.000000
+  6   667.000000
+  7  1333.000000
+  8  2349.000000
+
+$atoms
+3
+C    12.011000    0.000000    0.000000    0.000000
+O    15.999000    0.000000    0.000000    2.196000
+O    15.999000    0.000000    0.000000   -2.196000
+
+$end
+"""
+
+
+def test_orca_thermo_linear_molecule(tmp_path):
+    # CO2 is linear -> 5 zero modes, dof = 3N-5 = 4; exercises the
+    # order-sensitive frequency_dof / linear-rotor path end to end
+    thermo = orca_thermo(_write_hess(tmp_path, _CO2_HESS, "co2.hess"))
+    assert thermo.electronic_energy() == pytest.approx(-188.5)
+    assert math.isfinite(thermo.total_EeGtot())
+
+
 def test_orca_thermo_requires_energy(tmp_path):
     # remove the $act_energy block (disable the tag) and pass no energy
     text = _HESS.replace("$act_energy", "$x_act_energy")
