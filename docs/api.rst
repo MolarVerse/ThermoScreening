@@ -8,6 +8,7 @@ High-level pipeline
 .. autofunction:: ThermoScreening.thermo.api.xtb_thermo
 .. autofunction:: ThermoScreening.thermo.api.xtb_cli_thermo
 .. autofunction:: ThermoScreening.thermo.api.orca_thermo
+.. autofunction:: ThermoScreening.thermo.api.cclib_thermo
 .. autofunction:: ThermoScreening.thermo.api.run_thermo
 .. autofunction:: ThermoScreening.thermo.api.execute
 
@@ -56,6 +57,7 @@ Coordinate and frequency readers
 .. autofunction:: ThermoScreening.thermo.api.read_coord
 .. autofunction:: ThermoScreening.thermo.api.read_vibrational
 .. autofunction:: ThermoScreening.calculator.orca.read_orca_hess
+.. autofunction:: ThermoScreening.calculator.qm.read_cclib
 
 Backend setup
 -------------
