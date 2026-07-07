@@ -1,8 +1,11 @@
+import importlib.util
 import math
 import sys
 
 import numpy as np
 import pytest
+
+_HAS_PYSCF = importlib.util.find_spec("pyscf") is not None
 
 import ThermoScreening.thermo.api as api
 from ThermoScreening.thermo.api import pyscf_thermo, _pyscf_frequencies_from_hessian
@@ -58,3 +61,19 @@ def test_pyscf_frequencies_from_hessian_missing_dependency(monkeypatch):
     monkeypatch.setitem(sys.modules, "pyscf.hessian.thermo", None)
     with pytest.raises(TSValueError, match="pyscf is required"):
         _pyscf_frequencies_from_hessian(object(), object())
+
+
+@pytest.mark.skipif(not _HAS_PYSCF, reason="pyscf is not installed")
+def test_pyscf_frequencies_from_hessian_real():
+    # real pyscf: harmonic_analysis on a water HF/STO-3G Hessian returns the
+    # 3N-6 vibrational modes as a real (cm^-1) array (imaginary_freq=False)
+    from pyscf import gto, scf
+
+    mol = gto.M(atom="O 0 0 0.117; H 0 0.757 -0.469; H 0 -0.757 -0.469",
+                basis="sto-3g", verbose=0)
+    mf = scf.RHF(mol).run()
+    hessian = mf.Hessian().kernel()
+
+    frequencies = _pyscf_frequencies_from_hessian(mol, hessian)
+    assert frequencies.dtype == float  # real (negative for any imaginary mode)
+    assert len(frequencies) == 3       # 3N - 6 for a bent triatomic

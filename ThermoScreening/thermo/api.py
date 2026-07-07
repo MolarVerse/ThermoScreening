@@ -577,8 +577,13 @@ def _pyscf_frequencies_from_hessian(mol, hessian):
             "pyscf is required to compute frequencies from a Hessian; install it "
             "with 'pip install thermoscreening[pyscf]'."
         ) from exc
-    freq_info = pyscf_thermo_module.harmonic_analysis(mol, hessian)  # pragma: no cover
-    return np.real(freq_info["freq_wavenumber"])  # pragma: no cover
+    # imaginary_freq=False stores imaginary modes as negative real wavenumbers
+    # (the convention the other engines use), so a saddle point isn't silently
+    # flattened into a minimum by dropping a complex frequency.
+    freq_info = pyscf_thermo_module.harmonic_analysis(  # pragma: no cover
+        mol, hessian, imaginary_freq=False
+    )
+    return np.asarray(freq_info["freq_wavenumber"], dtype=float)  # pragma: no cover
 
 
 def pyscf_thermo(
