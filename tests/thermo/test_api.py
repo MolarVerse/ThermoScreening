@@ -489,6 +489,30 @@ def test_dftbplus_thermo_injects_solvation_into_both_steps(monkeypatch, tmp_path
     assert seen["hessian_kwargs"]["Hamiltonian_Solvation"] == "GeneralizedBorn {"
 
 
+def test_dftbplus_thermo_injects_dispersion_into_both_steps(monkeypatch, tmp_path):
+    api, seen = _mock_pipeline(monkeypatch)
+
+    api.dftbplus_thermo(
+        Atoms("OH2", positions=[[0, 0, 0.12], [0, 0.76, -0.48], [0, -0.76, -0.48]]),
+        directory=str(tmp_path / "j"),
+        dispersion="d3-bj",
+    )
+
+    for step in ("geoopt_kwargs", "hessian_kwargs"):
+        assert seen[step]["Hamiltonian_Dispersion"] == "DftD3 {"
+        assert seen[step]["Hamiltonian_Dispersion_Damping_a1"] == 0.5719
+
+
+def test_dftbplus_thermo_no_dispersion_by_default(monkeypatch, tmp_path):
+    api, seen = _mock_pipeline(monkeypatch)
+    api.dftbplus_thermo(
+        Atoms("OH2", positions=[[0, 0, 0.12], [0, 0.76, -0.48], [0, -0.76, -0.48]]),
+        directory=str(tmp_path / "j"),
+    )
+
+    assert "Hamiltonian_Dispersion" not in seen["geoopt_kwargs"]
+
+
 def test_dftbplus_thermo_gas_phase_has_no_solvation(monkeypatch, tmp_path):
     api, seen = _mock_pipeline(monkeypatch)
     api.dftbplus_thermo(

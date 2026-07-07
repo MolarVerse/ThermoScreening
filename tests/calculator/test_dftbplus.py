@@ -9,7 +9,6 @@ from ase import Atoms
 import ThermoScreening.calculator.dftbplus as dftbplus_module
 from ThermoScreening.calculator import Geoopt, Hessian, Modes
 from ThermoScreening.calculator.dftbplus import _slako_dir, dftb_3ob_parameters
-from ThermoScreening.exceptions import TSValueError
 from ThermoScreening.cli.dftb_setup import gbsa_param_path
 from ThermoScreening.thermo.api import dftbplus_thermo
 
@@ -416,7 +415,7 @@ def test_dispersion_kwargs_is_case_insensitive():
 
 
 def test_dispersion_kwargs_rejects_unknown_model():
-    with pytest.raises(TSValueError, match="Unknown dispersion model"):
+    with pytest.raises(ValueError, match="Unknown dispersion model"):
         dftbplus_module._dispersion_kwargs("d4")
 
 

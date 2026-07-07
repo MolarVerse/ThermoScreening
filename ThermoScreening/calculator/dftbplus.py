@@ -9,7 +9,6 @@ from ase.calculators.dftb import Dftb
 from ase.io import read
 
 from ..utils.physicalConstants import PhysicalConstants
-from ..exceptions import TSValueError
 
 # --------------------------------------------------------------------------- #
 
@@ -229,7 +228,7 @@ def _dispersion_kwargs(dispersion=None):
         return {}
 
     if dispersion.lower() != "d3-bj":
-        raise TSValueError(
+        raise ValueError(
             f"Unknown dispersion model {dispersion!r}; supported: 'd3-bj'."
         )
 
