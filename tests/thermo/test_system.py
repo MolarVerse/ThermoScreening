@@ -4,7 +4,7 @@ import math
 import numpy as np
 from ase.atoms import Atoms
 import ThermoScreening.thermo.system as system_module
-from ThermoScreening.thermo.system import System, dim, dof, linearity, rotational_symmetry_number, default_spin
+from ThermoScreening.thermo.system import System, dim, dof, linearity, rotational_symmetry_number, default_spin, frequency_dof, check_frequency_length
 from ThermoScreening.thermo.atoms import Atom
 from ThermoScreening.thermo.cell import Cell
 from ThermoScreening.exceptions import TSValueError
@@ -245,7 +245,31 @@ def test_dof():
     with pytest.raises(TSValueError) as e:
         dof(atoms)
     assert str(e.value) == "The number of atoms must be greater than 0."
-    
+
+
+def test_frequency_dof_keeps_highest_modes():
+    # nine raw modes (ascending), keep the top dof=3 vibrations
+    freqs = np.arange(1.0, 10.0)
+    kept = frequency_dof(freqs, 3)
+    assert list(kept) == [7.0, 8.0, 9.0]
+
+
+def test_frequency_dof_identity_when_length_matches():
+    freqs = np.array([100.0, 200.0, 300.0])
+    assert list(frequency_dof(freqs, 3)) == [100.0, 200.0, 300.0]
+
+
+def test_frequency_dof_raises_on_underflow():
+    # too few frequencies must raise instead of wrapping/duplicating modes
+    with pytest.raises(TSValueError, match="expected at least 4 frequencies"):
+        frequency_dof(np.array([1.0, 2.0, 3.0]), 4)
+
+
+def test_check_frequency_length_validates_input_count():
+    assert check_frequency_length(np.arange(9.0), 3) is True
+    assert check_frequency_length(np.array([1.0, 2.0, 3.0]), 3) is True
+    assert check_frequency_length(np.array([1.0, 2.0]), 3) is False
+
 def test_linearity():
     atoms = [Atom(symbol='H', position=np.array([0, 0, 0]))]
 

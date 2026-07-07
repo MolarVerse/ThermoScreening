@@ -434,49 +434,55 @@ def cleaned_frequency(frequency: np.ndarray):
 
 def frequency_dof(frequency: np.ndarray, dof: int) -> np.ndarray:
     """
-    Delete all frequencies that are more than the degree of freedom.
+    Keep the ``dof`` highest vibrational frequencies (dropping the near-zero
+    translational/rotational modes).
 
     Parameters
     ----------
     frequency : np.ndarray
-        The vibrational frequencies of the system.
+        The vibrational frequencies of the system, sorted in ascending order.
     dof : int
-        The degree of freedom of the system.
+        The number of vibrational degrees of freedom to keep.
 
     Returns
     -------
     frequency : np.ndarray
-        The vibrational frequencies of the system.
+        The ``dof`` highest frequencies, in ascending order.
+
+    Raises
+    ------
+    ValueError
+        If fewer than ``dof`` frequencies are supplied (which would otherwise
+        silently duplicate modes via negative indexing).
     """
     N = len(frequency)
-    cleaned_freq = np.empty(dof)
-    i = 0
+    if N < dof:
+        raise TSValueError(
+            f"expected at least {dof} frequencies for {dof} vibrational degrees "
+            f"of freedom, got {N}"
+        )
 
-    while (i + 1) <= dof:
-        cleaned_freq[i] = frequency[N - 1 - i]
-        i += 1
-
-    cleaned_freq = cleaned_freq[::-1]
-    return cleaned_freq
+    # copy so the result does not alias the caller's raw frequency array
+    return np.asarray(frequency)[N - dof:].copy()
 
 
 def check_frequency_length(frequency: np.ndarray, dof: int) -> bool:
     """
-    Checks if the system has the correct number of vibrational frequencies.
+    Check that enough vibrational frequencies were supplied for ``dof``.
 
     Parameters
     ----------
     frequency : np.ndarray
-        The vibrational frequencies of the system.
+        The (raw) vibrational frequencies of the system.
     dof : int
-        The degree of freedom of the system.
+        The number of vibrational degrees of freedom.
 
     Returns
     -------
     bool
-        True if the system has the correct number of vibrational frequencies, False otherwise.
+        True if at least ``dof`` frequencies are present, False otherwise.
     """
-    return len(frequency) == dof
+    return len(frequency) >= dof
 
 
 class System:
@@ -668,11 +674,11 @@ class System:
         self._has_imaginary_frequencies = check_imaginary_frequencies(
             self._imaginary_frequencies
         )
-        self._real_vibrational_frequencies = frequency_dof(
+        self._check_frequency_length = check_frequency_length(
             self._vibrational_frequencies, self._dof
         )
-        self._check_frequency_length = check_frequency_length(
-            self._real_vibrational_frequencies, self._dof
+        self._real_vibrational_frequencies = frequency_dof(
+            self._vibrational_frequencies, self._dof
         )
 
         if charge is None:
