@@ -18,7 +18,7 @@ from .system import System, dof
 from .thermo import Thermo
 from .atoms import Atom
 from ..calculator import Geoopt, Hessian, Modes
-from ..calculator.dftbplus import _spin_kwargs, _solvation_kwargs, SPIN_CONSTANTS_3OB
+from ..calculator.dftbplus import _spin_kwargs, _solvation_kwargs, _dispersion_kwargs, SPIN_CONSTANTS_3OB
 from ..calculator.xtb import optimise_and_frequencies, xtb_calculator
 from ..calculator.xtb_cli import run_xtb
 
@@ -517,6 +517,7 @@ def dftbplus_thermo(
         spin_constants=None,
         solvent=None,
         solvation_param_file=None,
+        dispersion=None,
         quasi_rrho=False,
         **kwargs
     ):
@@ -555,6 +556,10 @@ def dftbplus_thermo(
     solvation_param_file : str, optional
         Explicit path to a GBSA parameter file, overriding ``solvent`` (use a
         method-consistent set instead of the default GFN-fit one).
+    dispersion : str, optional
+        Dispersion correction to add to the Hamiltonian. ``"d3-bj"`` uses Grimme
+        D3 with Becke-Johnson damping (3ob-recommended parameters). Defaults to
+        no dispersion. Requires a DFTB+ build with D3 support.
     quasi_rrho : bool
         If True, use Grimme's quasi-RRHO treatment for the vibrational entropy,
         which tames the entropy of low-frequency modes. Default False.
@@ -595,7 +600,8 @@ def dftbplus_thermo(
     # Implicit solvation (empty for the gas-phase default). Applied to both the
     # optimisation and the Hessian so the geometry and frequencies are consistent.
     solvation_kwargs = _solvation_kwargs(solvent, solvation_param_file)
-    engine_kwargs = {**spin_kwargs, **solvation_kwargs, **kwargs}
+    dispersion_kwargs = _dispersion_kwargs(dispersion)
+    engine_kwargs = {**spin_kwargs, **solvation_kwargs, **dispersion_kwargs, **kwargs}
 
     with _run_in_directory(directory):
         # run geometry optimization

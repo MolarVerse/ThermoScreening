@@ -180,6 +180,7 @@ def screen(
     spin=None,
     parameter_set="3ob",
     solvent=None,
+    dispersion=None,
     quasi_rrho=False,
     engine="dftb+",
     method="GFN2-xTB",
@@ -219,6 +220,9 @@ def screen(
         DFTB+ engine the GBSA parameters are GFN-xTB-fit, so solvation free
         energies are only qualitative (and can be non-monotonic in the dielectric
         for small neutral solutes).
+    dispersion : str, optional
+        Dispersion correction for the DFTB+ engine. ``"d3-bj"`` adds Grimme
+        D3(BJ) with the 3ob-recommended parameters. Defaults to none.
     quasi_rrho : bool
         If True, use Grimme's quasi-RRHO treatment for the vibrational entropy
         (recommended for flexible molecules with low-frequency modes). Default
@@ -306,6 +310,7 @@ def screen(
                     spin=job.spin,
                     spin_constants=spin_constants,
                     solvent=solvent,
+                    dispersion=dispersion,
                     quasi_rrho=quasi_rrho,
                     **parameters,
                 )

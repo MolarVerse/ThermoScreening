@@ -9,6 +9,7 @@ from ase.calculators.dftb import Dftb
 from ase.io import read
 
 from ..utils.physicalConstants import PhysicalConstants
+from ..exceptions import TSValueError
 
 # --------------------------------------------------------------------------- #
 
@@ -194,6 +195,52 @@ def _solvation_kwargs(solvent=None, param_file=None, install_root=None):
     return {
         "Hamiltonian_Solvation": "GeneralizedBorn {",
         "Hamiltonian_Solvation_ParamFile": path,
+    }
+
+
+# Grimme D3 with Becke-Johnson damping, using the parameters the DFTB+ manual
+# recommends for the DFTB3/3ob Hamiltonian (Brandenburg et al., J. Chem. Phys.
+# 143, 054110 (2015)).
+_D3_BJ_3OB = {"a1": 0.5719, "a2": 3.6017, "s6": 1.0, "s8": 0.5883}
+
+
+def _dispersion_kwargs(dispersion=None):
+    """
+    ASE ``Dftb`` keyword arguments adding a Grimme dispersion correction.
+
+    Parameters
+    ----------
+    dispersion : str, optional
+        Dispersion model. ``"d3-bj"`` adds Grimme D3 with Becke-Johnson damping
+        using the 3ob-recommended parameters. ``None`` (default) adds nothing,
+        so existing gas-phase results are unchanged.
+
+    Returns
+    -------
+    dict
+        The ``Hamiltonian_Dispersion*`` kwargs (empty when ``dispersion`` is None).
+
+    Raises
+    ------
+    TSValueError
+        If ``dispersion`` is not a supported model.
+    """
+    if dispersion is None:
+        return {}
+
+    if dispersion.lower() != "d3-bj":
+        raise TSValueError(
+            f"Unknown dispersion model {dispersion!r}; supported: 'd3-bj'."
+        )
+
+    p = _D3_BJ_3OB
+    return {
+        "Hamiltonian_Dispersion": "DftD3 {",
+        "Hamiltonian_Dispersion_Damping": "BeckeJohnson {",
+        "Hamiltonian_Dispersion_Damping_a1": p["a1"],
+        "Hamiltonian_Dispersion_Damping_a2": p["a2"],
+        "Hamiltonian_Dispersion_s6": p["s6"],
+        "Hamiltonian_Dispersion_s8": p["s8"],
     }
 
 

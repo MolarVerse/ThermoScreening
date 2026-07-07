@@ -9,6 +9,7 @@ from ase import Atoms
 import ThermoScreening.calculator.dftbplus as dftbplus_module
 from ThermoScreening.calculator import Geoopt, Hessian, Modes
 from ThermoScreening.calculator.dftbplus import _slako_dir, dftb_3ob_parameters
+from ThermoScreening.exceptions import TSValueError
 from ThermoScreening.cli.dftb_setup import gbsa_param_path
 from ThermoScreening.thermo.api import dftbplus_thermo
 
@@ -393,6 +394,30 @@ def test_modes_pipeline_parses_authentic_dftbplus_layout(monkeypatch, tmp_path):
     hessian = Hessian.__new__(Hessian)
     hessian.atoms = FakeAtoms()
     assert hessian.read().shape == (9, 9)
+
+
+def test_dispersion_kwargs_none_is_empty():
+    assert dftbplus_module._dispersion_kwargs() == {}
+    assert dftbplus_module._dispersion_kwargs(None) == {}
+
+
+def test_dispersion_kwargs_d3_bj_parameters():
+    kw = dftbplus_module._dispersion_kwargs("d3-bj")
+    assert kw["Hamiltonian_Dispersion"] == "DftD3 {"
+    assert kw["Hamiltonian_Dispersion_Damping"] == "BeckeJohnson {"
+    assert kw["Hamiltonian_Dispersion_Damping_a1"] == 0.5719
+    assert kw["Hamiltonian_Dispersion_Damping_a2"] == 3.6017
+    assert kw["Hamiltonian_Dispersion_s6"] == 1.0
+    assert kw["Hamiltonian_Dispersion_s8"] == 0.5883
+
+
+def test_dispersion_kwargs_is_case_insensitive():
+    assert dftbplus_module._dispersion_kwargs("D3-BJ") == dftbplus_module._dispersion_kwargs("d3-bj")
+
+
+def test_dispersion_kwargs_rejects_unknown_model():
+    with pytest.raises(TSValueError, match="Unknown dispersion model"):
+        dftbplus_module._dispersion_kwargs("d4")
 
 
 def test_spin_kwargs_restricted_and_fractional():

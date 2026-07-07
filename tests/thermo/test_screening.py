@@ -146,6 +146,26 @@ def test_screen_passes_solvent_to_dftbplus_thermo(monkeypatch, tmp_path):
     assert captured["solvent"] == "water"
 
 
+def test_screen_passes_dispersion_to_dftbplus_thermo(monkeypatch, tmp_path):
+    _write_xyz(tmp_path / "mol.xyz")
+
+    captured = {}
+
+    def fake_thermo(atoms, dispersion=None, **kwargs):
+        captured["dispersion"] = dispersion
+        return _FakeThermo()
+
+    monkeypatch.setattr(screening, "dftbplus_thermo", fake_thermo)
+    screening.screen(
+        str(tmp_path),
+        out=str(tmp_path / "r"),
+        directory=str(tmp_path / "runs"),
+        dispersion="d3-bj",
+    )
+
+    assert captured["dispersion"] == "d3-bj"
+
+
 def test_screen_dispatches_to_xtb_engine(monkeypatch, tmp_path):
     _write_xyz(tmp_path / "mol.xyz")
 
@@ -423,8 +443,8 @@ def test_cli_run_screen_returns_failure_count(monkeypatch):
     args = Namespace(
         source="x", out="res", charge=0.0, temperature=298.15,
         pressure=101325.0, directory="screening", parameter_set="3ob",
-        solvent=None, quasi_rrho=False, engine="dftb+", method="GFN2-xTB",
-        resume=False,
+        solvent=None, dispersion=None, quasi_rrho=False, engine="dftb+",
+        method="GFN2-xTB", resume=False,
     )
 
     assert cli.run_screen(args) == 1  # one molecule failed
