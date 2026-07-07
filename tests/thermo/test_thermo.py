@@ -71,6 +71,17 @@ def test_scalar_total_accessors_return_real_floats_for_all_units():
     assert thermo.electronic_energy() == 17.0
 
 
+def test_scalar_total_accessors_default_units():
+    thermo = _thermo_with_scalar_totals()
+
+    # energies default to Hartree, entropy/heat-capacity to cal/(mol*K)
+    assert thermo.total_energy() == thermo.total_energy("H") == 1.0
+    assert thermo.total_enthalpy() == thermo.total_enthalpy("H") == 4.0
+    assert thermo.total_entropy() == thermo.total_entropy("cal/(mol*K)") == 8.0
+    assert thermo.total_gibbs_free_energy() == thermo.total_gibbs_free_energy("H") == 9.0
+    assert thermo.total_heat_capacity() == thermo.total_heat_capacity("cal/(mol*K)") == 12.0
+
+
 @pytest.mark.parametrize(
     "method_name",
     [
