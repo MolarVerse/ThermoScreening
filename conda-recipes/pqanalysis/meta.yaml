@@ -22,6 +22,13 @@ build:
     - traj2qmcfc = PQAnalysis.cli.traj2qmcfc:main
     - rst2xyz = PQAnalysis.cli.rst2xyz:main
     - xyz2rst = PQAnalysis.cli.xyz2rst:main
+    - continue_input = PQAnalysis.cli.continue_input:main
+    - rdf = PQAnalysis.cli.rdf:main
+    - add_molecules = PQAnalysis.cli.add_molecules:main
+    - activate_argcomplete = PQAnalysis.cli.activate_argcomplete:main
+    - build_nep_traj = PQAnalysis.cli.build_nep_traj:main
+    - xyz2gen = PQAnalysis.cli.xyz2gen:main
+    - gen2xyz = PQAnalysis.cli.gen2xyz:main
 
 requirements:
   build:
