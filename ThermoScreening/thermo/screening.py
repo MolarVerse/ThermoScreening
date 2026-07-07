@@ -8,9 +8,11 @@ with an error status and does not stop the run.
 """
 
 import csv
+import functools
 import json
 import logging
 import os
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -193,6 +195,80 @@ def _write_results(results, out):
     return csv_path, json_path
 
 
+def _run_job(
+    job,
+    *,
+    engine,
+    temperature,
+    pressure,
+    root,
+    method,
+    solvent,
+    dispersion,
+    quasi_rrho,
+    parameters,
+    spin_constants,
+):
+    """
+    Run one screening job and return its result record.
+
+    A module-level, picklable worker (usable from a process pool). Failures are
+    isolated into the record (``status="error"``) rather than raised, so one bad
+    molecule never aborts the screen; the caller does the logging.
+    """
+    record = {
+        "name": job.name,
+        "path": str(job.path),
+        "charge": job.charge,
+        "status": "ok",
+        "error": "",
+    }
+    try:
+        atoms = ase.io.read(str(job.path))
+        if engine == "xtb-cli":
+            thermo = xtb_cli_thermo(
+                atoms,
+                temperature=temperature,
+                pressure=pressure,
+                charge=job.charge,
+                directory=str(root / job.name),
+                spin=job.spin,
+                method=method,
+                solvent=solvent,
+                quasi_rrho=quasi_rrho,
+            )
+        elif engine == "xtb":
+            thermo = xtb_thermo(
+                atoms,
+                temperature=temperature,
+                pressure=pressure,
+                charge=job.charge,
+                directory=str(root / job.name),
+                spin=job.spin,
+                method=method,
+                quasi_rrho=quasi_rrho,
+            )
+        else:
+            thermo = dftbplus_thermo(
+                atoms,
+                temperature=temperature,
+                pressure=pressure,
+                charge=job.charge,
+                directory=str(root / job.name),
+                spin=job.spin,
+                spin_constants=spin_constants,
+                solvent=solvent,
+                dispersion=dispersion,
+                quasi_rrho=quasi_rrho,
+                **parameters,
+            )
+        record.update(_thermo_summary(thermo))
+    except Exception as exc:  # pylint: disable=broad-except
+        record["status"] = "error"
+        record["error"] = str(exc)
+    return record
+
+
 def screen(
     source,
     out="results",
@@ -209,6 +285,7 @@ def screen(
     engine="dftb+",
     method="GFN2-xTB",
     resume=False,
+    jobs=1,
 ):
     """
     Run a thermochemistry screen over a set of molecules.
@@ -263,6 +340,11 @@ def screen(
         ``<out>.json`` and skip those molecules; molecules that previously failed
         (or were never run) are (re-)run. Results are written incrementally after
         every molecule regardless, so an interrupted screen can be resumed.
+    jobs : int
+        Number of molecules to run concurrently. Default 1 (serial). With
+        ``jobs > 1`` the molecules run in a process pool (process-based because
+        each job changes the working directory). Results and output ordering are
+        unchanged; only the wall-clock time differs.
 
     Returns
     -------
@@ -273,82 +355,72 @@ def screen(
         raise TSValueError(
             f"Unknown engine {engine!r}; choose 'dftb+', 'xtb' or 'xtb-cli'."
         )
+    if jobs < 1:
+        raise TSValueError(f"jobs must be >= 1, got {jobs}.")
 
+    spin_constants = None
     if engine == "dftb+":
         default_parameters, spin_constants = resolve_parameter_set(parameter_set)
         parameters = default_parameters if parameters is None else parameters
 
-    jobs = _load_jobs(source, charge, spin)
+    job_list = _load_jobs(source, charge, spin)
     root = Path(directory)
-
     completed = _load_completed(out) if resume else {}
 
-    results = []
+    run_one = functools.partial(
+        _run_job,
+        engine=engine,
+        temperature=temperature,
+        pressure=pressure,
+        root=root,
+        method=method,
+        solvent=solvent,
+        dispersion=dispersion,
+        quasi_rrho=quasi_rrho,
+        parameters=parameters,
+        spin_constants=spin_constants,
+    )
+
+    # records keyed by name; the returned list follows the input job order
+    records = {}
     csv_path = json_path = None
-    for job in jobs:
-        if job.name in completed:
-            logger.info(f"Skipping {job.name} (already completed)")
-            results.append(completed[job.name])
-            csv_path, json_path = _write_results(results, out)
-            continue
-        record = {
-            "name": job.name,
-            "path": str(job.path),
-            "charge": job.charge,
-            "status": "ok",
-            "error": "",
-        }
-        logger.info(f"Screening {job.name} (charge {job.charge})")
-        try:
-            atoms = ase.io.read(str(job.path))
-            if engine == "xtb-cli":
-                thermo = xtb_cli_thermo(
-                    atoms,
-                    temperature=temperature,
-                    pressure=pressure,
-                    charge=job.charge,
-                    directory=str(root / job.name),
-                    spin=job.spin,
-                    method=method,
-                    solvent=solvent,
-                    quasi_rrho=quasi_rrho,
-                )
-            elif engine == "xtb":
-                thermo = xtb_thermo(
-                    atoms,
-                    temperature=temperature,
-                    pressure=pressure,
-                    charge=job.charge,
-                    directory=str(root / job.name),
-                    spin=job.spin,
-                    method=method,
-                    quasi_rrho=quasi_rrho,
-                )
-            else:
-                thermo = dftbplus_thermo(
-                    atoms,
-                    temperature=temperature,
-                    pressure=pressure,
-                    charge=job.charge,
-                    directory=str(root / job.name),
-                    spin=job.spin,
-                    spin_constants=spin_constants,
-                    solvent=solvent,
-                    dispersion=dispersion,
-                    quasi_rrho=quasi_rrho,
-                    **parameters,
-                )
-            record.update(_thermo_summary(thermo))
-        except Exception as exc:  # pylint: disable=broad-except
-            # isolate failures so one bad molecule does not abort the screen
-            record["status"] = "error"
-            record["error"] = str(exc)
+
+    def _ordered():
+        return [records[job.name] for job in job_list if job.name in records]
+
+    def _store(job, record):
+        nonlocal csv_path, json_path
+        if record["status"] != "ok":
             # warning, not error: the active custom logger raises on error and
             # we must keep screening the remaining molecules
-            logger.warning(f"Screening failed for {job.name}: {exc}")
-        results.append(record)
+            logger.warning(f"Screening failed for {job.name}: {record['error']}")
+        records[job.name] = record
         # write after every molecule so an interrupted run stays resumable
-        csv_path, json_path = _write_results(results, out)
+        csv_path, json_path = _write_results(_ordered(), out)
+
+    pending = []
+    for job in job_list:
+        if job.name in completed:
+            logger.info(f"Skipping {job.name} (already completed)")
+            records[job.name] = completed[job.name]
+        else:
+            pending.append(job)
+    if records:
+        csv_path, json_path = _write_results(_ordered(), out)
+
+    if jobs > 1 and len(pending) > 1:
+        with ProcessPoolExecutor(max_workers=jobs) as executor:
+            future_to_job = {}
+            for job in pending:
+                logger.info(f"Screening {job.name} (charge {job.charge})")
+                future_to_job[executor.submit(run_one, job)] = job
+            for future in as_completed(future_to_job):
+                job = future_to_job[future]
+                _store(job, future.result())
+    else:
+        for job in pending:
+            logger.info(f"Screening {job.name} (charge {job.charge})")
+            _store(job, run_one(job))
 
     logger.info(f"Wrote {csv_path} and {json_path}")
-    return results
+    return _ordered()

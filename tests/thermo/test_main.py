@@ -180,7 +180,7 @@ def test_run_screen_forwards_dispersion(monkeypatch):
         source="mols", out="results", charge=0.0, temperature=298.15,
         pressure=101325, directory="screening", parameter_set="3ob",
         solvent=None, dispersion="d3-bj", quasi_rrho=False, engine="dftb+",
-        method="GFN2-xTB", resume=False,
+        method="GFN2-xTB", resume=False, jobs=1,
     )
     assert thermo.run_screen(args) == 0
     assert captured["dispersion"] == "d3-bj"
@@ -189,6 +189,12 @@ def test_run_screen_forwards_dispersion(monkeypatch):
 def test_parse_args_screen_dispersion_choice():
     assert thermo.parse_args(["screen", "mols"]).dispersion is None
     assert thermo.parse_args(["screen", "mols", "--dispersion", "d3-bj"]).dispersion == "d3-bj"
+
+
+def test_parse_args_screen_jobs():
+    assert thermo.parse_args(["screen", "mols"]).jobs == 1
+    assert thermo.parse_args(["screen", "mols", "-j", "4"]).jobs == 4
+    assert thermo.parse_args(["screen", "mols", "--jobs", "8"]).jobs == 8
 
 
 def test_main_runs_conformers(monkeypatch):
