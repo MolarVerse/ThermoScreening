@@ -49,6 +49,10 @@ Issues = "https://github.com/MolarVerse/ThermoScreening/issues"
 qm = [
     "cclib >= 1.8, < 2.0",
 ]
+# In-memory thermochemistry from PySCF results
+pyscf = [
+    "pyscf",
+]
 test = [
     "pytest",
     "coverage",

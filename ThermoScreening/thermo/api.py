@@ -568,6 +568,109 @@ def cclib_thermo(
     )
 
 
+def _pyscf_frequencies_from_hessian(mol, hessian):
+    """Vibrational frequencies (cm^-1) from a PySCF Hessian, via pyscf."""
+    try:
+        from pyscf.hessian import thermo as pyscf_thermo_module
+    except ImportError as exc:
+        raise TSValueError(
+            "pyscf is required to compute frequencies from a Hessian; install it "
+            "with 'pip install thermoscreening[pyscf]'."
+        ) from exc
+    # imaginary_freq=False stores imaginary modes as negative real wavenumbers
+    # (the convention the other engines use), so a saddle point isn't silently
+    # flattened into a minimum by dropping a complex frequency.
+    freq_info = pyscf_thermo_module.harmonic_analysis(  # pragma: no cover
+        mol, hessian, imaginary_freq=False
+    )
+    return np.asarray(freq_info["freq_wavenumber"], dtype=float)  # pragma: no cover
+
+
+def pyscf_thermo(
+    mean_field,
+    frequencies=None,
+    hessian=None,
+    energy=None,
+    temperature=298.15,
+    pressure=101325,
+    charge=0.0,
+    spin=None,
+    quasi_rrho=False,
+):
+    """
+    Run the thermochemistry from an in-memory PySCF calculation.
+
+    PySCF is a Python library, so its results live in memory rather than a file.
+    Pass a converged mean-field object; its geometry (Bohr -> Angstrom) and
+    energy (``mean_field.e_tot``) are used, and the vibrational frequencies are
+    taken from ``frequencies`` or computed from ``hessian`` via
+    ``pyscf.hessian.thermo``.
+
+    Parameters
+    ----------
+    mean_field : object
+        A converged PySCF mean-field object (has ``.mol`` and ``.e_tot``).
+    frequencies : array_like, optional
+        Vibrational frequencies in cm^-1. If omitted, ``hessian`` is used.
+    hessian : array_like, optional
+        A PySCF Hessian (from ``mf.Hessian().kernel()``); frequencies are derived
+        from it. Requires the ``pyscf`` extra. Ignored if ``frequencies`` is given.
+    energy : float, optional
+        Electronic energy in Hartree. Defaults to ``mean_field.e_tot``.
+    temperature : float
+        Temperature in K. Default 298.15.
+    pressure : float
+        Pressure in Pa. Default 101325.
+    charge : float
+        System charge. Default 0.0.
+    spin : float, optional
+        Spin quantum number S. Defaults to the minimum-spin electron-count guess.
+    quasi_rrho : bool
+        If True, use Grimme's quasi-RRHO vibrational entropy. Default False.
+
+    Returns
+    -------
+    Thermo
+        The thermo calculation object.
+
+    Raises
+    ------
+    TSValueError
+        If neither ``frequencies`` nor ``hessian`` is given (or pyscf is missing
+        when a ``hessian`` is used).
+    """
+    from ase import Atoms
+    from ase.units import Bohr
+
+    mol = mean_field.mol
+    symbols = [mol.atom_pure_symbol(index) for index in range(mol.natm)]
+    positions = np.asarray(mol.atom_coords()) * Bohr  # Bohr -> Angstrom
+    atoms = Atoms(symbols=symbols, positions=positions)
+
+    if energy is None:
+        energy = float(mean_field.e_tot)
+
+    if frequencies is None:
+        if hessian is None:
+            raise TSValueError(
+                "Provide frequencies=... or hessian=... to pyscf_thermo."
+            )
+        frequencies = _pyscf_frequencies_from_hessian(mol, hessian)
+    frequencies = np.asarray(frequencies, dtype=float)
+
+    return run_thermo(
+        vibrational_frequencies=frequencies,
+        atoms=atoms,
+        energy=energy,
+        temperature=temperature,
+        pressure=pressure,
+        charge=charge,
+        spin=spin,
+        engine="dftb+",
+        quasi_rrho=quasi_rrho,
+    )
+
+
 def execute(input_file: str) -> Thermo:
     """
     Execute the thermo calculation. Returns thermo calculation object.

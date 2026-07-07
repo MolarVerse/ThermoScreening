@@ -9,6 +9,7 @@ High-level pipeline
 .. autofunction:: ThermoScreening.thermo.api.xtb_cli_thermo
 .. autofunction:: ThermoScreening.thermo.api.orca_thermo
 .. autofunction:: ThermoScreening.thermo.api.cclib_thermo
+.. autofunction:: ThermoScreening.thermo.api.pyscf_thermo
 .. autofunction:: ThermoScreening.thermo.api.run_thermo
 .. autofunction:: ThermoScreening.thermo.api.execute
 
