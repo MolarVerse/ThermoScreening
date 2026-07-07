@@ -12,7 +12,7 @@ from ThermoScreening.cli.dftb_setup import (
     install_slakos,
 )
 from ThermoScreening.thermo.api import execute
-from ThermoScreening.thermo.screening import screen
+from ThermoScreening.thermo.screening import screen, rank_by_gibbs
 from ThermoScreening.thermo.conformers import generate as generate_conformers, write_conformers
 from ThermoScreening.version import __version__
 
@@ -245,11 +245,22 @@ def run_screen(parser_args):
         resume=parser_args.resume,
     )
 
-    failed = sum(1 for record in results if record["status"] != "ok")
-    print(f"Screened {len(results)} molecules ({failed} failed).")
+    ranked = rank_by_gibbs(results)
+    if ranked:
+        print("Ranked by Gibbs free energy (most stable first):")
+        for position, record in enumerate(ranked, start=1):
+            print(f"  {position}. {record['name']}  G = {record['G_total_hartree']:.6f} Ha")
+
+    failures = [record for record in results if record["status"] != "ok"]
+    if failures:
+        print(f"Failed ({len(failures)}):")
+        for record in failures:
+            print(f"  {record['name']}: {record['error']}")
+
+    print(f"Screened {len(results)} molecules ({len(failures)} failed).")
     print(f"Results: {parser_args.out}.csv, {parser_args.out}.json")
 
-    return 1 if failed else 0
+    return 1 if failures else 0
 
 
 def run_conformers(parser_args):
