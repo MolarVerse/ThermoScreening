@@ -120,6 +120,14 @@ def test_cclib_thermo_requires_energy(monkeypatch, tmp_path):
         cclib_thermo(str(tmp_path / "water.log"))
 
 
+def test_cclib_thermo_requires_energy_multi_file_error_is_readable(monkeypatch):
+    data = dict(_WATER)
+    del data["scfenergies"]
+    _fake_ccread(monkeypatch, **data)
+    with pytest.raises(TSValueError, match=r"No energy for 'control, coord, aoforce\.out'"):
+        cclib_thermo(["control", "coord", "aoforce.out"])
+
+
 # --- multi-file (Turbomole) support --- #
 #
 # Turbomole splits a job's output across many small files instead of one

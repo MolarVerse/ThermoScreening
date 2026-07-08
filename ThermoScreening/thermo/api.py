@@ -20,7 +20,7 @@ from .atoms import Atom
 from ..calculator import Geoopt, Hessian, Modes
 from ..calculator.dftbplus import _spin_kwargs, _solvation_kwargs, _dispersion_kwargs, SPIN_CONSTANTS_3OB
 from ..calculator.orca import read_orca_hess
-from ..calculator.qm import read_cclib
+from ..calculator.qm import read_cclib, _describe_source
 from ..calculator.xtb import optimise_and_frequencies, xtb_calculator
 from ..calculator.xtb_cli import run_xtb
 
@@ -581,8 +581,8 @@ def cclib_thermo(
         energy = file_energy
     if energy is None:
         raise TSValueError(
-            f"No energy for '{output_file}': cclib parsed none, so pass energy=... "
-            "explicitly."
+            f"No energy for '{_describe_source(output_file)}': cclib parsed none, "
+            "so pass energy=... explicitly."
         )
 
     return run_thermo(
