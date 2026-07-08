@@ -1,5 +1,6 @@
 import pytest
 import os
+import math
 
 import unittest
 import numpy as np
@@ -109,6 +110,99 @@ def _valid_system():
         electronic_energy=-1.0,
         vibrational_frequencies=np.array([-1, -2, 0.1, 1, 2, 3, 4, 5, 6]),
     )
+
+
+def _bent_system(vibrational_frequencies):
+    # a non-linear (right-angle) triatomic, so dof = 3*3 - 6 = 3 -- unlike
+    # _valid_system's collinear atoms, this lets the kept (last-dof) frequencies
+    # include an imaginary mode without it being a trans/rot mode
+    atoms = [
+        Atom(symbol="H", position=np.array([0.0, 0.0, 0.0])),
+        Atom(symbol="H", position=np.array([1.0, 0.0, 0.0])),
+        Atom(symbol="H", position=np.array([0.0, 1.0, 0.0])),
+    ]
+    return System(
+        atoms,
+        periodicity=False,
+        cell=None,
+        charge=0,
+        electronic_energy=-1.0,
+        vibrational_frequencies=vibrational_frequencies,
+    )
+
+
+def _valid_ts_system():
+    # 6 near-zero trans/rot modes, then one imaginary (reaction-coordinate) mode
+    # and two real vibrations -- a first-order saddle point
+    return _bent_system(np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -50.0, 1500.0, 3000.0]))
+
+
+def test_thermo_transition_state_excludes_imaginary_mode():
+    thermo = Thermo(
+        temperature=298.15, pressure=101325, system=_valid_ts_system(),
+        engine="dftb+", transition_state=True,
+    )
+    thermo.run()
+
+    assert thermo.imaginary_mode_wavenumber() == pytest.approx(-50.0)
+    # the vibrational sums ran over only the two real modes
+    assert list(thermo._real_vibrational_frequencies) == [1500.0, 3000.0]
+    assert math.isfinite(thermo.total_EeGtot())
+
+
+def test_thermo_transition_state_temperature_scan_propagates_flag():
+    thermo = Thermo(
+        temperature=298.15, pressure=101325, system=_valid_ts_system(),
+        engine="dftb+", transition_state=True,
+    )
+    thermo.run()
+
+    scan = thermo.temperature_scan([280.0, 320.0])
+    assert all(t.imaginary_mode_wavenumber() == pytest.approx(-50.0) for t in scan)
+
+
+def test_thermo_non_transition_state_rejects_imaginary_mode():
+    with pytest.raises(TSValueError, match="geometry is not a minimum"):
+        Thermo(
+            temperature=298.15, pressure=101325, system=_valid_ts_system(),
+            engine="dftb+",  # transition_state defaults to False
+        ).run()
+
+
+def test_thermo_transition_state_rejects_wrong_imaginary_count():
+    # two imaginary modes: not a valid first-order saddle point
+    two_imaginary = _bent_system(
+        np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -50.0, -60.0, 3000.0])
+    )
+    with pytest.raises(TSValueError, match="exactly one imaginary"):
+        Thermo(
+            temperature=298.15, pressure=101325, system=two_imaginary,
+            engine="dftb+", transition_state=True,
+        ).run()
+
+    # zero imaginary modes: also not a valid saddle point
+    zero_imaginary = _bent_system(
+        np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 100.0, 1500.0, 3000.0])
+    )
+    with pytest.raises(TSValueError, match="exactly one imaginary"):
+        Thermo(
+            temperature=298.15, pressure=101325, system=zero_imaginary,
+            engine="dftb+", transition_state=True,
+        ).run()
+
+
+def test_thermo_imaginary_mode_wavenumber_none_before_run_or_for_minimum():
+    ts_thermo = Thermo(
+        temperature=298.15, pressure=101325, system=_valid_ts_system(),
+        engine="dftb+", transition_state=True,
+    )
+    assert ts_thermo.imaginary_mode_wavenumber() is None  # before run()
+
+    minimum = Thermo(
+        temperature=298.15, pressure=101325, system=_valid_system(), engine="dftb+"
+    )
+    minimum.run()
+    assert minimum.imaginary_mode_wavenumber() is None  # not a transition state
 
 
 def test_thermo_rejects_unsupported_engine():

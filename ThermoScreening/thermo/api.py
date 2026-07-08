@@ -351,6 +351,7 @@ def run_thermo(
     atoms=None,
     spin=None,
     quasi_rrho=False,
+    transition_state=False,
 ):
     """
     Run the thermo calculation. Returns thermo calculation object.
@@ -377,6 +378,11 @@ def run_thermo(
     quasi_rrho : bool
         If True, use Grimme's quasi-RRHO treatment for the vibrational entropy
         instead of the pure harmonic oscillator. Default False.
+    transition_state : bool
+        If True, treat the geometry as a first-order saddle point: exactly one
+        imaginary vibrational frequency is required and excluded from the
+        vibrational thermochemistry (see ``Thermo.imaginary_mode_wavenumber``),
+        instead of raising. Default False (a minimum is expected).
 
     The coordinate file should be in xyz format.
 
@@ -385,11 +391,13 @@ def run_thermo(
     -------
     Thermo
         The thermo calculation object.
-        
+
     Raises
     ------
     TSValueError
-        If the number of vibrational frequencies does not match with the degree of freedom.
+        If the number of vibrational frequencies does not match with the degree
+        of freedom, or if the imaginary-mode count doesn't match
+        ``transition_state`` (see ``Thermo``).
     """
     # Build the atom list either from an optimized ASE Atoms object or by
     # reading the coordinate file.
@@ -424,6 +432,7 @@ def run_thermo(
         pressure=pressure,
         engine=engine,
         quasi_rrho=quasi_rrho,
+        transition_state=transition_state,
     )
 
     thermo_setup.run()
@@ -439,6 +448,7 @@ def orca_thermo(
     charge=0.0,
     spin=None,
     quasi_rrho=False,
+    transition_state=False,
 ):
     """
     Run the thermochemistry from an ORCA ``.hess`` file (DFT-quality data).
@@ -465,6 +475,12 @@ def orca_thermo(
         Spin quantum number S. Defaults to the minimum-spin electron-count guess.
     quasi_rrho : bool
         If True, use Grimme's quasi-RRHO vibrational entropy. Default False.
+    transition_state : bool
+        If True, treat the file as a first-order saddle point (e.g. an ORCA
+        OptTS + freq run): its one imaginary frequency is required and excluded
+        from the vibrational thermochemistry instead of raising. See
+        ``Thermo.imaginary_mode_wavenumber``. Default False (a minimum is
+        expected).
 
     Returns
     -------
@@ -497,6 +513,7 @@ def orca_thermo(
         spin=spin,
         engine="dftb+",
         quasi_rrho=quasi_rrho,
+        transition_state=transition_state,
     )
 
 
@@ -508,6 +525,7 @@ def cclib_thermo(
     charge=0.0,
     spin=None,
     quasi_rrho=False,
+    transition_state=False,
 ):
     """
     Run the thermochemistry from a QM output file via cclib.
@@ -535,6 +553,12 @@ def cclib_thermo(
         Spin quantum number S. Defaults to the minimum-spin electron-count guess.
     quasi_rrho : bool
         If True, use Grimme's quasi-RRHO vibrational entropy. Default False.
+    transition_state : bool
+        If True, treat the file as a first-order saddle point (e.g. a Gaussian
+        TS optimization + freq run): its one imaginary frequency is required and
+        excluded from the vibrational thermochemistry instead of raising. See
+        ``Thermo.imaginary_mode_wavenumber``. Default False (a minimum is
+        expected).
 
     Returns
     -------
@@ -565,6 +589,7 @@ def cclib_thermo(
         spin=spin,
         engine="dftb+",
         quasi_rrho=quasi_rrho,
+        transition_state=transition_state,
     )
 
 
@@ -596,6 +621,7 @@ def pyscf_thermo(
     charge=0.0,
     spin=None,
     quasi_rrho=False,
+    transition_state=False,
 ):
     """
     Run the thermochemistry from an in-memory PySCF calculation.
@@ -627,6 +653,12 @@ def pyscf_thermo(
         Spin quantum number S. Defaults to the minimum-spin electron-count guess.
     quasi_rrho : bool
         If True, use Grimme's quasi-RRHO vibrational entropy. Default False.
+    transition_state : bool
+        If True, treat the geometry as a first-order saddle point: its one
+        imaginary frequency is required and excluded from the vibrational
+        thermochemistry instead of raising. See
+        ``Thermo.imaginary_mode_wavenumber``. Default False (a minimum is
+        expected).
 
     Returns
     -------
@@ -668,6 +700,7 @@ def pyscf_thermo(
         spin=spin,
         engine="dftb+",
         quasi_rrho=quasi_rrho,
+        transition_state=transition_state,
     )
 
 

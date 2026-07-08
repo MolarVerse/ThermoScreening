@@ -87,6 +87,13 @@ def test_cclib_thermo_uses_file_energy(monkeypatch, tmp_path):
     assert math.isfinite(thermo.total_EeGtot())
 
 
+def test_cclib_thermo_transition_state(monkeypatch, tmp_path):
+    ts_data = dict(_WATER, vibfreqs=np.array([-300.0, 1600.0, 3800.0]))
+    _fake_ccread(monkeypatch, **ts_data)
+    thermo = cclib_thermo(str(tmp_path / "ts.log"), transition_state=True)
+    assert thermo.imaginary_mode_wavenumber() == pytest.approx(-300.0)
+
+
 def test_cclib_thermo_energy_override(monkeypatch, tmp_path):
     _fake_ccread(monkeypatch, **_WATER)
     thermo = cclib_thermo(str(tmp_path / "water.log"), energy=-77.0)

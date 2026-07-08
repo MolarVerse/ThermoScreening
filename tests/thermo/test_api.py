@@ -265,6 +265,32 @@ class TestApi(unittest.TestCase):
         assert cell is None
         assert pbc is False
 
+    def test_run_thermo_transition_state(self):
+        # bent (non-linear) triatomic, dof=3: 6 near-zero trans/rot modes then
+        # one imaginary (reaction-coordinate) mode and two real vibrations
+        water = Atoms(
+            "H2O",
+            positions=[[0.0, 0.76, -0.48], [0.0, -0.76, -0.48], [0.0, 0.0, 0.12]],
+        )
+        frequencies = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -300.0, 1600.0, 3800.0])
+
+        thermo = run_thermo(
+            frequencies, atoms=water, engine="dftb+", energy=-76.0,
+            transition_state=True,
+        )
+
+        assert thermo.imaginary_mode_wavenumber() == pytest.approx(-300.0)
+
+    def test_run_thermo_non_transition_state_rejects_imaginary_frequency(self):
+        water = Atoms(
+            "H2O",
+            positions=[[0.0, 0.76, -0.48], [0.0, -0.76, -0.48], [0.0, 0.0, 0.12]],
+        )
+        frequencies = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -300.0, 1600.0, 3800.0])
+
+        with pytest.raises(TSValueError, match="geometry is not a minimum"):
+            run_thermo(frequencies, atoms=water, engine="dftb+", energy=-76.0)
+
     def test_run_thermo_rejects_wrong_frequency_count(self):
         coord_file = Path(__file__).resolve().parents[1] / "data/thermo/geo_opt.xyz"
 
