@@ -155,6 +155,14 @@ the ``pyscf`` extra, ``pip install thermoscreening[pyscf]``):
 The geometry and energy (``mf.e_tot``) come from the mean field; frequencies are
 taken from ``frequencies=`` or derived from ``hessian=`` via ``pyscf.hessian``.
 
+.. note::
+
+   ``orca_thermo`` and ``cclib_thermo`` are tested against genuine program
+   output (real ORCA 6.1.1, Gaussian 16 and Turbomole 7.2 calculations), not
+   just synthetic files, and any file cclib or ``read_orca_hess`` cannot parse
+   raises a ``TSValueError`` rather than an arbitrary exception from the
+   underlying parser.
+
 Temperature scans
 -----------------
 
