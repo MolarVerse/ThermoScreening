@@ -64,6 +64,9 @@ lint = [
 ]
 docs = [
     "sphinx",
+    "furo",
+    "sphinx-copybutton",
+    "sphinx-design",
 ]
 
 [tool.setuptools.packages.find]

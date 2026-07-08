@@ -4,16 +4,22 @@ Configuration
 Engines and methods
 -------------------
 
-+---------------+----------------------------+-------------------------------------------+
-| ``engine``    | Backend                    | Notes                                     |
-+===============+============================+===========================================+
-| ``dftb+``     | DFTB+                      | ``--parameter-set 3ob`` (DFTB3) or        |
-| (default)     |                            | ``mio`` (DFTB2); needs ``DFTB_PREFIX``    |
-+---------------+----------------------------+-------------------------------------------+
-| ``xtb``       | GFN-xTB via tblite         | in-process, gas phase only                |
-+---------------+----------------------------+-------------------------------------------+
-| ``xtb-cli``   | native ``xtb`` binary      | open-shell + charge + implicit solvation  |
-+---------------+----------------------------+-------------------------------------------+
+.. list-table::
+   :header-rows: 1
+   :widths: 15 30 55
+
+   * - ``engine``
+     - Backend
+     - Notes
+   * - ``dftb+`` (default)
+     - DFTB+
+     - ``--parameter-set 3ob`` (DFTB3) or ``mio`` (DFTB2); needs ``DFTB_PREFIX``
+   * - ``xtb``
+     - GFN-xTB via tblite
+     - in-process, gas phase only
+   * - ``xtb-cli``
+     - native ``xtb`` binary
+     - open-shell + charge + implicit solvation
 
 For the xtb engines, ``--method`` selects ``GFN2-xTB`` (default) or ``GFN1-xTB``.
 
