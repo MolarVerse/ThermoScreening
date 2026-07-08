@@ -463,8 +463,10 @@ def orca_thermo(
     hess_file : str
         Path to an ORCA ``.hess`` file.
     energy : float, optional
-        Electronic energy in Hartree. Defaults to the file's ``$act_energy``;
-        pass this to override it (or when the file has no energy block).
+        Electronic energy in Hartree. Defaults to the companion
+        ``<basename>.property.txt`` file ORCA writes alongside the ``.hess``
+        (see :func:`ThermoScreening.calculator.orca.read_orca_hess`); pass this
+        to override it, or when that file is unavailable.
     temperature : float
         Temperature in K. Default 298.15.
     pressure : float
@@ -490,15 +492,16 @@ def orca_thermo(
     Raises
     ------
     TSValueError
-        If no energy is available (no ``$act_energy`` block and no ``energy``).
+        If no energy is available (no companion ``.property.txt``/usable
+        ``$act_energy`` and no ``energy``).
     """
     atoms, frequencies, file_energy = read_orca_hess(hess_file)
     if energy is None:
         energy = file_energy
     if energy is None:
         raise TSValueError(
-            f"No energy for '{hess_file}': it has no $act_energy block, so pass "
-            "energy=... explicitly."
+            f"No energy for '{hess_file}': keep its companion .property.txt "
+            "file alongside it, or pass energy=... explicitly."
         )
 
     # The RRHO treatment is engine-agnostic (frequencies are cm^-1 and the energy

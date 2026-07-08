@@ -114,11 +114,13 @@ frequency calculation's ``.hess`` file straight in:
    from ThermoScreening.thermo import reduction_potential
 
    ox  = orca_thermo("oxidized.hess")   # geometry, frequencies and energy read
-   red = orca_thermo("reduced.hess")    # from the ORCA $act_energy block
+   red = orca_thermo("reduced.hess")    # from the companion .property.txt file
    E = reduction_potential(ox, red)     # now on DFT energetics
 
-Pass ``energy=`` to override the file's ``$act_energy`` (e.g. a higher-level
-single-point). ``read_orca_hess`` exposes the parsed geometry/frequencies/energy
+The energy is read from the ``<basename>.property.txt`` file ORCA writes
+alongside the ``.hess`` (both must be kept together); pass ``energy=`` to
+override it (e.g. a higher-level single-point), or when only a bare ``.hess``
+is available. ``read_orca_hess`` exposes the parsed geometry/frequencies/energy
 directly if you need them.
 
 For **Gaussian, Turbomole, Psi4, NWChem** (and ORCA) in one call, install the
