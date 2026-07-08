@@ -104,12 +104,23 @@ def read_cclib(path):
     Raises
     ------
     TSValueError
-        If cclib is not installed, the file(s) cannot be parsed, or there are no
-        vibrational frequencies.
+        If cclib is not installed, the file(s) cannot be parsed (including a
+        parser crash on an unusual output format, wrapped from cclib), or there
+        are no vibrational frequencies.
     """
     cclib = _import_cclib()
 
-    data = cclib.io.ccread(_normalize_source(path))
+    try:
+        data = cclib.io.ccread(_normalize_source(path))
+    except Exception as exc:
+        # cclib's parsers are format/version-sensitive and can raise on an
+        # output format they don't fully handle (seen on real Gaussian 16 logs
+        # with cclib 1.8.1); surface that as our own exception type instead of
+        # letting an arbitrary cclib-internal exception escape uncontrolled.
+        raise TSValueError(
+            f"cclib raised {type(exc).__name__} while parsing "
+            f"'{_describe_source(path)}': {exc}"
+        ) from exc
     if data is None:
         raise TSValueError(f"cclib could not parse '{_describe_source(path)}' as a QM output.")
     if getattr(data, "vibfreqs", None) is None or not len(data.vibfreqs):

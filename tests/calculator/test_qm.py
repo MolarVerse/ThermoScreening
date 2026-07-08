@@ -25,6 +25,10 @@ _REAL_TURBOMOLE_FILES = sorted(
     if p.suffix != ".md"
 )
 
+_GAUSSIAN_DATA_DIR = Path(__file__).resolve().parents[1] / "data" / "calculator" / "gaussian"
+_REAL_GAUSSIAN_WATER = str(_GAUSSIAN_DATA_DIR / "water_neutral_opt_freq.out")
+_REAL_GAUSSIAN_UNPARSEABLE = str(_GAUSSIAN_DATA_DIR / "mp2_avdz_freq_tight.log")
+
 # water: geometry (Angstrom), three real modes, SCF energy in eV (~ -76.4 Ha)
 _WATER = dict(
     atomnos=np.array([8, 1, 1]),
@@ -187,3 +191,46 @@ def test_cclib_thermo_real_turbomole_output():
     assert thermo.electronic_energy() == pytest.approx(-951.0820621320888)
     assert math.isfinite(thermo.total_EeGtot())
     assert thermo.total_entropy("cal/(mol*K)") > 0
+
+
+# --- real Gaussian 16 output --- #
+#
+# See tests/data/calculator/gaussian/README.md for provenance.
+
+
+def test_read_cclib_real_gaussian_output():
+    atoms, freqs, energy = read_cclib(_REAL_GAUSSIAN_WATER)
+
+    assert list(atoms.get_chemical_symbols()) == ["O", "H", "H"]
+    assert list(freqs) == pytest.approx([2169.7613, 4141.3837, 4392.5759])
+    assert energy == pytest.approx(-74.96589788571758)
+
+
+def test_cclib_thermo_real_gaussian_output():
+    thermo = cclib_thermo(_REAL_GAUSSIAN_WATER)
+
+    assert thermo.electronic_energy() == pytest.approx(-74.96589788571758)
+    # gas-phase water's experimental standard entropy is ~45 cal/(mol K)
+    assert thermo.total_entropy("cal/(mol*K)") == pytest.approx(45.0, abs=2.0)
+    assert math.isfinite(thermo.total_EeGtot())
+
+
+def test_read_cclib_wraps_a_real_cclib_parser_crash():
+    # this real Gaussian 16 file's "Leave Link" timing line crashes cclib
+    # 1.8.1's own Gaussian parser with an unhandled ValueError (confirmed:
+    # still the latest cclib release at the time this test was written) --
+    # that must not leak out of read_cclib as a raw, arbitrary exception
+    with pytest.raises(TSValueError, match="cclib raised"):
+        read_cclib(_REAL_GAUSSIAN_UNPARSEABLE)
+
+
+def test_read_cclib_wraps_any_ccread_exception(monkeypatch):
+    # a cclib-version-independent guard for the same behaviour: whatever
+    # cclib.io.ccread raises internally must come out as a clean TSValueError,
+    # not the original exception type
+    def fake_ccread(source):
+        raise ValueError("some internal cclib parsing failure")
+
+    monkeypatch.setattr(cclib.io, "ccread", fake_ccread)
+    with pytest.raises(TSValueError, match="cclib raised ValueError.*some internal"):
+        read_cclib("whatever.log")
