@@ -131,8 +131,12 @@ which auto-detects the program via `cclib <https://cclib.github.io/>`_:
 
    from ThermoScreening.thermo.api import cclib_thermo
 
-   thermo = cclib_thermo("freq.log")        # Gaussian, Turbomole, ORCA, ...
+   thermo = cclib_thermo("freq.log")        # Gaussian, ORCA, Psi4, NWChem, ...
    print(thermo.total_gibbs_free_energy())  # energy read from the output, in Hartree
+
+   # Turbomole splits a job's output across many files instead of one logfile;
+   # pass every relevant file's path as a list (cclib's multi-file mode)
+   ts_thermo = cclib_thermo(["control", "coord", "aoforce.out"])
 
 ``read_cclib`` returns the parsed ``(atoms, frequencies, energy)`` if you want
 them directly; ``energy=`` overrides the parsed energy.

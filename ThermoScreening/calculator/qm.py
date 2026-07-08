@@ -47,17 +47,40 @@ def _best_energy_ev(data):
     return None
 
 
+def _normalize_source(path):
+    """
+    Coerce ``path`` into what ``cclib.io.ccread`` expects: a single path string,
+    or a list of path strings for a multi-file program.
+    """
+    if isinstance(path, (list, tuple)):
+        return [str(p) for p in path]
+    return str(path)
+
+
+def _describe_source(path):
+    """A short, readable description of ``path`` for error messages."""
+    if isinstance(path, (list, tuple)):
+        return ", ".join(str(p) for p in path)
+    return str(path)
+
+
 def read_cclib(path):
     """
     Read geometry, vibrational frequencies and energy from a QM output file.
 
-    Uses cclib to parse any supported program's output (Gaussian, Turbomole,
-    ORCA, Psi4, NWChem, ...).
+    Uses cclib to parse any supported program's output (Gaussian, ORCA, Psi4,
+    NWChem, ...). Most programs write one logfile per job; pass its path.
+
+    **Turbomole** splits a job's output across many small files instead of one
+    logfile (``control``, ``coord``, ``aoforce.out``, ...); pass a list of every
+    relevant file's path (cclib's own multi-file mode) rather than a single path.
 
     Parameters
     ----------
-    path : str
-        Path to a QM frequency-calculation output file.
+    path : str or list of str
+        Path to a QM frequency-calculation output file, or (for a multi-file
+        program such as Turbomole) a list of paths to every relevant file from
+        the same job.
 
     Returns
     -------
@@ -81,17 +104,18 @@ def read_cclib(path):
     Raises
     ------
     TSValueError
-        If cclib is not installed, the file cannot be parsed, or it has no
+        If cclib is not installed, the file(s) cannot be parsed, or there are no
         vibrational frequencies.
     """
     cclib = _import_cclib()
 
-    data = cclib.io.ccread(str(path))
+    data = cclib.io.ccread(_normalize_source(path))
     if data is None:
-        raise TSValueError(f"cclib could not parse '{path}' as a QM output.")
+        raise TSValueError(f"cclib could not parse '{_describe_source(path)}' as a QM output.")
     if getattr(data, "vibfreqs", None) is None or not len(data.vibfreqs):
         raise TSValueError(
-            f"'{path}' has no vibrational frequencies (run a frequency calculation)."
+            f"'{_describe_source(path)}' has no vibrational frequencies "
+            "(run a frequency calculation)."
         )
 
     atoms = Atoms(numbers=np.asarray(data.atomnos), positions=np.asarray(data.atomcoords[-1]))
