@@ -29,17 +29,22 @@ After this, ``thermo doctor`` should report every backend as found.
 Backends
 --------
 
-+-------------------+------------------------------------------+--------------------------------------------+
-| Backend           | Needed for                               | Install                                    |
-+===================+==========================================+============================================+
-| ``dftb+``,        | the DFTB+ engine                         | ``conda install -c conda-forge dftbplus``  |
-| ``modes``         |                                          |                                            |
-+-------------------+------------------------------------------+--------------------------------------------+
-| ``xtb``           | ``--engine xtb-cli`` (native xtb)        | ``conda install -c conda-forge xtb``       |
-+-------------------+------------------------------------------+--------------------------------------------+
-| ``tblite``        | ``--engine xtb`` (in-process GFN-xTB)    | ``conda install -c conda-forge             |
-|                   |                                          | tblite-python``                            |
-+-------------------+------------------------------------------+--------------------------------------------+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 35 45
+
+   * - Backend
+     - Needed for
+     - Install
+   * - ``dftb+``, ``modes``
+     - the DFTB+ engine
+     - ``conda install -c conda-forge dftbplus``
+   * - ``xtb``
+     - ``--engine xtb-cli`` (native xtb)
+     - ``conda install -c conda-forge xtb``
+   * - ``tblite``
+     - ``--engine xtb`` (in-process GFN-xTB)
+     - ``conda install -c conda-forge tblite-python``
 
 DFTB+ and Slater-Koster setup
 -----------------------------

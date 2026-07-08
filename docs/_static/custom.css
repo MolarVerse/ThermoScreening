@@ -1,0 +1,17 @@
+/* Small, tasteful touches on top of Furo's defaults. */
+
+/* A gentle hover lift on the feature cards (sphinx-design) on the landing page. */
+.sd-card {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.sd-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+}
+
+/* Slightly tint inline code in prose so it reads as "code" without shouting. */
+.content p code.literal,
+.content li code.literal {
+  background: var(--color-code-background);
+  border-radius: 0.2em;
+}
