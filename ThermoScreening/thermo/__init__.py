@@ -10,3 +10,4 @@ from .screening import screen, rank_by_gibbs
 from .conformers import generate as generate_conformers, write_conformers
 from .reactions import reaction_free_energy, reduction_potential
 from .ensemble import boltzmann_weights, ensemble_free_energy, lowest_gibbs
+from .kinetics import eyring_rate_constant, wigner_tunneling_correction

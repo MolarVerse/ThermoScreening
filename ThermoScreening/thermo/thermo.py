@@ -62,6 +62,7 @@ class Thermo:
         system: System,
         engine: str,
         quasi_rrho: bool = False,
+        transition_state: bool = False,
     ):
         """
         Initializes the Thermo class with the temperature, pressure, system information
@@ -81,6 +82,14 @@ class Thermo:
             If True, use Grimme's quasi-RRHO treatment for the vibrational
             entropy (interpolating low-frequency modes towards a free rotor)
             instead of the pure rigid-rotor-harmonic-oscillator model.
+        transition_state : bool
+            If True, treat the geometry as a first-order saddle point: exactly
+            one imaginary (negative) vibrational frequency is required and
+            excluded from the vibrational partition function (the reaction
+            coordinate contributes no thermal vibrational term), instead of
+            raising. Its wavenumber is exposed via
+            :meth:`imaginary_mode_wavenumber`. Default False (a minimum is
+            expected; any imaginary frequency raises).
 
         Raises
         ------
@@ -112,6 +121,8 @@ class Thermo:
         self._system = system
         self._engine = engine
         self._quasi_rrho = quasi_rrho
+        self._transition_state = transition_state
+        self._imaginary_mode_wavenumber = None
 
         if self._engine not in ("dftb+", "xtb"):
             raise TSValueError("The engine is not supported.")
@@ -151,9 +162,9 @@ class Thermo:
 
         The electronic energy, geometry, and vibrational frequencies are
         temperature-independent, so this reuses the same :class:`System` (and
-        this object's pressure, engine, and quasi-RRHO setting) and only the
-        thermal terms are recomputed -- i.e. a temperature scan from a single
-        Hessian. This object is left unchanged.
+        this object's pressure, engine, quasi-RRHO and transition-state setting)
+        and only the thermal terms are recomputed -- i.e. a temperature scan from
+        a single Hessian. This object is left unchanged.
 
         Parameters
         ----------
@@ -174,6 +185,7 @@ class Thermo:
                 system=self._system,
                 engine=self._engine,
                 quasi_rrho=self._quasi_rrho,
+                transition_state=self._transition_state,
             )
             thermo.run()
             scan.append(thermo)
@@ -388,7 +400,7 @@ class Thermo:
         """
         self._vib_temp_K = (
             PhysicalConstants["h"]
-            * self._system.real_vibrational_frequencies
+            * self._real_vibrational_frequencies
             * PhysicalConstants["c"]
             * 10**2
             / (PhysicalConstants["kB"])
@@ -468,7 +480,7 @@ class Thermo:
 
         weight = 1.0 / (
             1.0
-            + (self._QRRHO_FREQ_CM / self._system.real_vibrational_frequencies) ** 4
+            + (self._QRRHO_FREQ_CM / self._real_vibrational_frequencies) ** 4
         )
 
         return weight * harmonic + (1.0 - weight) * free_rotor
@@ -537,6 +549,11 @@ class Thermo:
         """
         Computes the vibrational contribution of the system.
 
+        For a transition state (``transition_state=True``), the one required
+        imaginary mode is set aside (stored via :meth:`imaginary_mode_wavenumber`)
+        and excluded from the vibrational sums below, which then run over the
+        remaining real modes only.
+
         Returns
         -------
         None
@@ -544,15 +561,34 @@ class Thermo:
         Raises
         ------
         TSValueError
-            If a kept vibrational frequency is imaginary (non-positive), which
-            would otherwise make the harmonic formulas return NaN.
+            If ``transition_state`` is False and a kept vibrational frequency is
+            imaginary (non-positive), which would otherwise make the harmonic
+            formulas return NaN.
+            If ``transition_state`` is True and the kept frequencies do not have
+            exactly one imaginary (non-positive) mode, i.e. the geometry is not a
+            first-order saddle point.
         """
 
-        if np.any(self._system.real_vibrational_frequencies <= 0):
+        frequencies = self._system.real_vibrational_frequencies
+        imaginary = frequencies[frequencies <= 0]
+
+        if self._transition_state:
+            if len(imaginary) != 1:
+                raise TSValueError(
+                    "A transition state must have exactly one imaginary "
+                    f"vibrational frequency (a first-order saddle point); found "
+                    f"{len(imaginary)}: {list(imaginary)}."
+                )
+            self._imaginary_mode_wavenumber = float(imaginary[0])
+            frequencies = frequencies[frequencies > 0]
+        elif len(imaginary):
             raise TSValueError(
                 "Imaginary (non-positive) vibrational frequencies are present; "
-                "the geometry is not a minimum."
+                "the geometry is not a minimum. Pass transition_state=True if "
+                "this is intentionally a first-order saddle point."
             )
+
+        self._real_vibrational_frequencies = frequencies
 
         self._compute_vibrational_partition_function()
         self._compute_vibrational_entropy()
@@ -1018,3 +1054,19 @@ class Thermo:
         """
 
         return _real_scalar(self._system.electronic_energy)
+
+    def imaginary_mode_wavenumber(self):
+        """
+        The transition state's imaginary-mode wavenumber (cm^-1, negative).
+
+        Set by :meth:`run` when this object was constructed with
+        ``transition_state=True``; useful for a tunneling correction (see
+        :func:`ThermoScreening.thermo.kinetics.wigner_tunneling_correction`).
+
+        Returns
+        -------
+        float or None
+            The imaginary mode's wavenumber, or ``None`` for a non-transition-
+            state ``Thermo`` (the default) or before ``run()`` has been called.
+        """
+        return self._imaginary_mode_wavenumber

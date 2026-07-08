@@ -110,6 +110,13 @@ def test_orca_thermo_energy_override(tmp_path):
     assert thermo.electronic_energy() == pytest.approx(-77.0)
 
 
+def test_orca_thermo_transition_state(tmp_path):
+    # mode 6 (the softest "vibrational" mode) is imaginary -> a TS
+    ts_hess = _HESS.replace("  6  1600.000000", "  6  -300.000000")
+    thermo = orca_thermo(_write_hess(tmp_path, ts_hess, "ts.hess"), transition_state=True)
+    assert thermo.imaginary_mode_wavenumber() == pytest.approx(-300.0)
+
+
 _CO2_HESS = """\
 $act_energy
     -188.500000

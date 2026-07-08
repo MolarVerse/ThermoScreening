@@ -40,6 +40,13 @@ def test_pyscf_thermo_energy_override():
     assert thermo.electronic_energy() == pytest.approx(-77.0)
 
 
+def test_pyscf_thermo_transition_state():
+    thermo = pyscf_thermo(
+        _FakeMeanField(), frequencies=[-300.0, 1600.0, 3800.0], transition_state=True,
+    )
+    assert thermo.imaginary_mode_wavenumber() == pytest.approx(-300.0)
+
+
 def test_pyscf_thermo_requires_frequencies_or_hessian():
     with pytest.raises(TSValueError, match="Provide frequencies"):
         pyscf_thermo(_FakeMeanField())

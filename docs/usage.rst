@@ -200,6 +200,39 @@ conditions), combine them into reaction free energies and reduction potentials:
    across similar species, with a higher-accuracy method, or with a
    ``reference_potential`` calibrated against experiment.
 
+Transition states and rate constants
+-------------------------------------
+
+By default ``Thermo`` requires a minimum (no imaginary frequencies). Pass
+``transition_state=True`` to the ``*_thermo`` functions to evaluate a
+first-order saddle point instead: its one required imaginary (reaction
+coordinate) mode is excluded from the vibrational thermochemistry rather than
+raising, and exposed via ``Thermo.imaginary_mode_wavenumber()``. This works
+with any engine that imports an externally-computed structure -- ``orca_thermo``,
+``cclib_thermo`` and ``pyscf_thermo`` -- since a DFTB+/xtb geometry
+*optimization* is a minimizer and cannot itself locate a saddle point:
+
+.. code-block:: python
+
+   from ThermoScreening.thermo.api import orca_thermo
+   from ThermoScreening.thermo import eyring_rate_constant, wigner_tunneling_correction
+
+   reactant = orca_thermo("reactant.hess")
+   ts = orca_thermo("ts.hess", transition_state=True)
+
+   nu_imag = ts.imaginary_mode_wavenumber()          # cm^-1, negative
+   kappa = wigner_tunneling_correction(nu_imag, temperature=298.15)
+   k = eyring_rate_constant([reactant], ts, temperature=298.15, kappa=kappa)
+
+``eyring_rate_constant`` uses the same reactant convention as
+``reaction_free_energy`` (a list of ``Thermo`` or ``(coefficient, Thermo)``
+entries), so a bimolecular reaction is ``eyring_rate_constant([a, b], ts)``.
+For a single reactant the result is a first-order rate constant in s\ :sup:`-1`;
+for multiple reactants it is the pseudo-first-order TST rate (no standard-state
+correction is applied). ``wigner_tunneling_correction`` is a small, first-order
+tunneling estimate -- valid only when it stays close to 1; for deep tunneling
+use a more complete treatment.
+
 End-to-end example
 ------------------
 

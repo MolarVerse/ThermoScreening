@@ -33,6 +33,12 @@ Reactions and redox
 .. autofunction:: ThermoScreening.thermo.reactions.reaction_free_energy
 .. autofunction:: ThermoScreening.thermo.reactions.reduction_potential
 
+Transition states and kinetics
+-------------------------------
+
+.. autofunction:: ThermoScreening.thermo.kinetics.eyring_rate_constant
+.. autofunction:: ThermoScreening.thermo.kinetics.wigner_tunneling_correction
+
 Conformer ensembles
 -------------------
 
@@ -48,7 +54,7 @@ Thermochemistry core
 .. autoclass:: ThermoScreening.thermo.thermo.Thermo
    :members: total_energy, total_enthalpy, total_gibbs_free_energy,
              total_entropy, total_heat_capacity, total_EeGtot, electronic_energy,
-             temperature_scan
+             temperature_scan, imaginary_mode_wavenumber
 
 Coordinate and frequency readers
 --------------------------------
