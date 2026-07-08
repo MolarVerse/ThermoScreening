@@ -540,11 +540,14 @@ def cclib_thermo(
 
     Parameters
     ----------
-    output_file : str
-        Path to a QM frequency-calculation output file.
+    output_file : str or list of str
+        Path to a QM frequency-calculation output file. Turbomole splits a job's
+        output across many small files instead of one logfile (``control``,
+        ``coord``, ``aoforce.out``, ...); pass a list of every relevant file's
+        path for it (cclib's multi-file mode) rather than a single path.
     energy : float, optional
         Electronic energy in Hartree. Defaults to the best energy cclib parses
-        from the file; pass this to override it (e.g. a higher-level single
+        from the file(s); pass this to override it (e.g. a higher-level single
         point) or when cclib finds no energy.
     temperature : float
         Temperature in K. Default 298.15.

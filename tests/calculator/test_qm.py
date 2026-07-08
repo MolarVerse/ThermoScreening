@@ -1,5 +1,6 @@
 import math
 import types
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -7,11 +8,22 @@ import pytest
 import cclib.io
 
 from ThermoScreening.calculator import qm
-from ThermoScreening.calculator.qm import read_cclib, _best_energy_ev
+from ThermoScreening.calculator.qm import (
+    read_cclib,
+    _best_energy_ev,
+    _normalize_source,
+    _describe_source,
+)
 from ThermoScreening.thermo.api import cclib_thermo
 from ThermoScreening.exceptions import TSValueError
 
 _H_TO_EV = 27.211386245988
+
+_REAL_TURBOMOLE_FILES = sorted(
+    str(p) for p in
+    (Path(__file__).resolve().parents[1] / "data" / "calculator" / "turbomole").glob("*")
+    if p.suffix != ".md"
+)
 
 # water: geometry (Angstrom), three real modes, SCF energy in eV (~ -76.4 Ha)
 _WATER = dict(
@@ -106,3 +118,64 @@ def test_cclib_thermo_requires_energy(monkeypatch, tmp_path):
     _fake_ccread(monkeypatch, **data)
     with pytest.raises(TSValueError, match="No energy"):
         cclib_thermo(str(tmp_path / "water.log"))
+
+
+# --- multi-file (Turbomole) support --- #
+#
+# Turbomole splits a job's output across many small files instead of one
+# logfile, so cclib.io.ccread must receive a LIST of paths for it, not a
+# single path. read_cclib previously always did cclib.io.ccread(str(path)),
+# which silently could not support this at all.
+
+
+def test_normalize_source_single_path_is_a_string():
+    assert _normalize_source("a.log") == "a.log"
+    assert _normalize_source(Path("a.log")) == "a.log"
+
+
+def test_normalize_source_list_stays_a_list_of_strings():
+    assert _normalize_source(["control", Path("coord"), "aoforce.out"]) == [
+        "control", "coord", "aoforce.out",
+    ]
+
+
+def test_describe_source_formats_both_forms():
+    assert _describe_source("a.log") == "a.log"
+    assert _describe_source(["a", "b"]) == "a, b"
+
+
+def test_read_cclib_passes_a_list_through_to_ccread_unmodified(monkeypatch):
+    captured = {}
+
+    def fake_ccread(source):
+        captured["source"] = source
+        return types.SimpleNamespace(**_WATER)
+
+    monkeypatch.setattr(cclib.io, "ccread", fake_ccread)
+    files = ["control", "coord", "aoforce.out"]
+    read_cclib(files)
+
+    assert captured["source"] == files  # not str(files) / a single joined string
+
+
+def test_read_cclib_real_turbomole_output():
+    # a genuine Turbomole 7.2 aoforce (frequency) calculation; see
+    # tests/data/calculator/turbomole/README.md for provenance
+    atoms, freqs, energy = read_cclib(_REAL_TURBOMOLE_FILES)
+
+    assert list(atoms.get_chemical_symbols()) == ["Cl", "Au", "N", "N", "Au", "N", "N"]
+    assert len(freqs) == 15  # 3*7 - 6, all real (a genuine minimum)
+    assert freqs.min() > 0
+    assert freqs.min() == pytest.approx(17.75)
+    assert freqs.max() == pytest.approx(2303.92)
+    # cclib's scfenergies (eV) converted to Hartree, cross-checked against the
+    # raw eV value cclib itself reports for this file (-25880.26134295 eV)
+    assert energy == pytest.approx(-25880.26134295 / _H_TO_EV)
+
+
+def test_cclib_thermo_real_turbomole_output():
+    thermo = cclib_thermo(_REAL_TURBOMOLE_FILES)
+
+    assert thermo.electronic_energy() == pytest.approx(-951.0820621320888)
+    assert math.isfinite(thermo.total_EeGtot())
+    assert thermo.total_entropy("cal/(mol*K)") > 0
