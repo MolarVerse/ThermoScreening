@@ -36,8 +36,8 @@ from ._units import HARTREE_TO_KCAL_PER_MOL
 #
 # Convention-dependent like SHE_ABSOLUTE_POTENTIAL in reactions.py; override
 # reference_free_energy for a value calibrated to your method (see
-# calibrate_proton_reference), which the literature recommends for
-# quantitative accuracy.
+# calibrate_proton_reference) -- required, not just recommended, for
+# semiempirical engines (GFN-xTB, DFTB); see pKa's Notes below.
 PROTON_AQUEOUS_FREE_ENERGY_KCAL = -270.28
 
 _R_KCAL_PER_MOL_K = PhysicalConstants["R"] / (PhysicalConstants["cal"] * 1000.0)

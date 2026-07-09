@@ -244,14 +244,15 @@ literature reference free energy for the (uncomputable) aqueous proton:
    hq, hq_anion = acid_base_pair("Oc1ccc(O)cc1", "[O-]c1ccc(O)cc1")  # hydroquinone
 
    p_ka = pKa(hq, hq_anion)  # -99.45 -- see the warning below
+   phenol_p_ka = pKa(phenol, phenolate)  # -100.46 vs. experimental 9.99
 
 .. warning::
 
    The default proton reference (``PROTON_AQUEOUS_FREE_ENERGY_KCAL``) is a
    literature constant derived assuming DFT/ab-initio-quality absolute
    energies. With **GFN-xTB or DFTB it is not usable at all uncalibrated**:
-   verified with the real xtb-cli calculation above, ``pKa(phenol,
-   phenolate)`` comes out at **-100.46** against phenol's experimental 9.99 --
+   verified with the real xtb-cli calculation above, ``phenol_p_ka`` comes out
+   at **-100.46** against phenol's experimental 9.99 --
    an error of ~110 pKa units, not the "several units" DFT+continuum-solvent
    methods show (Ho & Coote, *Theor. Chem. Acc.* **2010**, *125*, 3).
    Semiempirical tight-binding methods do not preserve an absolute
