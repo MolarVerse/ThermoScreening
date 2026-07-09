@@ -33,6 +33,12 @@ Reactions and redox
 .. autofunction:: ThermoScreening.thermo.reactions.reaction_free_energy
 .. autofunction:: ThermoScreening.thermo.reactions.reduction_potential
 
+Acid dissociation (pKa)
+------------------------
+
+.. autofunction:: ThermoScreening.thermo.pka.pKa
+.. autofunction:: ThermoScreening.thermo.pka.calibrate_proton_reference
+
 Transition states and kinetics
 -------------------------------
 

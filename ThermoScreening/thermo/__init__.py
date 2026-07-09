@@ -11,3 +11,4 @@ from .conformers import generate as generate_conformers, write_conformers
 from .reactions import reaction_free_energy, reduction_potential
 from .ensemble import boltzmann_weights, ensemble_free_energy, lowest_gibbs
 from .kinetics import eyring_rate_constant, wigner_tunneling_correction
+from .pka import pKa, calibrate_proton_reference, PROTON_AQUEOUS_FREE_ENERGY_KCAL
