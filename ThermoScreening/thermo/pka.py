@@ -79,13 +79,25 @@ def pKa(acid, base, temperature=298.15, reference_free_energy=PROTON_AQUEOUS_FRE
 
     Notes
     -----
-    The raw "direct method" with a literature proton reference is known to
-    have several-pKa-unit systematic error even at DFT+continuum-solvent
-    levels (e.g. Ho & Coote, Theor. Chem. Acc. 2010, 125, 3); GFN-xTB/DFTB
-    absolute pKa is expected to be considerably less accurate still. Use for
-    **relative** comparisons among structurally similar acids, or calibrate
-    ``reference_free_energy`` against one experimental pKa of a similar
-    reference acid.
+    The raw "direct method" with a literature proton reference has
+    several-pKa-unit systematic error even at DFT+continuum-solvent levels
+    (e.g. Ho & Coote, Theor. Chem. Acc. 2010, 125, 3). With a semiempirical
+    engine (GFN-xTB, DFTB) it is far worse than that -- **not usable at all**
+    uncalibrated: verified with real xtb-cli (GFN2-xTB + ALPB water)
+    calculations, phenol's raw pKa comes out at approximately -100 (vs. the
+    experimental 9.99), an error of about 110 pKa units. This is not a
+    solvation-model inaccuracy; semiempirical tight-binding methods do not
+    preserve an absolute ab-initio/experimental energy scale, so their
+    electronic energies cannot be combined directly with a literature
+    constant derived assuming DFT/ab-initio-quality absolute energies.
+
+    ``calibrate_proton_reference`` against **one** reference compound absorbs
+    this offset entirely (it is an additive constant, not molecule-specific)
+    and is **required**, not merely recommended, for a semiempirical engine:
+    in the same verification, hydroquinone's pKa calibrated against phenol
+    (pKa_exp = 9.99) came out at 11.00 vs. the experimental 10.35 -- a good
+    result. See the "Acid dissociation (pKa)" section of the usage docs for
+    the full worked example.
     """
     delta_g_kcal = _delta_g_kcal(acid, base) + reference_free_energy
     return delta_g_kcal / (_R_KCAL_PER_MOL_K * temperature * math.log(10))
@@ -99,9 +111,10 @@ def calibrate_proton_reference(acid, base, experimental_pKa, temperature=298.15)
     Solves :func:`pKa` for ``reference_free_energy`` instead of ``pKa``. Use
     the result as ``pKa(..., reference_free_energy=...)`` for other acids
     computed the same way (same engine/conditions), ideally structurally
-    similar to the calibration pair -- the literature-recommended approach for
-    quantitative pKa accuracy, since the raw literature proton reference alone
-    is not quantitatively reliable (see :func:`pKa`'s Notes).
+    similar to the calibration pair. With a semiempirical engine (GFN-xTB,
+    DFTB) this is **required**, not just recommended for extra accuracy: the
+    raw literature proton reference alone gives an unusable result (errors of
+    ~100 pKa units, not just a few -- see :func:`pKa`'s Notes).
 
     Parameters
     ----------

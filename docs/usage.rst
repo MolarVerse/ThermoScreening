@@ -227,34 +227,46 @@ literature reference free energy for the (uncomputable) aqueous proton:
 
    from ThermoScreening.thermo.api import xtb_cli_thermo
    from ThermoScreening.thermo.conformers import generate
-   from ThermoScreening.thermo import pKa
+   from ThermoScreening.thermo import pKa, calibrate_proton_reference
 
-   # the acid and its conjugate base are different structures (one fewer H),
-   # not the same structure at a different charge (that would be reduction)
-   hq       = generate("Oc1ccc(O)cc1", max_conformers=1)[0]     # hydroquinone, HQ
-   hq_anion = generate("[O-]c1ccc(O)cc1", max_conformers=1)[0]  # phenolate, HQ-
+   def acid_base_pair(acid_smiles, base_smiles):
+       # the acid and its conjugate base are different structures (one fewer
+       # H), not the same structure at a different charge (that would be
+       # reduction, not deprotonation)
+       acid = generate(acid_smiles, max_conformers=1)[0]
+       base = generate(base_smiles, max_conformers=1)[0]
+       return (
+           xtb_cli_thermo(acid, charge=0, solvent="water"),
+           xtb_cli_thermo(base, charge=-1, solvent="water"),
+       )
 
-   acid = xtb_cli_thermo(hq, charge=0, solvent="water")
-   base = xtb_cli_thermo(hq_anion, charge=-1, solvent="water")
-   p_ka = pKa(acid, base)
+   phenol, phenolate = acid_base_pair("Oc1ccccc1", "[O-]c1ccccc1")
+   hq, hq_anion = acid_base_pair("Oc1ccc(O)cc1", "[O-]c1ccc(O)cc1")  # hydroquinone
+
+   p_ka = pKa(hq, hq_anion)  # -99.45 -- see the warning below
 
 .. warning::
 
    The default proton reference (``PROTON_AQUEOUS_FREE_ENERGY_KCAL``) is a
-   literature constant; the raw direct method is known to have several-pKa-unit
-   systematic error even with DFT and an explicit continuum solvent model (Ho
-   & Coote, *Theor. Chem. Acc.* **2010**, *125*, 3), and GFN-xTB/DFTB absolute
-   pKa is expected to be considerably less accurate still. Use for **relative**
-   comparisons among structurally similar acids, or calibrate against one
-   known experimental pKa:
+   literature constant derived assuming DFT/ab-initio-quality absolute
+   energies. With **GFN-xTB or DFTB it is not usable at all uncalibrated**:
+   verified with the real xtb-cli calculation above, ``pKa(phenol,
+   phenolate)`` comes out at **-100.46** against phenol's experimental 9.99 --
+   an error of ~110 pKa units, not the "several units" DFT+continuum-solvent
+   methods show (Ho & Coote, *Theor. Chem. Acc.* **2010**, *125*, 3).
+   Semiempirical tight-binding methods do not preserve an absolute
+   ab-initio/experimental energy scale, so their energies cannot be mixed
+   directly with this constant.
+
+   ``calibrate_proton_reference`` against **one** reference compound absorbs
+   this offset completely (it is an additive constant, not
+   molecule-specific) and is **required** for these engines, not just
+   recommended for extra accuracy:
 
    .. code-block:: python
 
-      from ThermoScreening.thermo import calibrate_proton_reference
-
-      # a reference acid/base pair with a known experimental pKa
-      ref_g = calibrate_proton_reference(ref_acid, ref_base, experimental_pKa=4.20)
-      p_ka = pKa(acid, base, reference_free_energy=ref_g)  # more accurate
+      ref_g = calibrate_proton_reference(phenol, phenolate, experimental_pKa=9.99)
+      p_ka = pKa(hq, hq_anion, reference_free_energy=ref_g)  # 11.00 vs. exp 10.35
 
 Transition states and rate constants
 -------------------------------------
