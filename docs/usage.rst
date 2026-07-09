@@ -214,6 +214,43 @@ conditions), combine them into reaction free energies and reduction potentials:
    across similar species, with a higher-accuracy method, or with a
    ``reference_potential`` calibrated against experiment.
 
+Acid dissociation (pKa)
+------------------------
+
+Proton-coupled redox (e.g. hydroquinone/semiquinone/quinone protonation
+states) needs a pKa alongside the reduction potential. ``pKa`` uses the
+"direct method" thermodynamic cycle -- ``HA(soln) -> A-(soln) + H+(soln)`` --
+combining the acid and conjugate base's computed free energies with a
+literature reference free energy for the (uncomputable) aqueous proton:
+
+.. code-block:: python
+
+   from ThermoScreening.thermo.api import xtb_cli_thermo
+   from ThermoScreening.thermo import pKa
+
+   hq  = xtb_cli_thermo(hydroquinone, charge=0,  solvent="water")   # HQ
+   hq_anion = xtb_cli_thermo(hydroquinone, charge=-1, solvent="water")  # HQ-
+
+   p_ka = pKa(hq, hq_anion)
+
+.. warning::
+
+   The default proton reference (``PROTON_AQUEOUS_FREE_ENERGY_KCAL``) is a
+   literature constant; the raw direct method is known to have several-pKa-unit
+   systematic error even with DFT and an explicit continuum solvent model (Ho
+   & Coote, *Theor. Chem. Acc.* **2010**, *125*, 3), and GFN-xTB/DFTB absolute
+   pKa is expected to be considerably less accurate still. Use for **relative**
+   comparisons among structurally similar acids, or calibrate against one
+   known experimental pKa:
+
+   .. code-block:: python
+
+      from ThermoScreening.thermo import calibrate_proton_reference
+
+      # a reference acid/base pair with a known experimental pKa
+      ref_g = calibrate_proton_reference(ref_acid, ref_base, experimental_pKa=4.20)
+      p_ka = pKa(hq, hq_anion, reference_free_energy=ref_g)  # more accurate
+
 Transition states and rate constants
 -------------------------------------
 
