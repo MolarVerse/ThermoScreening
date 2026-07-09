@@ -1,4 +1,6 @@
 import math
+import os
+import shutil
 
 import pytest
 
@@ -116,3 +118,38 @@ def test_public_api_exported():
 
     assert pKa_pub is pka_module.pKa
     assert cal_pub is pka_module.calibrate_proton_reference
+
+
+xtb_available = shutil.which("xtb") is not None or "XTB_COMMAND" in os.environ
+
+
+@pytest.mark.skipif(not xtb_available, reason="the native xtb binary is not available.")
+def test_pKa_calibration_end_to_end(tmp_path):
+    # phenol/phenolate and hydroquinone/hydroquinone-monoanion, in water, via
+    # xtb-cli (GFN2-xTB + ALPB). The raw pKa with the default literature
+    # proton reference is unusable for a semiempirical engine (~-100, since
+    # GFN2-xTB energies are not on the ab-initio/experimental absolute energy
+    # scale that reference assumes) -- calibrating against phenol's
+    # experimental pKa (9.99) fixes this: hydroquinone comes out within ~1
+    # pKa unit of its experimental value (10.35).
+    from ThermoScreening.thermo.api import xtb_cli_thermo
+    from ThermoScreening.thermo.conformers import generate
+
+    def acid_base_pair(acid_smiles, base_smiles, tag):
+        acid = generate(acid_smiles, max_conformers=1)[0]
+        base = generate(base_smiles, max_conformers=1)[0]
+        return (
+            xtb_cli_thermo(acid, charge=0, solvent="water", directory=str(tmp_path / f"{tag}_a")),
+            xtb_cli_thermo(base, charge=-1, solvent="water", directory=str(tmp_path / f"{tag}_b")),
+        )
+
+    phenol, phenolate = acid_base_pair("Oc1ccccc1", "[O-]c1ccccc1", "phenol")
+    hq, hq_anion = acid_base_pair("Oc1ccc(O)cc1", "[O-]c1ccc(O)cc1", "hq")
+
+    raw_pKa = pKa(phenol, phenolate)
+    assert math.isfinite(raw_pKa)
+    assert raw_pKa < -50  # unusable uncalibrated, as documented
+
+    ref_g = calibrate_proton_reference(phenol, phenolate, experimental_pKa=9.99)
+    calibrated_pKa = pKa(hq, hq_anion, reference_free_energy=ref_g)
+    assert calibrated_pKa == pytest.approx(10.35, abs=1.0)  # within ~1 unit of experiment
