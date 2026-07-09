@@ -226,12 +226,17 @@ literature reference free energy for the (uncomputable) aqueous proton:
 .. code-block:: python
 
    from ThermoScreening.thermo.api import xtb_cli_thermo
+   from ThermoScreening.thermo.conformers import generate
    from ThermoScreening.thermo import pKa
 
-   hq  = xtb_cli_thermo(hydroquinone, charge=0,  solvent="water")   # HQ
-   hq_anion = xtb_cli_thermo(hydroquinone, charge=-1, solvent="water")  # HQ-
+   # the acid and its conjugate base are different structures (one fewer H),
+   # not the same structure at a different charge (that would be reduction)
+   hq       = generate("Oc1ccc(O)cc1", max_conformers=1)[0]     # hydroquinone, HQ
+   hq_anion = generate("[O-]c1ccc(O)cc1", max_conformers=1)[0]  # phenolate, HQ-
 
-   p_ka = pKa(hq, hq_anion)
+   acid = xtb_cli_thermo(hq, charge=0, solvent="water")
+   base = xtb_cli_thermo(hq_anion, charge=-1, solvent="water")
+   p_ka = pKa(acid, base)
 
 .. warning::
 
@@ -249,7 +254,7 @@ literature reference free energy for the (uncomputable) aqueous proton:
 
       # a reference acid/base pair with a known experimental pKa
       ref_g = calibrate_proton_reference(ref_acid, ref_base, experimental_pKa=4.20)
-      p_ka = pKa(hq, hq_anion, reference_free_energy=ref_g)  # more accurate
+      p_ka = pKa(acid, base, reference_free_energy=ref_g)  # more accurate
 
 Transition states and rate constants
 -------------------------------------
