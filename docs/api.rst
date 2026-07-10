@@ -51,6 +51,8 @@ Conformer ensembles
 .. autofunction:: ThermoScreening.thermo.ensemble.boltzmann_weights
 .. autofunction:: ThermoScreening.thermo.ensemble.ensemble_free_energy
 .. autofunction:: ThermoScreening.thermo.ensemble.lowest_gibbs
+.. autoclass:: ThermoScreening.thermo.ensemble.EnsembleThermo
+   :members:
 
 Thermochemistry core
 --------------------
