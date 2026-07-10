@@ -111,6 +111,8 @@ one (possibly non-representative) conformer:
 
 .. code-block:: python
 
+   from ThermoScreening.thermo.api import xtb_cli_thermo
+   from ThermoScreening.thermo.conformers import generate
    from ThermoScreening.thermo import EnsembleThermo, pKa
 
    def ensemble_thermo(smiles, charge):
