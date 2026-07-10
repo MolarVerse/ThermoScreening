@@ -117,3 +117,35 @@ def lowest_gibbs(thermos):
     if not thermos:
         raise ValueError("thermos must contain at least one conformer.")
     return min(thermos, key=lambda thermo: thermo.total_EeGtot())
+
+
+class EnsembleThermo:
+    """
+    A ``Thermo``-like adapter exposing a conformer ensemble's Boltzmann free
+    energy through ``total_EeGtot()``.
+
+    ``pKa``, ``calibrate_proton_reference``, ``reduction_potential``, and
+    ``reaction_free_energy`` only ever call ``.total_EeGtot()`` on the species
+    they're given, so wrapping a conformer ensemble in this class lets it be
+    passed anywhere a single ``Thermo`` is expected today -- no changes needed
+    to those helpers.
+
+    Parameters
+    ----------
+    thermos : iterable of Thermo
+        Conformers of the same species, computed with matching settings.
+    temperature : float
+        Temperature in kelvin, matching how ``thermos`` were computed and any
+        downstream helper it's passed to. Default 298.15.
+
+    Raises
+    ------
+    ValueError
+        If ``thermos`` is empty or ``temperature`` is not positive.
+    """
+
+    def __init__(self, thermos, temperature=298.15):
+        self._total_eegtot = ensemble_free_energy(thermos, temperature=temperature, unit="H")
+
+    def total_EeGtot(self):
+        return self._total_eegtot

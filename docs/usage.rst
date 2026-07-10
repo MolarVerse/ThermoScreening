@@ -101,6 +101,28 @@ The ensemble free energy lies at or below the lowest conformer's by the mixing
 (conformational) entropy; use ``lowest_gibbs`` when you instead want the single
 dominant structure to carry forward (e.g. into :func:`reaction_free_energy`).
 
+``pKa``, ``calibrate_proton_reference``, ``reduction_potential``, and
+``reaction_free_energy`` all take whatever they're given and call
+``.total_EeGtot()`` on it -- they don't care whether that's a single ``Thermo``
+or something else with the same method. ``EnsembleThermo`` wraps a conformer
+ensemble's Boltzmann free energy behind that same method, so a flexible acid
+or base can be passed to ``pKa`` as an ensemble directly, instead of picking
+one (possibly non-representative) conformer:
+
+.. code-block:: python
+
+   from ThermoScreening.thermo import EnsembleThermo, pKa
+
+   def ensemble_thermo(smiles, charge):
+       conformers = generate(smiles, max_conformers=10)
+       thermos = [xtb_cli_thermo(c, charge=charge, solvent="water") for c in conformers]
+       return EnsembleThermo(thermos)
+
+   acid = ensemble_thermo("OCCCC(=O)O", 0)     # 4-hydroxybutanoic acid
+   base = ensemble_thermo("OCCCC(=O)[O-]", -1)
+
+   p_ka = pKa(acid, base)
+
 DFT-quality thermochemistry (ORCA)
 ----------------------------------
 
