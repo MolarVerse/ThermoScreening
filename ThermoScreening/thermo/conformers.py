@@ -8,6 +8,8 @@ returned as ASE ``Atoms`` so they feed straight into the screening pipeline
 
 import numpy as np
 
+from ..exceptions import TSValueError
+
 
 def _import_rdkit():
     """Import RDKit lazily, with a clear message if it is not installed."""
@@ -99,6 +101,88 @@ def generate(
             ]
 
     return [_conformer_to_atoms(molecule, cid) for cid in conformer_ids]
+
+
+def generate_thermo_ensemble(
+    smiles,
+    thermo_fn,
+    charge=0.0,
+    max_conformers=10,
+    max_attempts=5,
+    prune_rms_thresh=0.5,
+    energy_window=None,
+    random_seed=42,
+    **thermo_kwargs,
+):
+    """
+    Generate a conformer ensemble and compute ``Thermo`` for each, retrying
+    past saddle points.
+
+    A conformer that fails to converge to a true minimum (``TSValueError``,
+    e.g. an imaginary frequency) or whose engine process fails outright
+    (``RuntimeError``, e.g. an xtb CLI non-zero exit) is skipped; if fewer
+    than ``max_conformers`` succeed, :func:`generate` is re-run with a new
+    random seed, up to ``max_attempts`` seeds total. This is the loop a
+    charged-species ensemble (radical anion, dianion, ...) otherwise
+    requires by hand before it can be passed to :class:`EnsembleThermo`.
+
+    Parameters
+    ----------
+    smiles : str
+        The molecule as a SMILES string.
+    thermo_fn : callable
+        A ``Thermo``-computing engine, e.g. ``xtb_cli_thermo``, called as
+        ``thermo_fn(atoms, charge=charge, **thermo_kwargs)``.
+    charge : float
+        System charge, forwarded to ``thermo_fn``. Default 0.0.
+    max_conformers : int
+        Target number of successfully-computed conformers. Default 10.
+    max_attempts : int
+        Number of distinct random seeds (each embedding up to
+        ``max_conformers`` conformers) to try before giving up. Default 5.
+    prune_rms_thresh, energy_window : see :func:`generate`.
+    random_seed : int
+        Random seed for the first attempt; later attempts use
+        ``random_seed + 1``, ``random_seed + 2``, etc. Default 42.
+    **thermo_kwargs
+        Forwarded to ``thermo_fn`` (e.g. ``solvent="water"``).
+
+    Returns
+    -------
+    list of Thermo
+        The successfully computed conformers (fewer than ``max_conformers``
+        if ``max_attempts`` is exhausted first).
+
+    Raises
+    ------
+    ValueError
+        If no conformer converges to a true minimum within ``max_attempts``.
+    """
+    thermos = []
+    for attempt in range(max_attempts):
+        atoms_list = generate(
+            smiles,
+            max_conformers=max_conformers,
+            prune_rms_thresh=prune_rms_thresh,
+            energy_window=energy_window,
+            random_seed=random_seed + attempt,
+        )
+        for atoms in atoms_list:
+            if len(thermos) >= max_conformers:
+                break
+            try:
+                thermos.append(thermo_fn(atoms, charge=charge, **thermo_kwargs))
+            except (TSValueError, RuntimeError):
+                continue
+        if len(thermos) >= max_conformers:
+            break
+
+    if not thermos:
+        raise ValueError(
+            f"No conformer of {smiles!r} converged to a true minimum after "
+            f"{max_attempts} attempts."
+        )
+    return thermos
 
 
 def write_conformers(conformers, directory, prefix="conformer"):

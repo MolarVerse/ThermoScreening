@@ -125,6 +125,27 @@ one (possibly non-representative) conformer:
 
    p_ka = pKa(acid, base)
 
+In practice, some conformers -- especially of a charged species -- optimise
+onto a saddle point rather than a true minimum instead of failing outright.
+``generate_thermo_ensemble`` wraps the loop above with automatic retries: it
+generates conformers, computes ``Thermo`` for each, skips any that raise
+(imaginary frequencies, or the engine's process failing outright), and
+reseeds and retries until enough succeed:
+
+.. code-block:: python
+
+   from ThermoScreening.thermo.api import xtb_cli_thermo
+   from ThermoScreening.thermo import generate_thermo_ensemble, EnsembleThermo, pKa
+
+   acid_thermos = generate_thermo_ensemble(
+       "OCCCC(=O)O", xtb_cli_thermo, charge=0, max_conformers=10, solvent="water",
+   )
+   base_thermos = generate_thermo_ensemble(
+       "OCCCC(=O)[O-]", xtb_cli_thermo, charge=-1, max_conformers=10, solvent="water",
+   )
+
+   p_ka = pKa(EnsembleThermo(acid_thermos), EnsembleThermo(base_thermos))
+
 DFT-quality thermochemistry (ORCA)
 ----------------------------------
 
