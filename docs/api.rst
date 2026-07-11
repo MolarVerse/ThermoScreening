@@ -25,6 +25,7 @@ Conformer generation
 --------------------
 
 .. autofunction:: ThermoScreening.thermo.conformers.generate
+.. autofunction:: ThermoScreening.thermo.conformers.generate_thermo_ensemble
 .. autofunction:: ThermoScreening.thermo.conformers.write_conformers
 
 Reactions and redox
