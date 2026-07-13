@@ -9,6 +9,7 @@ energy, optimised geometry and frequencies are then read back and fed into
 """
 
 import os
+import re
 import shutil
 import subprocess
 
@@ -184,9 +185,14 @@ def _parse_fukui(output):
         tokens = line.split()
         if len(tokens) != 4:
             break
-        label, f_plus, f_minus, f_zero = tokens
-        symbol = label.lstrip("0123456789")
-        rows.append((symbol, float(f_plus), float(f_minus), float(f_zero)))
+        label_match = re.match(r"^(\d+)([A-Za-z]+)$", tokens[0])
+        if label_match is None:
+            break
+        try:
+            f_plus, f_minus, f_zero = (float(token) for token in tokens[1:])
+        except ValueError:
+            break
+        rows.append((label_match.group(2), f_plus, f_minus, f_zero))
     return rows
 
 

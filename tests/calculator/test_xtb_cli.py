@@ -110,6 +110,48 @@ def test_parse_fukui_raises_without_table():
         xtb_cli._parse_fukui("no such table here")
 
 
+def test_parse_fukui_stops_at_coincidental_four_token_line_with_bad_label():
+    # a line right after the table with 4 tokens but a label that isn't
+    # "digits then letters" must not be misparsed as data -- token count
+    # alone isn't enough to detect the end of the table
+    output = (
+        "Fukui functions:\n"
+        "     #        f(+)     f(-)     f(0)\n"
+        "     1C       0.024    0.024    0.024\n"
+        "     abc      0.1      0.2      0.3\n"
+        "     8O       0.131    0.129    0.130\n"
+    )
+    rows = xtb_cli._parse_fukui(output)
+
+    assert rows == [("C", 0.024, 0.024, 0.024)]
+
+
+def test_parse_fukui_stops_at_coincidental_four_token_line_with_bad_values():
+    # a line with a valid-looking label but non-numeric values must also
+    # not be misparsed as data
+    output = (
+        "Fukui functions:\n"
+        "     #        f(+)     f(-)     f(0)\n"
+        "     1C       0.024    0.024    0.024\n"
+        "     2C       n/a      n/a      n/a\n"
+        "     8O       0.131    0.129    0.130\n"
+    )
+    rows = xtb_cli._parse_fukui(output)
+
+    assert rows == [("C", 0.024, 0.024, 0.024)]
+
+
+def test_parse_fukui_handles_multi_digit_index_and_multi_letter_symbol():
+    output = (
+        "Fukui functions:\n"
+        "     #        f(+)     f(-)     f(0)\n"
+        "    14Cl      0.010    0.020    0.015\n"
+    )
+    rows = xtb_cli._parse_fukui(output)
+
+    assert rows == [("Cl", 0.010, 0.020, 0.015)]
+
+
 def test_run_xtb_fukui_builds_command_and_parses(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("XTB_COMMAND", "/fake/xtb")
