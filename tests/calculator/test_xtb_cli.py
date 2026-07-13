@@ -89,6 +89,70 @@ def test_run_xtb_builds_command_and_parses(monkeypatch, tmp_path):
     assert argv[argv.index("--alpb") + 1] == "water"
 
 
+def test_parse_fukui_extracts_table():
+    output = (
+        "some preceding SCF chatter\n"
+        "\n"
+        "Fukui functions:\n"
+        "     #        f(+)     f(-)     f(0)\n"
+        "     1C       0.024    0.024    0.024\n"
+        "     8O       0.131    0.129    0.130\n"
+        "\n"
+        "trailing text after the table\n"
+    )
+    rows = xtb_cli._parse_fukui(output)
+
+    assert rows == [("C", 0.024, 0.024, 0.024), ("O", 0.131, 0.129, 0.130)]
+
+
+def test_parse_fukui_raises_without_table():
+    with pytest.raises(ValueError, match="No 'Fukui functions:' table"):
+        xtb_cli._parse_fukui("no such table here")
+
+
+def test_run_xtb_fukui_builds_command_and_parses(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("XTB_COMMAND", "/fake/xtb")
+    captured = {}
+
+    def fake_run(argv, **kwargs):
+        captured["argv"] = argv
+        stdout = "Fukui functions:\n     #        f(+)     f(-)     f(0)\n     1O       0.5      0.5      0.5\n"
+        return type("R", (), {"returncode": 0, "stdout": stdout, "stderr": ""})()
+
+    monkeypatch.setattr(xtb_cli.subprocess, "run", fake_run)
+
+    rows = xtb_cli.run_xtb_fukui(
+        Atoms("OH", positions=[[0, 0, 0], [0, 0, 0.97]]),
+        charge=-1, unpaired=1, method="GFN2-xTB", solvent="water",
+    )
+
+    assert rows == [("O", 0.5, 0.5, 0.5)]
+    argv = captured["argv"]
+    assert "--vfukui" in argv
+    assert "--ohess" not in argv
+    assert argv[argv.index("--gfn") + 1] == "2"
+    assert argv[argv.index("--uhf") + 1] == "1"
+    assert argv[argv.index("--chrg") + 1] == "-1"
+    assert argv[argv.index("--alpb") + 1] == "water"
+
+
+def test_run_xtb_fukui_rejects_unknown_method(monkeypatch):
+    with pytest.raises(ValueError, match="Unknown xTB method"):
+        xtb_cli.run_xtb_fukui(Atoms("H2", positions=[[0, 0, 0], [0, 0, 0.7]]), method="B3LYP")
+
+
+def test_run_xtb_fukui_raises_on_failure(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("XTB_COMMAND", "/fake/xtb")
+    monkeypatch.setattr(
+        xtb_cli.subprocess, "run",
+        lambda argv, **kw: type("R", (), {"returncode": 1, "stdout": "boom", "stderr": "e"})(),
+    )
+    with pytest.raises(RuntimeError, match="xtb failed"):
+        xtb_cli.run_xtb_fukui(Atoms("H2", positions=[[0, 0, 0], [0, 0, 0.7]]))
+
+
 def test_run_xtb_rejects_unknown_method(monkeypatch):
     # method check happens before the executable is even resolved
     with pytest.raises(ValueError, match="Unknown xTB method"):
@@ -125,3 +189,29 @@ def test_xtb_cli_radical_solvation_end_to_end(tmp_path):
     assert gas.total_entropy("cal/(mol*K)") == pytest.approx(42.5, abs=2.0)
     # solvation stabilises the radical
     assert solvated.total_EeGtot() < gas.total_EeGtot()
+
+
+@pytest.mark.skipif(not xtb_available, reason="the native xtb binary is not available.")
+def test_xtb_fukui_indices_end_to_end(tmp_path):
+    import ase.io
+    from ThermoScreening.thermo.api import xtb_cli_thermo, xtb_fukui_indices
+
+    water = Atoms("OH2", positions=[[0, 0, 0.119], [0, 0.763, -0.477], [0, -0.763, -0.477]])
+    opt_dir = tmp_path / "opt"
+    xtb_cli_thermo(water, directory=str(opt_dir))
+    optimized = ase.io.read(str(opt_dir / "xtbopt.xyz"))
+
+    rows = xtb_fukui_indices(optimized, directory=str(tmp_path / "fukui"))
+
+    assert len(rows) == 3
+    symbols = [symbol for symbol, *_ in rows]
+    assert symbols == ["O", "H", "H"]
+    # Fukui functions are normalised: each column sums to ~1 over all atoms
+    assert sum(f_plus for _, f_plus, _, _ in rows) == pytest.approx(1.0, abs=0.05)
+    assert sum(f_minus for _, _, f_minus, _ in rows) == pytest.approx(1.0, abs=0.05)
+    # the oxygen lone pairs make O the dominant site for electron loss (f_minus,
+    # i.e. oxidation); the two symmetric H atoms dominate electron gain (f_plus)
+    oxygen_row = rows[0]
+    hydrogen_rows = rows[1:]
+    assert oxygen_row[2] > max(row[2] for row in hydrogen_rows)
+    assert oxygen_row[1] < min(row[1] for row in hydrogen_rows)

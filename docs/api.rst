@@ -7,6 +7,7 @@ High-level pipeline
 .. autofunction:: ThermoScreening.thermo.api.dftbplus_thermo
 .. autofunction:: ThermoScreening.thermo.api.xtb_thermo
 .. autofunction:: ThermoScreening.thermo.api.xtb_cli_thermo
+.. autofunction:: ThermoScreening.thermo.api.xtb_fukui_indices
 .. autofunction:: ThermoScreening.thermo.api.orca_thermo
 .. autofunction:: ThermoScreening.thermo.api.cclib_thermo
 .. autofunction:: ThermoScreening.thermo.api.pyscf_thermo
