@@ -151,3 +151,109 @@ def run_xtb(
     energy_hartree = _parse_optimised_energy("xtbopt.xyz")
     frequencies = _parse_vibspectrum("vibspectrum")
     return optimized, energy_hartree, frequencies
+
+
+def _parse_fukui(output):
+    """
+    Parse the per-atom ``Fukui functions:`` table from ``xtb --vfukui`` stdout.
+
+    The table looks like::
+
+        Fukui functions:
+             #        f(+)     f(-)     f(0)
+             1C       0.024    0.024    0.024
+             8O       0.131    0.129    0.130
+
+    Returns a list of ``(symbol, f_plus, f_minus, f_zero)`` tuples, in the
+    input geometry's atom order.
+
+    Raises
+    ------
+    ValueError
+        If no ``Fukui functions:`` table is found in ``output``.
+    """
+    lines = output.splitlines()
+    for index, line in enumerate(lines):
+        if line.strip() == "Fukui functions:":
+            break
+    else:
+        raise ValueError("No 'Fukui functions:' table found in xtb output.")
+
+    rows = []
+    for line in lines[index + 2:]:
+        tokens = line.split()
+        if len(tokens) != 4:
+            break
+        label, f_plus, f_minus, f_zero = tokens
+        symbol = label.lstrip("0123456789")
+        rows.append((symbol, float(f_plus), float(f_minus), float(f_zero)))
+    return rows
+
+
+def run_xtb_fukui(
+    atoms,
+    charge=0.0,
+    unpaired=0,
+    method="GFN2-xTB",
+    solvent=None,
+    command=None,
+):
+    """
+    Run ``xtb --vfukui`` and return per-atom Fukui reactivity indices.
+
+    A single-point (non-geometry-optimising) calculation: pass an already
+    optimised geometry (e.g. from :func:`run_xtb`). Runs in the current
+    working directory, so call it inside a per-job directory.
+
+    Parameters
+    ----------
+    atoms : ase.Atoms
+        The geometry to analyse.
+    charge : float
+        Total charge (``--chrg``).
+    unpaired : int
+        Number of unpaired electrons, i.e. round(2*S) (``--uhf``).
+    method : str
+        ``"GFN2-xTB"`` (default), ``"GFN1-xTB"`` or ``"GFN0-xTB"``.
+    solvent : str, optional
+        ALPB implicit-solvation solvent (``--alpb``), e.g. ``"water"``.
+    command : str, optional
+        Path to the ``xtb`` executable (defaults to PATH / ``$XTB_COMMAND``).
+
+    Returns
+    -------
+    list of tuple(str, float, float, float)
+        ``(symbol, f_plus, f_minus, f_zero)`` per atom, in input geometry order.
+        ``f_plus`` (susceptibility to nucleophilic attack / electron gain),
+        ``f_minus`` (electrophilic attack / electron loss), ``f_zero`` (radical
+        attack, the average of the two).
+
+    Raises
+    ------
+    ValueError
+        If ``method`` is unknown, or xtb's output has no Fukui table.
+    RuntimeError
+        If the xtb run fails.
+    """
+    try:
+        gfn = _GFN_METHODS[method]
+    except KeyError:
+        known = ", ".join(sorted(_GFN_METHODS))
+        raise ValueError(f"Unknown xTB method {method!r}; choose one of: {known}.")
+
+    executable = resolve_xtb(command)
+    ase.io.write("xtb_input.xyz", atoms)
+
+    argv = [
+        executable, "xtb_input.xyz", "--vfukui", "--gfn", gfn,
+        "--chrg", str(int(round(charge))), "--uhf", str(int(unpaired)),
+    ]
+    if solvent is not None:
+        argv += ["--alpb", solvent]
+
+    result = subprocess.run(argv, capture_output=True, text=True, check=False)
+    if result.returncode != 0:
+        tail = (result.stdout or "")[-800:] + (result.stderr or "")[-800:]
+        raise RuntimeError(f"xtb failed (exit {result.returncode}):\n{tail}")
+
+    return _parse_fukui(result.stdout)

@@ -259,6 +259,35 @@ conditions), combine them into reaction free energies and reduction potentials:
    across similar species, with a higher-accuracy method, or with a
    ``reference_potential`` calibrated against experiment.
 
+Reactivity site prediction (Fukui indices)
+-------------------------------------------
+
+``reaction_free_energy`` and ``reduction_potential`` tell you *whether* a
+reaction is favourable for the molecule as a whole; they say nothing about
+*where* on the molecule it happens, or whether some other site might react
+first (an unintended side reaction competing with the one you're modelling).
+``xtb_fukui_indices`` runs a single ``xtb --vfukui`` calculation on an
+already-optimised geometry and reports, per atom, how susceptible that site
+is to gaining electron density (``f_plus``, i.e. reduction), losing it
+(``f_minus``, oxidation), or either (``f_zero``, radical attack):
+
+.. code-block:: python
+
+   import ase.io
+   from ThermoScreening.thermo.api import xtb_cli_thermo, xtb_fukui_indices
+   from ThermoScreening.thermo.conformers import generate
+
+   mol = generate("O=C1C=CC(=O)C=C1", max_conformers=1)[0]   # benzoquinone
+   xtb_cli_thermo(mol, directory="opt")   # optimise; xtbopt.xyz is written to "opt"
+
+   optimized = ase.io.read("opt/xtbopt.xyz")
+   rows = xtb_fukui_indices(optimized)
+   most_oxidisable = max(rows, key=lambda row: row[2])   # (symbol, f_plus, f_minus, f_zero)
+
+Each of ``f_plus``/``f_minus``/``f_zero`` sums to ~1 over all atoms, so a
+value well above the 1/n_atoms baseline flags that site as the dominant one
+for that kind of reactivity.
+
 Acid dissociation (pKa)
 ------------------------
 

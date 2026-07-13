@@ -22,7 +22,7 @@ from ..calculator.dftbplus import _spin_kwargs, _solvation_kwargs, _dispersion_k
 from ..calculator.orca import read_orca_hess
 from ..calculator.qm import read_cclib, _describe_source
 from ..calculator.xtb import optimise_and_frequencies, xtb_calculator
-from ..calculator.xtb_cli import run_xtb
+from ..calculator.xtb_cli import run_xtb, run_xtb_fukui
 
 
 logger = logging.getLogger(__package_name__).getChild("api")
@@ -1074,3 +1074,59 @@ def xtb_cli_thermo(
         )
 
     return thermo
+
+
+def xtb_fukui_indices(atoms, charge=0.0, spin=None, method="GFN2-xTB", solvent=None, directory=None):
+    """
+    Per-atom Fukui reactivity indices via the native ``xtb`` program.
+
+    A single-point analysis (no geometry optimisation) -- pass an already
+    optimised geometry, e.g. from :func:`xtb_cli_thermo`. Each index estimates
+    how much electron density a site would gain or lose if the whole molecule
+    were reduced or oxidised by one electron, which is a direct, cheap way to
+    localise *where* a computed reduction/oxidation is likely to happen (or
+    where an unexpected side reaction might), rather than relying on whole-
+    molecule quantities like ``total_EeGtot()`` or frontier orbital energies.
+
+    Parameters
+    ----------
+    atoms : ase.Atoms
+        The (already optimised) geometry to analyse.
+    charge : float
+        System charge. Default 0.0.
+    spin : float, optional
+        Spin quantum number S. Defaults to the minimum-spin electron-count guess
+        (even -> 0, odd -> 0.5), matching :func:`xtb_cli_thermo`.
+    method : str
+        GFN parametrisation: ``"GFN2-xTB"`` (default), ``"GFN1-xTB"`` or
+        ``"GFN0-xTB"``.
+    solvent : str, optional
+        ALPB implicit-solvation solvent (e.g. ``"water"``). Defaults to gas phase.
+    directory : str, optional
+        Working directory (created if needed). Defaults to the current directory.
+
+    Returns
+    -------
+    list of tuple(str, float, float, float)
+        ``(symbol, f_plus, f_minus, f_zero)`` per atom, in ``atoms`` order.
+        ``f_plus`` is the susceptibility to nucleophilic attack (electron gain,
+        i.e. reduction) at that site, ``f_minus`` to electrophilic attack
+        (electron loss, oxidation), and ``f_zero`` (their average) to radical
+        attack.
+
+    Raises
+    ------
+    ValueError
+        If ``method`` is unknown, or xtb's output has no Fukui table.
+    RuntimeError
+        If the xtb run fails.
+    """
+    if spin is None:
+        electrons = round(float(sum(atoms.get_atomic_numbers())) - charge)
+        spin = 0.0 if electrons % 2 == 0 else 0.5
+    unpaired = int(round(2.0 * float(spin)))
+
+    with _run_in_directory(directory):
+        return run_xtb_fukui(
+            atoms, charge=charge, unpaired=unpaired, method=method, solvent=solvent,
+        )
