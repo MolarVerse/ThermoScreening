@@ -642,5 +642,47 @@ def test_xtb_cli_thermo_pipeline(monkeypatch, tmp_path):
     assert seen["energy"] == -4.5
 
 
+def test_xtb_fukui_indices_pipeline(monkeypatch, tmp_path):
+    import ThermoScreening.thermo.api as api
+
+    seen = {}
+
+    def fake_run_xtb_fukui(atoms, charge=0.0, unpaired=0, method="GFN2-xTB", solvent=None):
+        seen.update(charge=charge, unpaired=unpaired, method=method, solvent=solvent)
+        return [("O", 0.5, 0.5, 0.5), ("H", 0.25, 0.25, 0.25), ("H", 0.25, 0.25, 0.25)]
+
+    monkeypatch.setattr(api, "run_xtb_fukui", fake_run_xtb_fukui)
+
+    # neutral OH radical -> auto doublet -> 1 unpaired electron
+    result = api.xtb_fukui_indices(
+        Atoms("OH", positions=[[0, 0, 0], [0, 0, 0.97]]),
+        directory=str(tmp_path / "j"),
+        solvent="water",
+        method="GFN1-xTB",
+    )
+
+    assert result == [("O", 0.5, 0.5, 0.5), ("H", 0.25, 0.25, 0.25), ("H", 0.25, 0.25, 0.25)]
+    assert seen["unpaired"] == 1  # auto electron-count guess -> doublet -> 1 unpaired
+    assert seen["charge"] == 0.0
+    assert seen["solvent"] == "water"
+    assert seen["method"] == "GFN1-xTB"
+
+
+def test_xtb_fukui_indices_explicit_spin(monkeypatch, tmp_path):
+    import ThermoScreening.thermo.api as api
+
+    seen = {}
+
+    def fake_run_xtb_fukui(atoms, charge=0.0, unpaired=0, method="GFN2-xTB", solvent=None):
+        seen["unpaired"] = unpaired
+        return []
+
+    monkeypatch.setattr(api, "run_xtb_fukui", fake_run_xtb_fukui)
+
+    api.xtb_fukui_indices(Atoms("H2", positions=[[0, 0, 0], [0, 0, 0.74]]), charge=-2.0, spin=1.0)
+
+    assert seen["unpaired"] == 2
+
+
 if __name__ == "__main__":
     unittest.main()
