@@ -1,0 +1,23 @@
+{
+    "title": "ThermoScreening",
+    "description": "ThermoScreening is a Python package for calculating and screening molecular thermochemical properties from quantum-chemistry outputs and DFTB+, xTB and PySCF workflows. It provides thermochemistry, conformer ensembles, pKa and redox helpers, transition-state kinetics and batch screening.",
+    "license": "lgpl-2.1-or-later",
+    "upload_type": "software",
+    "creators": [
+        {
+            "name": "Kröll, Stefanie"
+        },
+        {
+            "name": "Gallmetzer, Josef M."
+        }
+    ],
+    "keywords": [
+        "Python",
+        "thermochemistry",
+        "computational chemistry",
+        "molecular screening",
+        "DFTB+",
+        "xTB",
+        "redox chemistry"
+    ]
+}

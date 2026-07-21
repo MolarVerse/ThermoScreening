@@ -1,7 +1,8 @@
 # Releasing
 
-Releases are published to PyPI automatically when a GitHub Release is created —
-there is no manual upload step and no stored API token.
+Releases are published to PyPI and archived by Zenodo automatically when a
+GitHub Release is created. There is no manual package upload step and no stored
+PyPI API token.
 
 ## Cut a release
 
@@ -20,6 +21,8 @@ there is no manual upload step and no stored API token.
    [`.github/workflows/publish.yml`](.github/workflows/publish.yml), which builds
    the sdist + wheel and uploads them to PyPI via
    [Trusted Publishing](https://docs.pypi.org/trusted-publishers/) (OIDC).
+4. Verify the release on PyPI and Zenodo. Zenodo should create a version-specific
+   DOI under the project's concept DOI.
 
 ## Versioning
 
@@ -39,6 +42,8 @@ there is no manual upload step and no stored API token.
   (owner `MolarVerse`, repository `ThermoScreening`, workflow `publish.yml`, no
   environment). If a release's publish job fails with `invalid-publisher`, these
   four values on PyPI must match the workflow.
+- The Zenodo GitHub integration must remain enabled for `MolarVerse/ThermoScreening`.
+  Zenodo reads `.zenodo.json` when it archives each release.
 - To publish **conda-forge** as well (the channel that also pulls the DFTB+ /
   xtb / tblite backends), `PQAnalysis` first needs to be available on
   conda-forge; then submit a recipe via `staged-recipes`.
