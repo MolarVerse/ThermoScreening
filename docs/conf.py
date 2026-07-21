@@ -6,7 +6,7 @@ import sys
 sys.path.insert(0, os.path.abspath(".."))
 
 project = "ThermoScreening"
-author = "Stefanie Kröll, Josef M. Gallmetzer"
+author = "Stefanie Kröll, Josef Maria Gallmetzer"
 copyright = "2026, the ThermoScreening authors"
 
 try:
