@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=42", "setuptools_scm>=8"]
+requires = ["setuptools>=77", "setuptools_scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -14,12 +14,12 @@ authors = [
 description = "A Python package for screening molecules for their thermochemical properties."
 requires-python = ">=3.12"
 readme = "README.md"
-license = { file = "LICENSE" }
+license = "LGPL-2.1-or-later"
+license-files = ["LICENSE"]
 keywords = ["thermochemistry", "DFTB+", "xTB", "screening", "computational chemistry"]
 classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
-    "License :: OSI Approved :: GNU Lesser General Public License v2 or later (LGPLv2+)",
     "Operating System :: OS Independent",
     "Intended Audience :: Science/Research",
     "Topic :: Scientific/Engineering :: Chemistry",

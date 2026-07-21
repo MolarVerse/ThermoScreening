@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+message: "If you use ThermoScreening, please cite the archived software release."
+title: "ThermoScreening"
+type: software
+abstract: >-
+  ThermoScreening is a Python package for calculating and screening molecular
+  thermochemical properties from quantum-chemistry outputs and DFTB+, xTB and
+  PySCF workflows.
+authors:
+  - family-names: Kröll
+    given-names: Stefanie
+  - family-names: Gallmetzer
+    given-names: Josef M.
+repository-code: "https://github.com/MolarVerse/ThermoScreening"
+url: "https://molarverse.github.io/ThermoScreening/"
+license: LGPL-2.1-or-later
+keywords:
+  - Python
+  - thermochemistry
+  - computational chemistry
+  - molecular screening
+  - DFTB+
+  - xTB
+  - redox chemistry

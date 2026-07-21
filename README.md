@@ -135,6 +135,13 @@ python -m pylint ThermoScreening
 
 DFTB+ integration tests run only when the executables are available and `DFTB_PREFIX` points to a valid Slater-Koster directory. Otherwise they are skipped so the pure-Python test suite remains portable.
 
+## Citing
+
+If you use ThermoScreening in research, cite the archived software release.
+Machine-readable citation metadata is available in [`CITATION.cff`](CITATION.cff),
+which also powers GitHub's **Cite this repository** feature. Each GitHub release
+is archived by Zenodo and receives a version-specific DOI.
+
 ## Roadmap
 
 Planned work is tracked in GitHub issues rather than in this README. The tool
