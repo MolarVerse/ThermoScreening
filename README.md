@@ -1,4 +1,5 @@
 [![Python application](https://github.com/MolarVerse/ThermoScreening/actions/workflows/python-app.yml/badge.svg)](https://github.com/MolarVerse/ThermoScreening/actions/workflows/python-app.yml)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21473884.svg)](https://doi.org/10.5281/zenodo.21473884)
 [![codecov](https://codecov.io/gh/MolarVerse/ThermoScreening/graph/badge.svg?token=KhrG0zVZmS)](https://codecov.io/gh/MolarVerse/ThermoScreening)
 [![Docs](https://github.com/MolarVerse/ThermoScreening/actions/workflows/docs.yml/badge.svg)](https://molarverse.github.io/ThermoScreening/)
 
@@ -137,7 +138,8 @@ DFTB+ integration tests run only when the executables are available and `DFTB_PR
 
 ## Citing
 
-If you use ThermoScreening in research, cite the archived software release.
+If you use ThermoScreening in research, cite the
+[archived software release](https://doi.org/10.5281/zenodo.21473884).
 Machine-readable citation metadata is available in [`CITATION.cff`](CITATION.cff),
 which also powers GitHub's **Cite this repository** feature. Each GitHub release
 is archived by Zenodo and receives a version-specific DOI.
