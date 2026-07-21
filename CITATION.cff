@@ -12,6 +12,7 @@ authors:
   - family-names: Gallmetzer
     given-names: Josef M.
 repository-code: "https://github.com/MolarVerse/ThermoScreening"
+doi: 10.5281/zenodo.21473884
 url: "https://molarverse.github.io/ThermoScreening/"
 license: LGPL-2.1-or-later
 keywords:
