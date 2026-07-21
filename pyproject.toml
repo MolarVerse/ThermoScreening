@@ -9,7 +9,7 @@ dynamic = [
 ]
 authors = [
   { name="Stefanie Kröll", email="kroell.stefanie123@gmail.com" },
-  { name="Josef M. Gallmetzer", email="gallmetzer.josef@gmail.com" },
+  { name="Josef Maria Gallmetzer", email="gallmetzer.josef@gmail.com" },
 ]
 description = "A Python package for screening molecules for their thermochemical properties."
 requires-python = ">=3.12"
