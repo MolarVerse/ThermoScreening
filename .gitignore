@@ -168,3 +168,16 @@ __version__.py
 
 # Ignore temporary files
 tmp/
+
+# Local calculation output
+xtb_vib/
+/screening/
+/redox-screening/
+/results.csv
+/results.json
+/results-run.json
+/redox-results*.csv
+/redox-results*.json
+/thermoscreening.slurm
+/thermoscreening-*.out
+/results-shards/

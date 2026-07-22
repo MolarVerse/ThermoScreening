@@ -977,8 +977,12 @@ def xtb_thermo(
         spin = 0.0 if electrons % 2 == 0 else 0.5
 
     prepared = atoms.copy()
-    prepared.info["charge"] = int(round(charge))
-    prepared.info["spin"] = int(round(2.0 * float(spin)))
+    atom_count = len(prepared)
+    unpaired = int(round(2.0 * float(spin)))
+    prepared.set_initial_charges(np.full(atom_count, charge / atom_count))
+    prepared.set_initial_magnetic_moments(
+        np.full(atom_count, unpaired / atom_count)
+    )
 
     with _run_in_directory(directory):
         optimized_atoms, potential_energy, frequencies = optimise_and_frequencies(

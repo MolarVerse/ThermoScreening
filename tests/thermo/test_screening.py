@@ -284,6 +284,179 @@ def test_screen_parallel_isolates_failures(monkeypatch, tmp_path):
     assert by_name["good2"]["status"] == "ok"
 
 
+def test_screen_shards_are_disjoint_and_collect_in_input_order(monkeypatch, tmp_path):
+    for name in ("mol_a", "mol_b", "mol_c", "mol_d", "mol_e"):
+        _write_xyz(tmp_path / f"{name}.xyz")
+    monkeypatch.setattr(
+        screening, "dftbplus_thermo", lambda atoms, **kwargs: _FakeThermo()
+    )
+    out = tmp_path / "results"
+    work = tmp_path / "runs"
+
+    first = screening.screen(
+        tmp_path,
+        out=out,
+        directory=work,
+        shard_index=0,
+        shard_count=2,
+    )
+    second = screening.screen(
+        tmp_path,
+        out=out,
+        directory=work,
+        shard_index=1,
+        shard_count=2,
+    )
+    combined = screening.collect_screen_shards(
+        screening.screen_shard_directory(out), out=out
+    )
+
+    assert [record["name"] for record in first] == ["mol_a", "mol_c", "mol_e"]
+    assert [record["name"] for record in second] == ["mol_b", "mol_d"]
+    assert [record["name"] for record in combined] == [
+        "mol_a",
+        "mol_b",
+        "mol_c",
+        "mol_d",
+        "mol_e",
+    ]
+    assert (tmp_path / "results-shards" / "shard-00000.json").is_file()
+    assert (tmp_path / "results-shards" / "shard-00001-run.json").is_file()
+    metadata = json.loads((tmp_path / "results-run.json").read_text(encoding="utf-8"))
+    assert metadata["collection"]["shard_count"] == 2
+    assert [job["input_index"] for job in metadata["jobs"]] == list(range(5))
+
+
+def test_screen_empty_shards_are_collectable(monkeypatch, tmp_path):
+    inputs = tmp_path / "inputs"
+    inputs.mkdir()
+    _write_xyz(inputs / "only.xyz")
+    monkeypatch.setattr(
+        screening, "dftbplus_thermo", lambda atoms, **kwargs: _FakeThermo()
+    )
+    out = tmp_path / "results"
+
+    shards = [
+        screening.screen(
+            inputs,
+            out=out,
+            directory=tmp_path / "runs",
+            shard_index=index,
+            shard_count=3,
+        )
+        for index in range(3)
+    ]
+    combined = screening.collect_screen_shards(
+        screening.screen_shard_directory(out), out=out
+    )
+
+    assert [len(shard) for shard in shards] == [1, 0, 0]
+    assert [record["name"] for record in combined] == ["only"]
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "message"),
+    [
+        ({"shard_index": 0}, "supplied together"),
+        ({"shard_count": 2}, "supplied together"),
+        ({"shard_index": 0, "shard_count": 0}, "must be >= 1"),
+        ({"shard_index": 2, "shard_count": 2}, "0 <= index"),
+        ({"shard_index": 0.5, "shard_count": 2}, "must be an integer"),
+    ],
+)
+def test_screen_rejects_invalid_shards(tmp_path, kwargs, message):
+    _write_xyz(tmp_path / "mol.xyz")
+    with pytest.raises(TSValueError, match=message):
+        screening.screen(tmp_path, out=tmp_path / "out", **kwargs)
+
+
+def test_collect_screen_shards_rejects_missing_and_tampered_shards(
+    monkeypatch, tmp_path
+):
+    inputs = tmp_path / "inputs"
+    inputs.mkdir()
+    _write_xyz(inputs / "a.xyz")
+    _write_xyz(inputs / "b.xyz")
+    monkeypatch.setattr(
+        screening, "dftbplus_thermo", lambda atoms, **kwargs: _FakeThermo()
+    )
+    out = tmp_path / "results"
+    screening.screen(
+        inputs, out=out, shard_index=0, shard_count=2, directory=tmp_path / "runs"
+    )
+
+    with pytest.raises(TSValueError, match="Missing cluster shard"):
+        screening.collect_screen_shards(screening.screen_shard_directory(out), out=out)
+
+    screening.screen(
+        inputs, out=out, shard_index=1, shard_count=2, directory=tmp_path / "runs"
+    )
+    shard_path = tmp_path / "results-shards" / "shard-00001.json"
+    records = json.loads(shard_path.read_text(encoding="utf-8"))
+    records[0]["fingerprint"] = "tampered"
+    shard_path.write_text(json.dumps(records), encoding="utf-8")
+
+    with pytest.raises(TSValueError, match="Fingerprint mismatch"):
+        screening.collect_screen_shards(screening.screen_shard_directory(out), out=out)
+
+
+def test_collect_screen_shards_rejects_wrong_assignment(monkeypatch, tmp_path):
+    inputs = tmp_path / "inputs"
+    inputs.mkdir()
+    _write_xyz(inputs / "a.xyz")
+    _write_xyz(inputs / "b.xyz")
+    monkeypatch.setattr(
+        screening, "dftbplus_thermo", lambda atoms, **kwargs: _FakeThermo()
+    )
+    out = tmp_path / "results"
+    for index in range(2):
+        screening.screen(
+            inputs,
+            out=out,
+            shard_index=index,
+            shard_count=2,
+            directory=tmp_path / "runs",
+        )
+
+    metadata_path = tmp_path / "results-shards" / "shard-00001-run.json"
+    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    metadata["jobs"][0]["input_index"] = 2
+    metadata_path.write_text(json.dumps(metadata), encoding="utf-8")
+
+    with pytest.raises(TSValueError, match="does not belong"):
+        screening.collect_screen_shards(screening.screen_shard_directory(out), out=out)
+
+
+def test_collect_screen_shards_rejects_mixed_settings(monkeypatch, tmp_path):
+    inputs = tmp_path / "inputs"
+    inputs.mkdir()
+    _write_xyz(inputs / "a.xyz")
+    _write_xyz(inputs / "b.xyz")
+    monkeypatch.setattr(
+        screening, "dftbplus_thermo", lambda atoms, **kwargs: _FakeThermo()
+    )
+    out = tmp_path / "results"
+    screening.screen(
+        inputs,
+        out=out,
+        temperature=298.15,
+        shard_index=0,
+        shard_count=2,
+        directory=tmp_path / "runs",
+    )
+    screening.screen(
+        inputs,
+        out=out,
+        temperature=310.0,
+        shard_index=1,
+        shard_count=2,
+        directory=tmp_path / "runs",
+    )
+
+    with pytest.raises(TSValueError, match="different inputs or settings"):
+        screening.collect_screen_shards(screening.screen_shard_directory(out), out=out)
+
+
 def test_screen_dispatches_to_xtb_engine(monkeypatch, tmp_path):
     _write_xyz(tmp_path / "mol.xyz")
 
@@ -344,6 +517,37 @@ def test_screen_resume_skips_completed_and_reruns_failed(monkeypatch, tmp_path):
     )
     assert calls == ["mol_b"]  # only the previously-failed molecule re-run
     assert {r["name"]: r["status"] for r in second} == {"mol_a": "ok", "mol_b": "ok"}
+
+
+def test_screen_resume_invalidates_changed_scientific_inputs(monkeypatch, tmp_path):
+    _write_xyz(tmp_path / "mol.xyz")
+    out = tmp_path / "out"
+    calls = []
+
+    def fake_thermo(atoms, charge=0.0, **kwargs):
+        calls.append(charge)
+        return _FakeThermo()
+
+    monkeypatch.setattr(screening, "dftbplus_thermo", fake_thermo)
+    first = screening.screen(
+        tmp_path,
+        out=out,
+        charge=0,
+        directory=tmp_path / "runs-a",
+    )
+    second = screening.screen(
+        tmp_path,
+        out=out,
+        charge=1,
+        directory=tmp_path / "runs-b",
+        resume=True,
+    )
+
+    assert calls == [0, 1]
+    assert first[0]["fingerprint"] != second[0]["fingerprint"]
+    metadata = json.loads((tmp_path / "out-run.json").read_text(encoding="utf-8"))
+    assert metadata["jobs"][0]["charge"] == 1
+    assert len(metadata["jobs"][0]["structure_sha256"]) == 64
 
 
 def test_load_completed_handles_missing_and_corrupt(tmp_path):

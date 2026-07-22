@@ -570,7 +570,8 @@ def test_xtb_thermo_pipeline(monkeypatch, tmp_path):
         return "xtb-calc"
 
     def fake_optimise(atoms, calc, fmax=0.01):
-        seen["info"] = dict(atoms.info)
+        seen["charge"] = atoms.get_initial_charges().sum()
+        seen["unpaired"] = atoms.get_initial_magnetic_moments().sum()
         seen["calc"] = calc
         return "optimized-atoms", -5.0, np.array([1500.0, 3600.0, 3700.0])
 
@@ -597,8 +598,8 @@ def test_xtb_thermo_pipeline(monkeypatch, tmp_path):
     assert result == "thermo-result"
     assert seen["engine"] == "xtb"
     assert seen["spin"] == 0.5           # auto electron-count guess
-    assert seen["info"]["spin"] == 1     # unpaired electrons passed to xTB
-    assert seen["info"]["charge"] == 0
+    assert seen["unpaired"] == pytest.approx(1.0)
+    assert seen["charge"] == pytest.approx(0.0)
     assert seen["method"] == "GFN1-xTB"
     assert seen["quasi_rrho"] is True
     assert seen["energy"] == -5.0
