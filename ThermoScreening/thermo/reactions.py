@@ -78,7 +78,7 @@ def reduction_potential(
         The oxidised and reduced species, computed consistently (same engine,
         same solvent, and open-shell/charged as appropriate).
     n_electrons : int
-        Number of electrons transferred. Default 1.
+        Positive number of electrons transferred. Default 1.
     reference_potential : float
         Absolute potential (V) of the reference electrode to report against.
         Defaults to the SHE (:data:`SHE_ABSOLUTE_POTENTIAL`); pass ``0.0`` for the
@@ -92,11 +92,49 @@ def reduction_potential(
     Raises
     ------
     ValueError
-        If ``n_electrons`` is zero.
+        If ``n_electrons`` is not positive.
     """
-    if n_electrons == 0:
-        raise ValueError("n_electrons must be non-zero.")
+    if n_electrons <= 0:
+        raise ValueError("n_electrons must be positive.")
 
     delta_g_hartree = reduced.total_EeGtot() - oxidized.total_EeGtot()
     absolute = -delta_g_hartree * _HARTREE_TO_EV / n_electrons
     return absolute - reference_potential
+
+
+def calibrate_reduction_reference(
+    oxidized, reduced, experimental_potential, n_electrons=1
+):
+    """
+    Calibrate a reduction-potential reference against one known redox pair.
+
+    The returned value can be passed as ``reference_potential`` to
+    :func:`reduction_potential` for other compounds computed with the same
+    method and conditions. This assumes that the systematic offset between the
+    computed absolute energy scale and the experimental reference electrode is
+    transferable from the reference pair to the target compounds.
+
+    Parameters
+    ----------
+    oxidized, reduced : Thermo
+        The reference redox pair, computed consistently with the target
+        compounds.
+    experimental_potential : float
+        Experimental reduction potential of the reference pair, in volts.
+    n_electrons : int
+        Positive number of electrons transferred. Default 1.
+
+    Returns
+    -------
+    float
+        The calibrated value for ``reference_potential``, in volts.
+
+    Raises
+    ------
+    ValueError
+        If ``n_electrons`` is not positive.
+    """
+    absolute = reduction_potential(
+        oxidized, reduced, n_electrons=n_electrons, reference_potential=0.0
+    )
+    return absolute - experimental_potential

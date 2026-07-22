@@ -101,8 +101,9 @@ The ensemble free energy lies at or below the lowest conformer's by the mixing
 (conformational) entropy; use ``lowest_gibbs`` when you instead want the single
 dominant structure to carry forward (e.g. into :func:`reaction_free_energy`).
 
-``pKa``, ``calibrate_proton_reference``, ``reduction_potential``, and
-``reaction_free_energy`` all take whatever they're given and call
+``pKa``, ``calibrate_proton_reference``, ``reduction_potential``,
+``calibrate_reduction_reference``, and ``reaction_free_energy`` all take
+whatever they're given and call
 ``.total_EeGtot()`` on it -- they don't care whether that's a single ``Thermo``
 or something else with the same method. ``EnsembleThermo`` wraps a conformer
 ensemble's Boltzmann free energy behind that same method, so a flexible acid
@@ -250,6 +251,84 @@ conditions), combine them into reaction free energies and reduction potentials:
    E = reduction_potential(neutral, anion)          # vs SHE (default reference 4.44 V)
    E_abs = reduction_potential(neutral, anion, reference_potential=0.0)
 
+For a screening series, calibrate the computed energy scale against a
+structurally similar reference compound measured on the same potential scale
+and under the same conditions. Anthraquinone has two successive one-electron
+reductions, so each step gets its own calibration:
+
+.. code-block:: python
+
+   from ThermoScreening.thermo import (
+       calibrate_reduction_reference,
+       reduction_potential,
+   )
+
+   e1_reference = calibrate_reduction_reference(
+       aq_neutral,
+       aq_radical_anion,
+       experimental_potential=measured_e1,
+   )
+   e2_reference = calibrate_reduction_reference(
+       aq_radical_anion,
+       aq_dianion,
+       experimental_potential=measured_e2,
+   )
+
+   candidate_e1 = reduction_potential(
+       candidate_neutral,
+       candidate_radical_anion,
+       reference_potential=e1_reference,
+   )
+   candidate_e2 = reduction_potential(
+       candidate_radical_anion,
+       candidate_dianion,
+       reference_potential=e2_reference,
+   )
+
+Here ``measured_e1`` and ``measured_e2`` are the experimental anthraquinone
+formal potentials in volts versus the chosen reference electrode. They describe
+different reactions and must not be interchanged:
+
+.. math::
+
+   \mathrm{AQ + e^- \rightarrow AQ^-} \qquad E_1
+
+.. math::
+
+   \mathrm{AQ^- + e^- \rightarrow AQ^{2-}} \qquad E_2
+
+The overall two-electron potential describes a third reaction. For two
+successive one-electron reductions under identical conditions, it is the
+arithmetic mean of the stepwise formal potentials:
+
+.. math::
+
+   \mathrm{AQ + 2e^- \rightarrow AQ^{2-}} \qquad
+   E_{2e} = \frac{E_1 + E_2}{2}
+
+Calculate and calibrate it from the neutral species directly to the dianion:
+
+.. code-block:: python
+
+   measured_e2e = (measured_e1 + measured_e2) / 2
+   e2e_reference = calibrate_reduction_reference(
+       aq_neutral,
+       aq_dianion,
+       experimental_potential=measured_e2e,
+       n_electrons=2,
+   )
+   candidate_e2e = reduction_potential(
+       candidate_neutral,
+       candidate_dianion,
+       n_electrons=2,
+       reference_potential=e2e_reference,
+   )
+
+Do not compare ``candidate_e2e`` with the experimental second reduction
+potential ``measured_e2``. The averaging relationship requires equilibrium or
+formal potentials; it should not be applied directly to irreversible or
+kinetically distorted peak potentials.
+
 .. warning::
 
    ``reaction_free_energy`` / ``reduction_potential`` are exact given the input
@@ -257,7 +336,10 @@ conditions), combine them into reaction free energies and reduction potentials:
    give poor **absolute** electron affinities and redox potentials (benzoquinone's
    GFN2 EA is ~7 eV vs ~1.9 eV experimental). Use them for **relative** trends
    across similar species, with a higher-accuracy method, or with a
-   ``reference_potential`` calibrated against experiment.
+   ``reference_potential`` calibrated against experiment. Calibration assumes
+   that the reference compound's systematic offset transfers to the target
+   compounds; keep the engine, solvent model, temperature, and charge-state
+   treatment identical across the calibration and target set.
 
 Reactivity site prediction (Fukui indices)
 -------------------------------------------
