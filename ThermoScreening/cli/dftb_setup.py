@@ -10,13 +10,19 @@ from pathlib import Path
 import importlib.util
 import os
 import shutil
+import subprocess
 import tarfile
 import tempfile
 from urllib.request import urlopen
 
+from ThermoScreening.dftb_data import (
+    DEFAULT_PARAMETER_SET,
+    REQUIRED_PARAMETER_FILE,
+    canonical_parameter_set,
+    default_parameter_dir as calculator_parameter_dir,
+    default_parameter_root,
+)
 
-DEFAULT_PARAMETER_SET = "3ob-3-1"
-REQUIRED_PARAMETER_FILE = "C-C.skf"
 
 # Download URLs for the supported Slater-Koster sets (dftbparams GitHub releases).
 PARAMETER_SET_URLS = {
@@ -28,16 +34,12 @@ PARAMETER_SET_URLS = {
     ),
 }
 
-# Short names accepted by the CLI (mapped to the canonical archive/directory name).
-PARAMETER_SET_ALIASES = {"3ob": "3ob-3-1", "mio": "mio-1-1"}
-
-
 def _canonical_set_name(parameter_set: str) -> str:
     """
     Map a short set name (e.g. ``"mio"``) to its canonical name (``"mio-1-1"``).
     """
 
-    return PARAMETER_SET_ALIASES.get(parameter_set, parameter_set)
+    return canonical_parameter_set(parameter_set)
 
 
 def slako_url(parameter_set: str = DEFAULT_PARAMETER_SET) -> str:
@@ -80,7 +82,7 @@ def default_install_root() -> Path:
     Return the default user-local Slater-Koster install directory.
     """
 
-    return Path.home() / ".local" / "share" / "thermoscreening" / "slakos"
+    return default_parameter_root()
 
 
 def default_parameter_dir(
@@ -91,8 +93,7 @@ def default_parameter_dir(
     Return the parameter directory for ``parameter_set`` under an install root.
     """
 
-    root = Path(install_root).expanduser() if install_root is not None else default_install_root()
-    return root / _canonical_set_name(parameter_set)
+    return calculator_parameter_dir(parameter_set, install_root)
 
 
 def _download_file(url: str, destination: Path, timeout: int = 60) -> None:
@@ -297,13 +298,15 @@ def _xtb_diagnostics(env: Mapping[str, str]) -> list[Diagnostic]:
 
     # native xtb binary (for --engine xtb-cli): honour XTB_COMMAND, then PATH
     xtb_command = env.get("XTB_COMMAND") or "xtb"
-    xtb_path = shutil.which(xtb_command)
-    xtb = Diagnostic(
+    xtb = _executable_diagnostic(
         "xtb",
-        xtb_path is not None,
-        xtb_path or "not found (set XTB_COMMAND or `conda install -c conda-forge xtb`; "
-        "needed for --engine xtb-cli)",
+        xtb_command,
+        expected="xtb",
         optional=True,
+        missing_detail=(
+            "not found (set XTB_COMMAND or `conda install -c conda-forge xtb`; "
+            "needed for --engine xtb-cli)"
+        ),
     )
 
     # tblite python package (for the in-process --engine xtb)
@@ -320,7 +323,44 @@ def _xtb_diagnostics(env: Mapping[str, str]) -> list[Diagnostic]:
     return [xtb, tblite]
 
 
-def check_dftb_setup(env: dict[str, str] | None = None) -> list[Diagnostic]:
+def _executable_diagnostic(
+    name,
+    command=None,
+    *,
+    expected=None,
+    optional=False,
+    missing_detail="not found on PATH",
+):
+    """Check that an executable is present and can start."""
+    executable = shutil.which(command or name)
+    if executable is None:
+        return Diagnostic(name, False, missing_detail, optional=optional)
+    try:
+        completed = subprocess.run(
+            [executable, "--help"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return Diagnostic(name, False, f"could not start: {exc}", optional=optional)
+
+    output = f"{completed.stdout}\n{completed.stderr}"
+    loader_errors = ("Library not loaded", "error while loading shared libraries")
+    starts = not any(marker in output for marker in loader_errors)
+    if expected is not None:
+        starts = starts and expected.lower() in output.lower()
+    else:
+        starts = starts and completed.returncode == 0
+    detail = executable if starts else "found but could not start correctly"
+    return Diagnostic(name, starts, detail, optional=optional)
+
+
+def check_dftb_setup(
+    env: dict[str, str] | None = None,
+    parameter_set: str = "3ob",
+) -> list[Diagnostic]:
     """
     Check whether the calculation backends are available.
 
@@ -331,42 +371,39 @@ def check_dftb_setup(env: dict[str, str] | None = None) -> list[Diagnostic]:
     current_env = os.environ if env is None else env
     prefix = current_env.get("DFTB_PREFIX")
     diagnostics = [
-        Diagnostic(
+        _executable_diagnostic(
             "dftb+",
-            shutil.which("dftb+") is not None,
-            shutil.which("dftb+") or "not found on PATH",
+            expected="DFTB+",
         ),
-        Diagnostic(
+        _executable_diagnostic(
             "modes",
-            shutil.which("modes") is not None,
-            shutil.which("modes") or "not found on PATH",
+            expected="DFTB+",
         ),
     ]
 
     if not prefix:
-        diagnostics.extend(
-            [
-                Diagnostic("DFTB_PREFIX", False, "not set"),
-                Diagnostic(REQUIRED_PARAMETER_FILE, False, "DFTB_PREFIX is not set"),
-            ]
-        )
+        parameter_dir = default_parameter_dir(parameter_set=parameter_set)
+        source = f"downloaded {canonical_parameter_set(parameter_set)}"
     else:
         parameter_dir = Path(prefix).expanduser()
-        parameter_file = parameter_dir / REQUIRED_PARAMETER_FILE
-        diagnostics.extend(
-            [
-                Diagnostic(
-                    "DFTB_PREFIX",
-                    parameter_dir.is_dir(),
-                    str(parameter_dir.resolve()) if parameter_dir.is_dir() else "directory not found",
-                ),
-                Diagnostic(
-                    REQUIRED_PARAMETER_FILE,
-                    parameter_file.is_file(),
-                    str(parameter_file.resolve()) if parameter_file.is_file() else "not found",
-                ),
-            ]
-        )
+        source = "DFTB_PREFIX"
+    parameter_file = parameter_dir / REQUIRED_PARAMETER_FILE
+    diagnostics.extend(
+        [
+            Diagnostic(
+                "parameters",
+                parameter_dir.is_dir(),
+                f"{source}: {parameter_dir.resolve()}"
+                if parameter_dir.is_dir()
+                else f"{source} directory not found",
+            ),
+            Diagnostic(
+                REQUIRED_PARAMETER_FILE,
+                parameter_file.is_file(),
+                str(parameter_file.resolve()) if parameter_file.is_file() else "not found",
+            ),
+        ]
+    )
 
     diagnostics.extend(_xtb_diagnostics(current_env))
     return diagnostics

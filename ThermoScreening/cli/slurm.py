@@ -44,14 +44,14 @@ def write_slurm_array_script(
     working_directory=None,
     python_executable=None,
 ):
-    """Write a Slurm array that runs one deterministic screen shard per task."""
+    """Write a Slurm array that runs one deterministic workflow shard per task."""
     tasks = _positive_integer(tasks, "tasks")
     local_jobs = _positive_integer(local_jobs, "local_jobs")
     cpus_per_task = _positive_integer(cpus_per_task, "cpus_per_task")
     if local_jobs > cpus_per_task:
         raise TSValueError("local --jobs cannot exceed cpus_per_task.")
-    if not command_args or command_args[0] != "screen":
-        raise TSValueError("Slurm arrays currently support the screen command.")
+    if not command_args or command_args[0] not in {"screen", "redox"}:
+        raise TSValueError("Slurm arrays support the screen and redox commands.")
     if "--shard-index" in command_args or "--shard-count" in command_args:
         raise TSValueError("Do not pass shard options to the Slurm generator.")
 

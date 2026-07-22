@@ -79,9 +79,44 @@ def _fake_state_screen(energies, captured=None, failed=None):
                         "G_total_hartree": energies[molecule][state],
                     }
                 )
+        if "out" in kwargs:
+            screening._write_results(results, kwargs["out"])
+            screening._write_json(
+                screening._sidecar_path(kwargs["out"], "-run.json"),
+                {"workflow": "thermochemistry_screen"},
+            )
         return results
 
     return fake_screen
+
+
+def _minimal_shard_metadata(index=0, count=1, candidates=None, reference=None):
+    payload = {
+        "schema_version": 1,
+        "workflow": "stepwise_reduction_screen",
+        "source": "molecules.csv",
+        "single_starting_geometry_approximation": True,
+        "smiles_embedding": {},
+        "states": [],
+        "settings": {"engine": "xtb"},
+        "candidates": candidates or [],
+        "reference": {"calculation": reference},
+        "shard": {"index": index, "count": count},
+    }
+    payload["run_fingerprint"] = screening._payload_fingerprint(payload)
+    return payload
+
+
+def _write_shard(directory, metadata, records=None, states=None):
+    directory.mkdir(parents=True, exist_ok=True)
+    index = metadata.get("shard", {}).get("index", 0)
+    stem = directory / f"shard-{index:05d}"
+    screening._write_json(stem.with_name(stem.name + "-run.json"), metadata)
+    if records is not None:
+        screening._write_json(stem.with_suffix(".json"), records)
+    if states is not None:
+        screening._write_json(stem.with_name(stem.name + "-states.json"), states)
+    return stem
 
 
 def test_redox_screen_calculates_all_states_in_parallel(monkeypatch, tmp_path):
@@ -657,6 +692,256 @@ def test_redox_screen_writes_machine_readable_aggregate(monkeypatch, tmp_path):
     assert metadata["run_fingerprint"] == results[0]["run_fingerprint"]
 
 
+def test_redox_shards_collect_with_shared_reference(monkeypatch, tmp_path):
+    molecule_directory = tmp_path / "molecules"
+    molecule_directory.mkdir()
+    for name in ("a", "b"):
+        _write_xyz(molecule_directory / f"{name}.xyz")
+    energies = {
+        "a": {
+            "oxidized": -100.0,
+            "reduced_once": -100.10,
+            "reduced_twice": -100.18,
+        },
+        "b": {
+            "oxidized": -200.0,
+            "reduced_once": -200.11,
+            "reduced_twice": -200.20,
+        },
+    }
+    monkeypatch.setattr(screening, "screen", _fake_state_screen(energies))
+
+    for shard_index in range(3):
+        screening.redox_screen(
+            molecule_directory,
+            out=tmp_path / "redox",
+            directory=tmp_path / "work",
+            reference="a",
+            reference_e1=-0.75,
+            reference_e2=-1.40,
+            shard_index=shard_index,
+            shard_count=3,
+        )
+
+    results = screening.collect_shards(
+        tmp_path / "redox-shards", out=tmp_path / "combined"
+    )
+
+    assert [result["name"] for result in results] == ["a", "b"]
+    assert results[0]["E1_V"] == pytest.approx(-0.75)
+    assert results[1]["E1_V"] == pytest.approx(-0.75 + 0.01 * HARTREE_TO_EV)
+    assert len({result["run_fingerprint"] for result in results}) == 1
+    states = json.loads(
+        (tmp_path / "combined-states.json").read_text(encoding="utf-8")
+    )
+    assert len(states) == 6
+    metadata = json.loads(
+        (tmp_path / "combined-run.json").read_text(encoding="utf-8")
+    )
+    assert metadata["collection"]["shard_count"] == 3
+    assert metadata["input_set_fingerprint"]
+    assert [candidate["input_index"] for candidate in metadata["candidates"]] == [0, 1]
+    fingerprint_payload = dict(metadata)
+    fingerprint = fingerprint_payload.pop("run_fingerprint")
+    assert screening._payload_fingerprint(fingerprint_payload) == fingerprint
+
+
+def test_collect_redox_shards_requires_every_shard(monkeypatch, tmp_path):
+    _write_xyz(tmp_path / "molecule.xyz")
+    energies = {
+        "molecule": {
+            "oxidized": -100.0,
+            "reduced_once": -100.1,
+            "reduced_twice": -100.18,
+        }
+    }
+    monkeypatch.setattr(screening, "screen", _fake_state_screen(energies))
+    screening.redox_screen(
+        tmp_path / "molecule.xyz",
+        out=tmp_path / "redox",
+        directory=tmp_path / "work",
+        shard_index=0,
+        shard_count=2,
+    )
+
+    with pytest.raises(TSValueError, match="Missing cluster shard"):
+        screening.collect_redox_shards(tmp_path / "redox-shards")
+
+
+def test_collect_redox_shards_rejects_inputs_changed_between_tasks(
+    monkeypatch, tmp_path
+):
+    molecule_directory = tmp_path / "molecules"
+    molecule_directory.mkdir()
+    for name in ("a", "b"):
+        _write_xyz(molecule_directory / f"{name}.xyz")
+    energies = {
+        name: {
+            "oxidized": -100.0,
+            "reduced_once": -100.1,
+            "reduced_twice": -100.18,
+        }
+        for name in ("a", "b")
+    }
+    monkeypatch.setattr(screening, "screen", _fake_state_screen(energies))
+    screening.redox_screen(
+        molecule_directory,
+        out=tmp_path / "redox",
+        directory=tmp_path / "work",
+        shard_index=0,
+        shard_count=2,
+    )
+
+    (molecule_directory / "b.xyz").write_text(
+        "1\nchanged\nH 0.0 0.0 1.0\n", encoding="utf-8"
+    )
+    screening.redox_screen(
+        molecule_directory,
+        out=tmp_path / "redox",
+        directory=tmp_path / "work",
+        shard_index=1,
+        shard_count=2,
+    )
+
+    with pytest.raises(TSValueError, match="different inputs or settings"):
+        screening.collect_redox_shards(tmp_path / "redox-shards")
+
+
+def test_collect_redox_shards_without_reference(monkeypatch, tmp_path):
+    _write_xyz(tmp_path / "molecule.xyz")
+    energies = {
+        "molecule": {
+            "oxidized": -100.0,
+            "reduced_once": -100.1,
+            "reduced_twice": -100.18,
+        }
+    }
+    monkeypatch.setattr(screening, "screen", _fake_state_screen(energies))
+    for shard_index in range(2):
+        screening.redox_screen(
+            tmp_path / "molecule.xyz",
+            out=tmp_path / "redox",
+            directory=tmp_path / "work",
+            shard_index=shard_index,
+            shard_count=2,
+        )
+
+    results = screening.collect_redox_shards(
+        tmp_path / "redox-shards", out=tmp_path / "combined"
+    )
+
+    assert [result["name"] for result in results] == ["molecule"]
+
+
+def test_redox_collector_rejects_missing_and_malformed_metadata(tmp_path):
+    with pytest.raises(TSValueError, match="No redox shards"):
+        screening.collect_redox_shards(tmp_path / "missing")
+
+    wrong_workflow = _minimal_shard_metadata()
+    wrong_workflow["workflow"] = "other"
+    _write_shard(tmp_path / "wrong-workflow", wrong_workflow)
+    with pytest.raises(TSValueError, match="not redox run metadata"):
+        screening.collect_redox_shards(tmp_path / "wrong-workflow")
+
+    no_shard = _minimal_shard_metadata()
+    no_shard.pop("shard")
+    _write_shard(tmp_path / "no-shard", no_shard)
+    with pytest.raises(TSValueError, match="no valid shard metadata"):
+        screening.collect_redox_shards(tmp_path / "no-shard")
+
+    missing_result = _minimal_shard_metadata()
+    _write_shard(tmp_path / "missing-result", missing_result)
+    with pytest.raises(TSValueError, match="Result file is missing"):
+        screening.collect_redox_shards(tmp_path / "missing-result")
+
+
+def test_redox_collector_rejects_invalid_payloads(tmp_path):
+    invalid_candidates = _minimal_shard_metadata()
+    invalid_candidates["candidates"] = None
+    invalid_candidates["run_fingerprint"] = screening._payload_fingerprint(
+        {key: value for key, value in invalid_candidates.items() if key != "run_fingerprint"}
+    )
+    _write_shard(tmp_path / "invalid-candidates", invalid_candidates, records=[])
+    with pytest.raises(TSValueError, match="invalid candidate metadata"):
+        screening.collect_redox_shards(tmp_path / "invalid-candidates")
+
+    mismatched = _minimal_shard_metadata(candidates=[{"name": "a", "input_index": 0}])
+    _write_shard(tmp_path / "mismatched", mismatched, records=[], states=[])
+    with pytest.raises(TSValueError, match="do not match its candidates"):
+        screening.collect_redox_shards(tmp_path / "mismatched")
+
+    bad_fingerprint = _minimal_shard_metadata()
+    bad_fingerprint["run_fingerprint"] = "wrong"
+    _write_shard(tmp_path / "bad-fingerprint", bad_fingerprint, records=[])
+    with pytest.raises(TSValueError, match="Invalid redox run fingerprint"):
+        screening.collect_redox_shards(tmp_path / "bad-fingerprint")
+
+    missing_states = _minimal_shard_metadata()
+    _write_shard(tmp_path / "missing-states", missing_states, records=[])
+    with pytest.raises(TSValueError, match="State result file is missing"):
+        screening.collect_redox_shards(tmp_path / "missing-states")
+
+
+@pytest.mark.parametrize(
+    ("candidate", "record_fingerprint", "message"),
+    [
+        ({"name": "a"}, "valid", "Missing input index"),
+        ({"name": "a", "input_index": 1}, "valid", "does not belong"),
+        ({"name": "a", "input_index": 0}, "wrong", "Run fingerprint mismatch"),
+    ],
+)
+def test_redox_collector_rejects_invalid_candidate_provenance(
+    tmp_path, candidate, record_fingerprint, message
+):
+    shard_count = 2 if message == "does not belong" else 1
+    metadata = _minimal_shard_metadata(count=shard_count, candidates=[candidate])
+    fingerprint = metadata["run_fingerprint"]
+    record = {
+        "name": "a",
+        "status": "ok",
+        "run_fingerprint": fingerprint if record_fingerprint == "valid" else "wrong",
+    }
+    directory = tmp_path / message.replace(" ", "-")
+    _write_shard(directory, metadata, records=[record], states=[])
+
+    with pytest.raises(TSValueError, match=message):
+        screening.collect_redox_shards(directory)
+
+
+def test_redox_collector_rejects_incomplete_state_results(tmp_path):
+    candidate = {"name": "a", "input_index": 0}
+    metadata = _minimal_shard_metadata(candidates=[candidate])
+    record = {
+        "name": "a",
+        "status": "ok",
+        "run_fingerprint": metadata["run_fingerprint"],
+    }
+    _write_shard(tmp_path / "incomplete", metadata, records=[record], states=[])
+
+    with pytest.raises(TSValueError, match="state results are incomplete"):
+        screening.collect_redox_shards(tmp_path / "incomplete")
+
+
+def test_collect_shards_rejects_unknown_and_mixed_workflows(tmp_path):
+    with pytest.raises(TSValueError, match="No screening shards"):
+        screening.collect_shards(tmp_path / "missing")
+
+    unsupported = _minimal_shard_metadata()
+    unsupported["workflow"] = "unsupported"
+    _write_shard(tmp_path / "unsupported", unsupported)
+    with pytest.raises(TSValueError, match="Unsupported cluster workflow"):
+        screening.collect_shards(tmp_path / "unsupported")
+
+    first = _minimal_shard_metadata(index=0, count=2)
+    second = _minimal_shard_metadata(index=1, count=2)
+    second["workflow"] = "thermochemistry_screen"
+    directory = tmp_path / "mixed"
+    _write_shard(directory, first)
+    _write_shard(directory, second)
+    with pytest.raises(TSValueError, match="mixes different workflows"):
+        screening.collect_shards(directory)
+
+
 def test_cli_parses_and_runs_redox(monkeypatch, capsys):
     import ThermoScreening.cli.thermo as cli
 
@@ -698,10 +983,12 @@ def test_cli_parses_and_runs_redox(monkeypatch, capsys):
     assert args.charge is None
     assert args.parameter_set is None
     assert args.method is None
+    assert args.shard_index is None
     assert cli.run_redox(args) == 0
     assert captured["kwargs"]["jobs"] == 6
     assert captured["kwargs"]["resume"] is True
     assert captured["kwargs"]["reference_e1"] == -0.75
+    assert captured["kwargs"]["shard_index"] is None
     assert "E1=-0.6000 V" in capsys.readouterr().out
 
 

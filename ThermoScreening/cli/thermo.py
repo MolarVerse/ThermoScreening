@@ -6,7 +6,6 @@ import time
 
 from ThermoScreening.cli.dftb_setup import (
     check_dftb_setup,
-    dftb_prefix_export,
     format_diagnostics,
     install_gbsa_param,
     install_slakos,
@@ -15,7 +14,7 @@ from ThermoScreening.exceptions import TSValueError
 from ThermoScreening.cli.slurm import write_slurm_array_script, submit_slurm_array
 from ThermoScreening.thermo.api import execute
 from ThermoScreening.thermo.screening import (
-    collect_screen_shards,
+    collect_shards,
     redox_screen,
     screen,
     screen_shard_directory,
@@ -26,6 +25,7 @@ from ThermoScreening.version import __version__
 
 
 SUBCOMMANDS = {
+    "run",
     "setup-dftb",
     "doctor",
     "screen",
@@ -36,18 +36,24 @@ SUBCOMMANDS = {
 }
 
 
-def _run_parser():
-    parser = ArgumentParser(description="ThermoScreening")
+def _add_run_arguments(parser):
+    """Add arguments for the legacy input-file workflow."""
     parser.add_argument("input_file", type=str, help="Input file")
     parser.add_argument(
-        "-v", "--verbose", action="store_true", help="Verbose output", default=True
+        "-v", "--verbose", action="store_true", help="Print timing information."
     )
-    return parser
 
 
 def _command_parser():
     parser = ArgumentParser(description="ThermoScreening")
+    parser.add_argument("--version", action="version", version=__version__)
     subparsers = parser.add_subparsers(dest="command", required=True)
+
+    run_parser = subparsers.add_parser(
+        "run",
+        help="Run thermochemistry from a ThermoScreening input file.",
+    )
+    _add_run_arguments(run_parser)
 
     setup_parser = subparsers.add_parser(
         "setup-dftb",
@@ -81,9 +87,21 @@ def _command_parser():
         help="Download and extract even when the parameter set already exists.",
     )
 
-    subparsers.add_parser(
+    doctor_parser = subparsers.add_parser(
         "doctor",
-        help="Check DFTB+ executables and Slater-Koster parameter configuration.",
+        help="Check calculation backends and parameter configuration.",
+    )
+    doctor_parser.add_argument(
+        "--engine",
+        choices=["all", "dftb+", "xtb", "xtb-cli"],
+        default="all",
+        help="Backend to require. 'all' succeeds when at least one backend is ready.",
+    )
+    doctor_parser.add_argument(
+        "--parameter-set",
+        choices=["3ob", "mio"],
+        default="3ob",
+        help="DFTB+ parameter set to check (default '3ob').",
     )
 
     screen_parser = subparsers.add_parser(
@@ -169,7 +187,7 @@ def _command_parser():
 
     collect_parser = subparsers.add_parser(
         "collect",
-        help="Validate and combine distributed screen shards.",
+        help="Validate and combine distributed screening shards.",
     )
     collect_parser.add_argument(
         "shard_directory",
@@ -184,7 +202,7 @@ def _command_parser():
 
     slurm_parser = subparsers.add_parser(
         "slurm",
-        help="Generate or submit a Slurm array for thermo screen.",
+        help="Generate or submit a Slurm array for screen or redox.",
     )
     slurm_parser.add_argument("--tasks", type=int, required=True)
     slurm_parser.add_argument("--script", default="thermoscreening.slurm")
@@ -207,7 +225,7 @@ def _command_parser():
     slurm_parser.add_argument(
         "command_args",
         nargs=REMAINDER,
-        help="Screen command after '--', for example: -- screen molecules.csv -o out.",
+        help="Screen or redox command after '--'.",
     )
 
     redox_parser = subparsers.add_parser(
@@ -312,6 +330,18 @@ def _command_parser():
         default=1,
         help="Number of charge-state calculations to run concurrently.",
     )
+    redox_parser.add_argument(
+        "--shard-index",
+        type=int,
+        default=None,
+        help="Zero-based cluster shard to execute; requires --shard-count.",
+    )
+    redox_parser.add_argument(
+        "--shard-count",
+        type=int,
+        default=None,
+        help="Total number of deterministic cluster shards.",
+    )
 
     conf_parser = subparsers.add_parser(
         "conformers",
@@ -351,15 +381,10 @@ def parse_args(argv=None):
     if argv is None:
         argv = sys.argv[1:]
 
-    if argv and argv[0] in SUBCOMMANDS:
-        parser = _command_parser()
-        args = parser.parse_args(argv)
-    else:
-        parser = _run_parser()
-        args = parser.parse_args(argv)
-        args.command = "run"
-
-    return args
+    parser = _command_parser()
+    if argv and argv[0] not in SUBCOMMANDS and not argv[0].startswith("-"):
+        argv = ["run", *argv]
+    return parser.parse_args(argv)
 
 
 def run_setup_dftb(parser_args):
@@ -385,22 +410,33 @@ def run_setup_dftb(parser_args):
     )
 
     print("Slater-Koster files: ", parameter_dir)
-    print("Shell configuration:")
-    print(dftb_prefix_export(parameter_dir))
+    print("The parameter set is ready for automatic discovery.")
 
     return 0
 
 
-def run_doctor():
+def run_doctor(parser_args):
     """
     Check whether the calculation backends are available.
     """
 
-    diagnostics = check_dftb_setup()
+    diagnostics = check_dftb_setup(parameter_set=parser_args.parameter_set)
     print(format_diagnostics(diagnostics))
 
-    # optional backends (xtb, tblite) do not fail the check
-    return 0 if all(item.ok for item in diagnostics if not item.optional) else 1
+    status = {item.name: item.ok for item in diagnostics}
+    ready = {
+        "dftb+": all(
+            status.get(name, False)
+            for name in ("dftb+", "modes", "parameters", "C-C.skf")
+        ),
+        "xtb": status.get("tblite", False),
+        "xtb-cli": status.get("xtb", False),
+    }
+    if parser_args.engine == "all":
+        available = ", ".join(name for name, ok in ready.items() if ok) or "none"
+        print(f"Usable engines: {available}")
+        return 0 if any(ready.values()) else 1
+    return 0 if ready[parser_args.engine] else 1
 
 
 def run_screen(parser_args):
@@ -429,7 +465,7 @@ def run_screen(parser_args):
 
     ranked = rank_by_gibbs(results)
     if ranked:
-        print("Ranked by Gibbs free energy (most stable first):")
+        print("Comparable structures ranked by Gibbs free energy:")
         for position, record in enumerate(ranked, start=1):
             print(f"  {position}. {record['name']}  G = {record['G_total_hartree']:.6f} Ha")
 
@@ -453,7 +489,7 @@ def run_screen(parser_args):
 def run_collect(parser_args):
     """Combine and validate distributed screening results."""
     try:
-        results = collect_screen_shards(parser_args.shard_directory, out=parser_args.out)
+        results = collect_shards(parser_args.shard_directory, out=parser_args.out)
     except TSValueError as exc:
         print(f"Collection failed: {exc}", file=sys.stderr)
         return 1
@@ -470,8 +506,8 @@ def run_slurm(parser_args):
     if command_args and command_args[0] == "--":
         command_args.pop(0)
     try:
-        if not command_args or command_args[0] != "screen":
-            raise TSValueError("Slurm arrays currently support the screen command.")
+        if not command_args or command_args[0] not in {"screen", "redox"}:
+            raise TSValueError("Slurm arrays support the screen and redox commands.")
         nested = parse_args(command_args)
         script = write_slurm_array_script(
             command_args,
@@ -534,6 +570,8 @@ def run_redox(parser_args):
             reference_charge=parser_args.reference_charge,
             potential_scale=parser_args.potential_scale,
             max_conformers=parser_args.max_conformers,
+            shard_index=parser_args.shard_index,
+            shard_count=parser_args.shard_count,
         )
     except (TSValueError, ValueError) as exc:
         print(f"Redox screen failed: {exc}", file=sys.stderr)
@@ -555,9 +593,16 @@ def run_redox(parser_args):
         for result in failures:
             print(f"  {result['name']}: {result['error']}")
     print(f"Processed {len(results)} molecules ({len(failures)} failed).")
-    print(f"Results: {parser_args.out}.csv, {parser_args.out}.json")
-    print(f"State results: {parser_args.out}-states.csv, {parser_args.out}-states.json")
-    print(f"Run metadata: {parser_args.out}-run.json")
+    if parser_args.shard_index is None:
+        result_stem = parser_args.out
+    else:
+        result_stem = (
+            screen_shard_directory(parser_args.out)
+            / f"shard-{parser_args.shard_index:05d}"
+        )
+    print(f"Results: {result_stem}.csv, {result_stem}.json")
+    print(f"State results: {result_stem}-states.csv, {result_stem}-states.json")
+    print(f"Run metadata: {result_stem}-run.json")
     return 1 if failures else 0
 
 
@@ -605,7 +650,7 @@ def main():
         return run_setup_dftb(parser_args)
 
     if command == "doctor":
-        return run_doctor()
+        return run_doctor(parser_args)
 
     if command == "screen":
         return run_screen(parser_args)

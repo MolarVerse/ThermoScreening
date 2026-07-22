@@ -12,11 +12,6 @@ import argparse
 import ThermoScreening.cli.thermo as thermo
 from ThermoScreening.utils.header import print_header
 
-sys.path.append("/home/stk/dev/ThermoScreening/tests/data/thermo/")
-
-path = "/home/stk/dev/ThermoScreening/tests/data/thermo/"
-#
-
 
 class TestMain(unittest.TestCase):
     def test_parse_args(self):
@@ -32,6 +27,25 @@ class TestMain(unittest.TestCase):
             with self.assertRaises(SystemExit) as e:
                 runpy.run_module("ThermoScreening.__main__", run_name="__main__")
         self.assertEqual(e.exception.code, 0)
+
+    def test_top_level_help_lists_workflows(self):
+        with self.assertRaises(SystemExit) as error:
+            thermo.parse_args(["--help"])
+
+        self.assertEqual(error.exception.code, 0)
+
+    def test_explicit_run_command(self):
+        args = thermo.parse_args(["run", "input_file"])
+
+        self.assertEqual(args.command, "run")
+        self.assertEqual(args.input_file, "input_file")
+        self.assertFalse(args.verbose)
+
+    def test_version_option(self):
+        with self.assertRaises(SystemExit) as error:
+            thermo.parse_args(["--version"])
+
+        self.assertEqual(error.exception.code, 0)
 
     def test_print_header_to_file(self):
         output = StringIO()
@@ -102,6 +116,8 @@ def test_parse_args_doctor_command():
     args = thermo.parse_args(["doctor"])
 
     assert args.command == "doctor"
+    assert args.engine == "all"
+    assert args.parameter_set == "3ob"
 
 
 def test_main_runs_setup_dftb(monkeypatch, tmp_path, capsys):
@@ -127,7 +143,7 @@ def test_main_runs_setup_dftb(monkeypatch, tmp_path, capsys):
 
     output = capsys.readouterr().out
     assert "Slater-Koster files:" in output
-    assert "export DFTB_PREFIX=" in output
+    assert "ready for automatic discovery" in output
 
 
 def test_main_setup_dftb_downloads_solvent(monkeypatch, tmp_path, capsys):
@@ -154,14 +170,21 @@ def test_main_setup_dftb_downloads_solvent(monkeypatch, tmp_path, capsys):
 
 
 def test_main_runs_doctor(monkeypatch, capsys):
-    diagnostic = type("DiagnosticStub", (), {"ok": False, "optional": False})()
+    diagnostics = [
+        type("D", (), {"name": name, "ok": False, "optional": False})()
+        for name in ("dftb+", "modes", "parameters", "C-C.skf")
+    ]
 
     monkeypatch.setattr(
         thermo,
         "parse_args",
-        lambda: argparse.Namespace(command="doctor"),
+        lambda: argparse.Namespace(
+            command="doctor", engine="dftb+", parameter_set="3ob"
+        ),
     )
-    monkeypatch.setattr(thermo, "check_dftb_setup", lambda: [diagnostic])
+    monkeypatch.setattr(
+        thermo, "check_dftb_setup", lambda parameter_set: diagnostics
+    )
     monkeypatch.setattr(thermo, "format_diagnostics", lambda diagnostics: "not ready")
 
     assert thermo.main() == 1
@@ -214,14 +237,22 @@ def test_main_runs_conformers(monkeypatch):
 
 
 def test_main_doctor_ignores_missing_optional_backend(monkeypatch, capsys):
-    required_ok = type("D", (), {"ok": True, "optional": False})()
-    optional_missing = type("D", (), {"ok": False, "optional": True})()
+    diagnostics = [
+        type("D", (), {"name": name, "ok": True, "optional": False})()
+        for name in ("dftb+", "modes", "parameters", "C-C.skf")
+    ]
+    diagnostics.extend(
+        type("D", (), {"name": name, "ok": False, "optional": True})()
+        for name in ("xtb", "tblite")
+    )
 
     monkeypatch.setattr(
-        thermo, "parse_args", lambda: argparse.Namespace(command="doctor")
+        thermo,
+        "parse_args",
+        lambda: argparse.Namespace(command="doctor", engine="all", parameter_set="3ob"),
     )
     monkeypatch.setattr(
-        thermo, "check_dftb_setup", lambda: [required_ok, optional_missing]
+        thermo, "check_dftb_setup", lambda parameter_set: diagnostics
     )
     monkeypatch.setattr(thermo, "format_diagnostics", lambda diagnostics: "ok")
 

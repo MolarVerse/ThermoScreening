@@ -794,6 +794,7 @@ def dftbplus_thermo(
         pressure=101325,
         charge=0.0,
         directory=None,
+        parameter_set="3ob",
         spin=None,
         spin_constants=None,
         solvent=None,
@@ -819,6 +820,9 @@ def dftbplus_thermo(
         Working directory to run the DFTB+ steps in (created if needed). The
         geometry/Hessian/modes files are written here, so separate jobs can run
         without clobbering each other. Defaults to the current directory.
+    parameter_set : str
+        Slater-Koster set to locate when ``slako_dir`` is not supplied. Defaults
+        to ``"3ob"``.
 
     spin : float, optional
         Spin quantum number S. Defaults to the minimum-spin electron-count guess
@@ -886,12 +890,22 @@ def dftbplus_thermo(
 
     with _run_in_directory(directory):
         # run geometry optimization
-        geoopt = Geoopt(atoms=atoms, charge=charge, **engine_kwargs)
+        geoopt = Geoopt(
+            atoms=atoms,
+            charge=charge,
+            parameter_set=parameter_set,
+            **engine_kwargs,
+        )
         potential_energy = geoopt.potential_energy()
         optimized_atoms = geoopt.read()
 
         # run hessian calculation
-        Hessian(atoms=optimized_atoms, charge=charge, **engine_kwargs)
+        Hessian(
+            atoms=optimized_atoms,
+            charge=charge,
+            parameter_set=parameter_set,
+            **engine_kwargs,
+        )
 
         # run normal mode calculation
         modes = Modes()

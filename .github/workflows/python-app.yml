@@ -1,6 +1,3 @@
-# This workflow will install Python dependencies, run tests and lint with a single version of Python
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
-
 name: Python application
 
 on:
@@ -18,12 +15,14 @@ permissions:
 jobs:
   build:
 
-    runs-on: ubuntu-latest   
+    runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
-    - name: Set up Python 3.12 with conda
-      uses: actions/setup-python@v3
+    - uses: actions/checkout@v7
+      with:
+        fetch-depth: 0
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v7
       with:
         python-version: "3.12"
     - name: Add conda to system path
@@ -34,22 +33,21 @@ jobs:
       run: |
         conda install -y -c conda-forge python=3.12 gsl dftbplus
         python -m pip install --upgrade pip
-        pip install . 
+        python -m pip install '.[test,lint]'
     - name: Lint with Pylint
-      run: |
-        pip install '.[lint]'
-        python -m pylint ThermoScreening
+      run: python -m pylint ThermoScreening
     - name: Test with pytest
+      run: python -m pytest --cov=ThermoScreening --cov-report=xml
+    - name: Build package
       run: |
-        pip install '.[test]'
-        python -m pytest --cov=ThermoScreening --cov-report=xml 
-      shell: bash
+        python -m pip install build
+        python -m build
 
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v7
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        env_vars: OS,PYTHON
+        files: ./coverage.xml
         fail_ci_if_error: true
         flags: unittests
         verbose: true

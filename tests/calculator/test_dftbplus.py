@@ -59,8 +59,29 @@ def test_slako_dir_uses_environment(monkeypatch, tmp_path):
     assert _slako_dir() == str(tmp_path.resolve()) + os.sep
 
 
-def test_slako_dir_requires_external_parameters(monkeypatch):
+def test_slako_dir_uses_downloaded_default(monkeypatch, tmp_path):
+    downloaded = tmp_path / "3ob-3-1"
+    downloaded.mkdir()
+    (downloaded / dftbplus_module.REQUIRED_PARAMETER_FILE).write_text(
+        "parameters", encoding="utf-8"
+    )
     monkeypatch.delenv("DFTB_PREFIX", raising=False)
+    monkeypatch.setattr(
+        dftbplus_module,
+        "default_parameter_dir",
+        lambda parameter_set: downloaded,
+    )
+
+    assert _slako_dir() == str(downloaded.resolve()) + os.sep
+
+
+def test_slako_dir_requires_external_parameters(monkeypatch, tmp_path):
+    monkeypatch.delenv("DFTB_PREFIX", raising=False)
+    monkeypatch.setattr(
+        dftbplus_module,
+        "default_parameter_dir",
+        lambda parameter_set: tmp_path / "missing",
+    )
 
     with pytest.raises(FileNotFoundError, match="Slater-Koster files are not bundled"):
         _slako_dir()
