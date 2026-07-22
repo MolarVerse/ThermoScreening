@@ -34,6 +34,7 @@ Reactions and redox
 
 .. autofunction:: ThermoScreening.thermo.reactions.reaction_free_energy
 .. autofunction:: ThermoScreening.thermo.reactions.reduction_potential
+.. autofunction:: ThermoScreening.thermo.reactions.calibrate_reduction_reference
 
 Acid dissociation (pKa)
 ------------------------

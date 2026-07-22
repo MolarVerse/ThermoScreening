@@ -6,6 +6,7 @@ import pytest
 
 from ThermoScreening.thermo.reactions import (
     SHE_ABSOLUTE_POTENTIAL,
+    calibrate_reduction_reference,
     reaction_free_energy,
     reduction_potential,
 )
@@ -68,17 +69,124 @@ def test_reduction_potential_n_electrons():
     )
 
 
-def test_reduction_potential_rejects_zero_electrons():
+@pytest.mark.parametrize("n_electrons", [0, -1])
+def test_reduction_potential_rejects_non_positive_electrons(n_electrons):
     ox, red = _FakeThermo(0.0), _FakeThermo(-0.5)
-    with pytest.raises(ValueError, match="non-zero"):
-        reduction_potential(ox, red, n_electrons=0)
+    with pytest.raises(ValueError, match="positive"):
+        reduction_potential(ox, red, n_electrons=n_electrons)
+
+
+@pytest.mark.parametrize("n_electrons", [1, 2])
+def test_calibrate_reduction_reference_reproduces_experiment(n_electrons):
+    ox, red = _FakeThermo(0.0), _FakeThermo(-0.2)
+    experimental = -0.75
+
+    reference = calibrate_reduction_reference(
+        ox, red, experimental, n_electrons=n_electrons
+    )
+
+    assert reduction_potential(
+        ox,
+        red,
+        n_electrons=n_electrons,
+        reference_potential=reference,
+    ) == pytest.approx(experimental)
+
+
+def test_calibrated_reference_transfers_relative_potential():
+    reference_ox, reference_red = _FakeThermo(0.0), _FakeThermo(-0.2)
+    target_ox, target_red = _FakeThermo(-1.0), _FakeThermo(-1.3)
+    experimental = -0.75
+
+    reference = calibrate_reduction_reference(
+        reference_ox, reference_red, experimental
+    )
+    target = reduction_potential(
+        target_ox, target_red, reference_potential=reference
+    )
+
+    assert target == pytest.approx(experimental + 0.1 * _H_TO_EV)
+
+
+def test_two_step_reduction_uses_one_calibration_per_step():
+    ref_neutral = _FakeThermo(-100.0)
+    ref_anion = _FakeThermo(-100.13)
+    ref_dianion = _FakeThermo(-100.23)
+    target_neutral = _FakeThermo(-200.0)
+    target_anion = _FakeThermo(-200.14)
+    target_dianion = _FakeThermo(-200.25)
+    experimental_e1 = -0.75
+    experimental_e2 = -1.4
+
+    e1_reference = calibrate_reduction_reference(
+        ref_neutral, ref_anion, experimental_e1
+    )
+    e2_reference = calibrate_reduction_reference(
+        ref_anion, ref_dianion, experimental_e2
+    )
+    e2e_reference = calibrate_reduction_reference(
+        ref_neutral,
+        ref_dianion,
+        (experimental_e1 + experimental_e2) / 2,
+        n_electrons=2,
+    )
+
+    target_e1 = reduction_potential(
+        target_neutral, target_anion, reference_potential=e1_reference
+    )
+    target_e2 = reduction_potential(
+        target_anion, target_dianion, reference_potential=e2_reference
+    )
+    target_e2e = reduction_potential(
+        target_neutral,
+        target_dianion,
+        n_electrons=2,
+        reference_potential=e2e_reference,
+    )
+
+    assert target_e1 == pytest.approx(experimental_e1 + 0.01 * _H_TO_EV)
+    assert target_e2 == pytest.approx(experimental_e2 + 0.01 * _H_TO_EV)
+    assert e2e_reference == pytest.approx((e1_reference + e2_reference) / 2)
+    assert target_e2e == pytest.approx((target_e1 + target_e2) / 2)
+
+
+def test_overall_two_electron_potential_is_mean_of_stepwise_potentials():
+    neutral = _FakeThermo(-100.0)
+    radical_anion = _FakeThermo(-100.13)
+    dianion = _FakeThermo(-100.23)
+    reference = 4.44
+
+    first = reduction_potential(
+        neutral, radical_anion, reference_potential=reference
+    )
+    second = reduction_potential(
+        radical_anion, dianion, reference_potential=reference
+    )
+    overall = reduction_potential(
+        neutral, dianion, n_electrons=2, reference_potential=reference
+    )
+
+    assert overall == pytest.approx((first + second) / 2)
+
+
+@pytest.mark.parametrize("n_electrons", [0, -1])
+def test_calibrate_reduction_reference_rejects_non_positive_electrons(
+    n_electrons,
+):
+    ox, red = _FakeThermo(0.0), _FakeThermo(-0.5)
+    with pytest.raises(ValueError, match="positive"):
+        calibrate_reduction_reference(
+            ox, red, -0.75, n_electrons=n_electrons
+        )
 
 
 def test_public_api_exported():
+    from ThermoScreening.thermo import calibrate_reduction_reference as crr
     from ThermoScreening.thermo import reaction_free_energy as rfe
     from ThermoScreening.thermo import reduction_potential as rp
     from ThermoScreening.thermo import reactions
 
+    assert crr is reactions.calibrate_reduction_reference
     assert rfe is reactions.reaction_free_energy
     assert rp is reactions.reduction_potential
 

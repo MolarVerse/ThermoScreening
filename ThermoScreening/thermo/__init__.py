@@ -8,7 +8,11 @@ from .system import System
 from .thermo import Thermo
 from .screening import screen, rank_by_gibbs
 from .conformers import generate as generate_conformers, write_conformers, generate_thermo_ensemble
-from .reactions import reaction_free_energy, reduction_potential
+from .reactions import (
+    calibrate_reduction_reference,
+    reaction_free_energy,
+    reduction_potential,
+)
 from .ensemble import boltzmann_weights, ensemble_free_energy, lowest_gibbs, EnsembleThermo
 from .kinetics import eyring_rate_constant, wigner_tunneling_correction
 from .pka import pKa, calibrate_proton_reference, PROTON_AQUEOUS_FREE_ENERGY_KCAL
