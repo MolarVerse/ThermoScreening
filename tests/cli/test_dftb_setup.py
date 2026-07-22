@@ -1,5 +1,6 @@
 import io
 import tarfile
+from types import SimpleNamespace
 
 import pytest
 
@@ -211,10 +212,13 @@ def test_check_dftb_setup_reports_ready_environment(monkeypatch, tmp_path):
     marker_file = tmp_path / REQUIRED_PARAMETER_FILE
     marker_file.write_text("parameter data", encoding="utf-8")
 
-    def fake_which(command):
-        return f"/usr/bin/{command}"
-
-    monkeypatch.setattr(dftb_setup.shutil, "which", fake_which)
+    monkeypatch.setattr(
+        dftb_setup,
+        "_executable_diagnostic",
+        lambda name, *args, **kwargs: Diagnostic(
+            name, True, f"/usr/bin/{name}", optional=kwargs.get("optional", False)
+        ),
+    )
 
     diagnostics = check_dftb_setup({"DFTB_PREFIX": str(tmp_path)})
 
@@ -222,13 +226,24 @@ def test_check_dftb_setup_reports_ready_environment(monkeypatch, tmp_path):
     assert required == [
         ("dftb+", True),
         ("modes", True),
-        ("DFTB_PREFIX", True),
+        ("parameters", True),
         (REQUIRED_PARAMETER_FILE, True),
     ]
 
 
-def test_check_dftb_setup_reports_missing_environment(monkeypatch):
-    monkeypatch.setattr(dftb_setup.shutil, "which", lambda command: None)
+def test_check_dftb_setup_reports_missing_environment(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        dftb_setup,
+        "_executable_diagnostic",
+        lambda name, *args, **kwargs: Diagnostic(
+            name, False, "not found", optional=kwargs.get("optional", False)
+        ),
+    )
+    monkeypatch.setattr(
+        dftb_setup,
+        "default_parameter_dir",
+        lambda **kwargs: tmp_path / "missing",
+    )
 
     diagnostics = check_dftb_setup({})
 
@@ -236,14 +251,25 @@ def test_check_dftb_setup_reports_missing_environment(monkeypatch):
     assert required == [
         ("dftb+", False),
         ("modes", False),
-        ("DFTB_PREFIX", False),
+        ("parameters", False),
         (REQUIRED_PARAMETER_FILE, False),
     ]
 
 
 def test_check_dftb_setup_reports_xtb_toolchain_as_optional(monkeypatch):
     # xtb resolved via XTB_COMMAND; tblite importable
-    monkeypatch.setattr(dftb_setup.shutil, "which", lambda command: "/bin/" + command)
+    monkeypatch.setattr(
+        dftb_setup.shutil,
+        "which",
+        lambda command: command if command.startswith("/") else "/bin/" + command,
+    )
+    monkeypatch.setattr(
+        dftb_setup.subprocess,
+        "run",
+        lambda *args, **kwargs: SimpleNamespace(
+            stdout="xtb version 6", stderr="", returncode=0
+        ),
+    )
     monkeypatch.setattr(
         dftb_setup.importlib.util, "find_spec",
         lambda name: object() if name == "tblite" else None,
@@ -264,6 +290,21 @@ def test_check_dftb_setup_reports_xtb_toolchain_as_optional(monkeypatch):
     missing = {item.name: item for item in check_dftb_setup({}) if item.optional}
     assert missing["xtb"].ok is False and missing["xtb"].optional
     assert missing["tblite"].ok is False
+
+
+def test_executable_diagnostic_rejects_loader_failure(monkeypatch):
+    monkeypatch.setattr(dftb_setup.shutil, "which", lambda command: "/bin/dftb+")
+    monkeypatch.setattr(
+        dftb_setup.subprocess,
+        "run",
+        lambda *args, **kwargs: SimpleNamespace(
+            stdout="DFTB+", stderr="Library not loaded", returncode=1
+        ),
+    )
+
+    diagnostic = dftb_setup._executable_diagnostic("dftb+", expected="DFTB+")
+
+    assert diagnostic.ok is False
 
 
 def test_format_diagnostics_aligns_statuses():

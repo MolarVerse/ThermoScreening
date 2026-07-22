@@ -8,6 +8,13 @@ import numpy as np
 from ase.calculators.dftb import Dftb
 from ase.io import read
 
+from ThermoScreening.dftb_data import (
+    DEFAULT_PARAMETER_SET,
+    REQUIRED_PARAMETER_FILE,
+    canonical_parameter_set,
+    default_parameter_dir,
+)
+
 from ..utils.physicalConstants import PhysicalConstants
 
 # --------------------------------------------------------------------------- #
@@ -34,12 +41,19 @@ def _read_hessian_matrix(filename, size):
     return values.reshape(size, size)
 
 
-def _slako_dir(slako_dir=None):
+def resolve_slako_dir(slako_dir=None, parameter_set=DEFAULT_PARAMETER_SET):
+    """Resolve an explicit, configured, or downloaded parameter directory."""
     selected_dir = slako_dir or os.getenv("DFTB_PREFIX")
+    if not selected_dir:
+        downloaded = default_parameter_dir(parameter_set)
+        if (downloaded / REQUIRED_PARAMETER_FILE).is_file():
+            selected_dir = downloaded
     if not selected_dir:
         raise FileNotFoundError(
             "Slater-Koster files are not bundled with ThermoScreening. "
-            "Set DFTB_PREFIX or pass slako_dir to the DFTB+ calculator."
+            f"Run 'thermo setup-dftb --parameter-set "
+            f"{canonical_parameter_set(parameter_set).split('-', maxsplit=1)[0]}', "
+            "set DFTB_PREFIX, or pass slako_dir explicitly."
         )
 
     selected_dir = os.path.abspath(os.path.expanduser(selected_dir))
@@ -49,6 +63,10 @@ def _slako_dir(slako_dir=None):
         )
 
     return selected_dir + os.sep
+
+
+def _slako_dir(slako_dir=None, parameter_set=DEFAULT_PARAMETER_SET):
+    return resolve_slako_dir(slako_dir, parameter_set)
 
 
 # Atomic spin constants (Hartree): the spin constant of the highest occupied
@@ -245,7 +263,7 @@ def _dispersion_kwargs(dispersion=None):
 
 class Geoopt(Dftb):
     """
-    Custom DFTB+ calculator to optimize the system with the 'GeometryOptimisation' driver (Rational).
+    Custom DFTB+ calculator using the ``GeometryOptimisation`` Rational driver.
     It is a subclass of ase.calculators.dftb.Dftb. It uses the
     'LBFGS' driver.
 
@@ -258,8 +276,8 @@ class Geoopt(Dftb):
     charge : int
         Charge of the system. Default is 0.
     slako_dir : str
-        Path to the Slater-Koster files. If None, it will look for
-        the DFTB_PREFIX environment variable.
+        Path to the Slater-Koster files. If None, use ``DFTB_PREFIX`` or the
+        user-local set downloaded by ``thermo setup-dftb``.
     max_force : float
         Maximum force component. Default is 1.0e-6.
 
@@ -275,6 +293,7 @@ class Geoopt(Dftb):
         label="geo_opt",
         charge=0,
         slako_dir=None,
+        parameter_set=DEFAULT_PARAMETER_SET,
         max_force=1.0e-6,
         **kwargs,
     ):
@@ -290,8 +309,8 @@ class Geoopt(Dftb):
         charge : int
             Charge of the system. Default is 0.
         slako_dir : str
-            Path to the Slater-Koster files. If None, it will look
-            for the DFTB_PREFIX environment variable.
+            Path to the Slater-Koster files. If None, use ``DFTB_PREFIX`` or the
+            automatically discovered downloaded set.
         max_force : float
             Maximum force component. Default is 1.0e-6.
 
@@ -304,7 +323,7 @@ class Geoopt(Dftb):
         super().__init__(
             atoms=atoms,
             label=label,
-            slako_dir=_slako_dir(slako_dir),
+            slako_dir=_slako_dir(slako_dir, parameter_set),
             Hamiltonian_Charge=charge,
             Driver_="GeometryOptimisation",
             Driver_Optimiser="Rational {}",
@@ -361,8 +380,8 @@ class Hessian(Dftb):
     charge : int
         Charge of the system. Default is 0.
     slako_dir : str
-        Path to the Slater-Koster files. If None, it will look for
-        the DFTB_PREFIX environment variable.
+        Path to the Slater-Koster files. If None, use ``DFTB_PREFIX`` or the
+        user-local downloaded set.
 
     Other Parameters:
     -----------------
@@ -377,6 +396,7 @@ class Hessian(Dftb):
         charge=0,
         delta=1.0e-4,
         slako_dir=None,
+        parameter_set=DEFAULT_PARAMETER_SET,
         **kwargs,
     ):
         """
@@ -393,8 +413,8 @@ class Hessian(Dftb):
         delta : float
             Finite difference step. Default is 1.0e-4.
         slako_dir : str
-            Path to the Slater-Koster files. If None, it will look
-            for the DFTB_PREFIX environment variable.
+            Path to the Slater-Koster files. If None, use ``DFTB_PREFIX`` or the
+            automatically discovered downloaded set.
 
         Other Parameters:
         -----------------
@@ -405,7 +425,7 @@ class Hessian(Dftb):
         super().__init__(
             atoms=atoms,
             label=label,
-            slako_dir=_slako_dir(slako_dir),
+            slako_dir=_slako_dir(slako_dir, parameter_set),
             Hamiltonian_Charge=charge,
             Driver_="SecondDerivatives",
             Driver_Delta=delta,

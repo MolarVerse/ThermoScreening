@@ -7,6 +7,10 @@ Command line
 The ``thermo`` command provides calculation, setup, and batch-management
 subcommands.
 
+``thermo run``
+    Run the original input-file workflow. ``thermo run thermo.in`` is preferred;
+    the historic ``thermo thermo.in`` form remains supported.
+
 ``thermo doctor``
     Report which backends (dftb+, modes, DFTB_PREFIX + a Slater-Koster file, and
     the optional xtb/tblite) are available.
@@ -63,6 +67,10 @@ subcommands.
        thermo redox molecules.csv -o aq-screen \
            --parameter-set 3ob --solvent acetonitrile --quasi-rrho --jobs 12
 
+       # submit the complete redox workflow as 32 deterministic candidate shards
+       thermo slurm --tasks 32 --cpus-per-task 4 --submit -- \
+           redox molecules.csv -o aq-screen --jobs 2
+
     Without an experimental reference, potentials are reported versus SHE using
     the 4.44 V absolute convention. Semiempirical absolute redox potentials are
     generally not quantitative. Calibrate both steps against one consistently
@@ -90,6 +98,10 @@ subcommands.
     A result with ``potential_inversion=true`` has ``E2 >= E1``. Treat it as a
     validation target: inspect conformers, minima, spin, and charge localization
     before interpreting it as a merged two-electron wave.
+
+``thermo collect`` automatically identifies ordinary thermochemistry and redox
+shards. Collection rejects missing shards, mixed settings, and fingerprint
+mismatches before writing combined results.
 
 Python API
 ----------

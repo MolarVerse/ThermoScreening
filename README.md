@@ -30,27 +30,30 @@ python -m sphinx -b html docs docs/_build/html   # open docs/_build/html/index.h
 
 ## Installation
 
-Install the package from a checkout:
+Install the released package:
 
 ```bash
-python -m pip install .
+python -m pip install thermoscreening
 ```
 
-For development and tests:
+For a complete environment with DFTB+, native xTB, and tblite:
 
 ```bash
-python -m pip install -e ".[test,lint]"
+conda create -n thermoscreening -c conda-forge \
+    python=3.12 dftbplus xtb tblite-python pip
+conda activate thermoscreening
+python -m pip install thermoscreening
 ```
 
-For a Conda-based development environment with all calculation backends
-(DFTB+, `modes`, xtb, tblite) included:
+From a source checkout, the equivalent development environment is:
 
 ```bash
 conda env create -f environment.yml
 conda activate thermoscreening
 ```
 
-Then `thermo doctor` should report every backend as found.
+Run `thermo doctor` to report the usable engines, or check one explicitly with
+`thermo doctor --engine dftb+`.
 
 ## DFTB+ Setup
 
@@ -65,25 +68,22 @@ Install DFTB+ with Conda if it is not already available:
 conda install -c conda-forge dftbplus
 ```
 
-Download the default `3ob-3-1` Slater-Koster files into a user-local directory:
+Download the default `3ob-3-1` Slater-Koster files into the automatically
+discovered user-local directory:
 
 ```bash
 thermo setup-dftb
 ```
 
-The command prints the `DFTB_PREFIX` export needed by DFTB+ and ThermoScreening:
-
-```bash
-export DFTB_PREFIX="$HOME/.local/share/thermoscreening/slakos/3ob-3-1/"
-```
-
-Add that line to your shell configuration for persistent use. Verify the setup with:
+Verify the setup with:
 
 ```bash
 thermo doctor
 ```
 
-ThermoScreening does not vendor Slater-Koster files. For custom installations, point the calculator to a parameter directory with `DFTB_PREFIX` or pass `slako_dir` explicitly:
+ThermoScreening does not vendor Slater-Koster files. For custom installations,
+override the discovered directory with `DFTB_PREFIX` or pass `slako_dir`
+explicitly:
 
 ```python
 from ThermoScreening.thermo.api import dftbplus_thermo
@@ -101,7 +101,16 @@ The bundled DFTB+ parameters were removed from the repository because they are l
 Run thermochemistry from an input file with the command-line entry point:
 
 ```bash
-thermo path/to/thermo.in
+thermo run path/to/thermo.in
+```
+
+The historic `thermo path/to/thermo.in` form remains supported.
+
+Run a complete reference-calibrated redox screen locally or as a Slurm array:
+
+```bash
+thermo redox molecules.csv --engine xtb-cli --solvent acetonitrile -o redox
+thermo slurm --tasks 32 --submit -- redox molecules.csv -o redox
 ```
 
 Use the Python API when integrating ThermoScreening into another workflow:

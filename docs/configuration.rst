@@ -66,6 +66,9 @@ Results are written to ``<out>.csv`` and ``<out>.json`` with the electronic
 energy (``Eelec_hartree``), the thermal corrections, the absolute Gibbs free
 energy (``G_total_hartree``), entropy and heat capacity. ``<out>-run.json``
 records the structure hashes and scientific settings used for safe resume.
+Automatic Gibbs ordering is shown only when every structure has the same
+molecular formula and charge. Absolute energies do not rank mixed molecular
+compositions.
 
 Cluster execution
 -----------------
@@ -100,6 +103,13 @@ the array and a dependent collection job:
        --time 04:00:00 --mem 16G --partition compute --submit -- \
        screen molecules.csv -o results --engine dftb+ --jobs 2
 
+The same interface distributes the complete redox workflow by candidate:
+
+.. code-block:: bash
+
+   thermo slurm --tasks 32 --cpus-per-task 8 --submit -- \
+       redox molecules.csv -o potentials --engine xtb-cli --jobs 2
+
 ``--cpus-per-task`` describes each allocation; ``--jobs`` controls independent
 processes inside that allocation. The generated script divides available CPUs
 between those processes through ``OMP_NUM_THREADS`` and common BLAS thread
@@ -109,8 +119,8 @@ environment variables. Omitting ``--submit`` only writes the script.
 All array tasks and the collector require the same shared working directory,
 Python environment, executables, and parameter files. The shard interface also
 works with PBS, LSF, and other schedulers by supplying their array index and the
-chosen shard count directly. Cluster arrays currently distribute
-``thermo screen``; ``thermo redox`` retains local ``--jobs`` parallelism.
+chosen shard count directly. Both ``thermo screen`` and ``thermo redox`` expose
+``--shard-index`` and ``--shard-count`` for this scheduler-neutral path.
 
 Redox workflow input
 --------------------
@@ -146,7 +156,6 @@ The workflow writes:
   thermochemistry; and
 - ``<out>-run.json`` and ``<out>-states-run.json`` with input hashes,
   calculation settings, reference calibration, and reproducibility fingerprints;
-  and
 - ``<directory>/states.csv`` as the generated, reproducible charge-state
   manifest.
 

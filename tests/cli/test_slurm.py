@@ -40,6 +40,20 @@ def test_write_slurm_array_script_sets_resources_and_shards(tmp_path):
     assert script.stat().st_mode & 0o111
 
 
+def test_write_slurm_array_script_supports_redox(tmp_path):
+    script = slurm.write_slurm_array_script(
+        ["redox", "molecules.csv", "-o", "potentials"],
+        tasks=4,
+        script=tmp_path / "redox.slurm",
+        working_directory=tmp_path,
+        python_executable="/shared/python",
+    )
+
+    text = script.read_text(encoding="utf-8")
+    assert "/shared/python -m ThermoScreening redox molecules.csv" in text
+    assert '--shard-index "$SLURM_ARRAY_TASK_ID"' in text
+
+
 @pytest.mark.parametrize(
     ("kwargs", "message"),
     [
@@ -137,7 +151,7 @@ def test_cli_collect_reports_failures(monkeypatch, capsys):
 
     monkeypatch.setattr(
         cli,
-        "collect_screen_shards",
+        "collect_shards",
         lambda *args, **kwargs: [
             {"name": "ok", "status": "ok"},
             {"name": "bad", "status": "error", "error": "failed"},
@@ -169,4 +183,15 @@ def test_slurm_parser_accepts_nested_screen_command():
 
     assert args.command == "slurm"
     assert args.tasks == 8
+    assert args.command_args[-3:] == ["molecules.csv", "--jobs", "2"]
+
+
+def test_slurm_parser_accepts_nested_redox_command():
+    import ThermoScreening.cli.thermo as cli
+
+    args = cli.parse_args(
+        ["slurm", "--tasks", "8", "--", "redox", "molecules.csv", "--jobs", "2"]
+    )
+
+    assert args.command == "slurm"
     assert args.command_args[-3:] == ["molecules.csv", "--jobs", "2"]

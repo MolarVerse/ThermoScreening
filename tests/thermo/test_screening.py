@@ -457,6 +457,32 @@ def test_collect_screen_shards_rejects_mixed_settings(monkeypatch, tmp_path):
         screening.collect_screen_shards(screening.screen_shard_directory(out), out=out)
 
 
+def test_collect_screen_shards_rejects_inputs_changed_between_tasks(
+    monkeypatch, tmp_path
+):
+    inputs = tmp_path / "inputs"
+    inputs.mkdir()
+    _write_xyz(inputs / "a.xyz")
+    _write_xyz(inputs / "b.xyz")
+    monkeypatch.setattr(
+        screening, "dftbplus_thermo", lambda atoms, **kwargs: _FakeThermo()
+    )
+    out = tmp_path / "results"
+    screening.screen(
+        inputs, out=out, shard_index=0, shard_count=2, directory=tmp_path / "runs"
+    )
+
+    (inputs / "b.xyz").write_text(
+        "1\nchanged\nH 0.0 0.0 1.0\n", encoding="utf-8"
+    )
+    screening.screen(
+        inputs, out=out, shard_index=1, shard_count=2, directory=tmp_path / "runs"
+    )
+
+    with pytest.raises(TSValueError, match="different inputs or settings"):
+        screening.collect_screen_shards(screening.screen_shard_directory(out), out=out)
+
+
 def test_screen_dispatches_to_xtb_engine(monkeypatch, tmp_path):
     _write_xyz(tmp_path / "mol.xyz")
 
@@ -759,14 +785,34 @@ def test_rank_by_gibbs_sorts_and_filters():
     from ThermoScreening.thermo.screening import rank_by_gibbs
 
     results = [
-        {"name": "a", "status": "ok", "G_total_hartree": -1.0},
-        {"name": "b", "status": "ok", "G_total_hartree": -3.0},
-        {"name": "c", "status": "error", "error": "boom"},
-        {"name": "d", "status": "ok", "G_total_hartree": -2.0},
-        {"name": "e", "status": "ok"},  # ok but no Gibbs value -> dropped
+        {"name": "a", "formula": "H2O", "charge": 0, "status": "ok", "G_total_hartree": -1.0},
+        {"name": "b", "formula": "H2O", "charge": 0, "status": "ok", "G_total_hartree": -3.0},
+        {"name": "c", "formula": "H2O", "charge": 0, "status": "error", "error": "boom"},
+        {"name": "d", "formula": "H2O", "charge": 0, "status": "ok", "G_total_hartree": -2.0},
+        {"name": "e", "formula": "H2O", "charge": 0, "status": "ok"},
     ]
     ranked = rank_by_gibbs(results)
     assert [record["name"] for record in ranked] == ["b", "d", "a"]
+
+
+@pytest.mark.parametrize(
+    "results",
+    [
+        [
+            {"formula": "H2O", "charge": 0, "status": "ok", "G_total_hartree": -1},
+            {"formula": "NH3", "charge": 0, "status": "ok", "G_total_hartree": -2},
+        ],
+        [
+            {"formula": "H2O", "charge": 0, "status": "ok", "G_total_hartree": -1},
+            {"formula": "H2O", "charge": -1, "status": "ok", "G_total_hartree": -2},
+        ],
+        [{"charge": 0, "status": "ok", "G_total_hartree": -1}],
+    ],
+)
+def test_rank_by_gibbs_rejects_incomparable_results(results):
+    from ThermoScreening.thermo.screening import rank_by_gibbs
+
+    assert rank_by_gibbs(results) == []
 
 
 def test_cli_run_screen_returns_failure_count(monkeypatch, capsys):
@@ -774,8 +820,20 @@ def test_cli_run_screen_returns_failure_count(monkeypatch, capsys):
 
     monkeypatch.setattr(
         cli, "screen", lambda *args, **kwargs: [
-            {"name": "m1", "status": "ok", "G_total_hartree": -2.0},
-            {"name": "m2", "status": "error", "error": "boom"},
+            {
+                "name": "m1",
+                "formula": "H2O",
+                "charge": 0,
+                "status": "ok",
+                "G_total_hartree": -2.0,
+            },
+            {
+                "name": "m2",
+                "formula": "H2O",
+                "charge": 0,
+                "status": "error",
+                "error": "boom",
+            },
         ]
     )
 
@@ -788,7 +846,7 @@ def test_cli_run_screen_returns_failure_count(monkeypatch, capsys):
 
     assert cli.run_screen(args) == 1  # one molecule failed
     out = capsys.readouterr().out
-    assert "Ranked by Gibbs free energy" in out
+    assert "Comparable structures ranked by Gibbs free energy" in out
     assert "1. m1" in out
     assert "m2: boom" in out
 
@@ -798,8 +856,20 @@ def test_cli_run_screen_all_ok_returns_zero(monkeypatch, capsys):
 
     monkeypatch.setattr(
         cli, "screen", lambda *args, **kwargs: [
-            {"name": "m1", "status": "ok", "G_total_hartree": -2.0},
-            {"name": "m2", "status": "ok", "G_total_hartree": -3.0},
+            {
+                "name": "m1",
+                "formula": "H2O",
+                "charge": 0,
+                "status": "ok",
+                "G_total_hartree": -2.0,
+            },
+            {
+                "name": "m2",
+                "formula": "H2O",
+                "charge": 0,
+                "status": "ok",
+                "G_total_hartree": -3.0,
+            },
         ]
     )
     args = Namespace(

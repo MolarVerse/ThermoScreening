@@ -14,6 +14,7 @@ import json
 import logging
 import math
 import os
+import re
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
@@ -38,6 +39,7 @@ _STRUCTURE_SUFFIXES = (".xyz", ".gen")
 _RESULT_FIELDS = [
     "name",
     "path",
+    "formula",
     "charge",
     "status",
     "Eelec_hartree",
@@ -172,7 +174,7 @@ def _thermo_summary(thermo):
 
 def rank_by_gibbs(results):
     """
-    Return the successful screen records sorted by Gibbs free energy.
+    Sort comparable successful records by Gibbs free energy.
 
     Parameters
     ----------
@@ -182,10 +184,20 @@ def rank_by_gibbs(results):
     Returns
     -------
     list of dict
-        The records whose ``status`` is ``"ok"`` (and that carry a
-        ``G_total_hartree``), sorted by total Gibbs free energy ascending --
-        i.e. the most stable molecule first. Failed records are omitted.
+        Successful records sorted by total Gibbs free energy, or an empty list
+        when the screen mixes molecular formulas or charges. Absolute molecular
+        energies are only comparable for equal-composition species calculated
+        with the same settings.
     """
+    comparison_keys = {
+        (record.get("formula"), record.get("charge")) for record in results
+    }
+    if (
+        not results
+        or any(formula is None for formula, _charge in comparison_keys)
+        or len(comparison_keys) != 1
+    ):
+        return []
     ranked = [
         record
         for record in results
@@ -332,7 +344,14 @@ def _write_json(path, payload):
     )
 
 
-def _write_screen_run_metadata(out, source, settings, job_provenance, shard=None):
+def _write_screen_run_metadata(
+    out,
+    source,
+    settings,
+    job_provenance,
+    shard=None,
+    input_set_fingerprint=None,
+):
     payload = {
         "schema_version": 1,
         "workflow": "thermochemistry_screen",
@@ -340,6 +359,8 @@ def _write_screen_run_metadata(out, source, settings, job_provenance, shard=None
         "settings": settings,
         "jobs": job_provenance,
     }
+    if input_set_fingerprint is not None:
+        payload["input_set_fingerprint"] = input_set_fingerprint
     if shard is not None:
         payload["shard"] = shard
     path = _sidecar_path(out, "-run.json")
@@ -408,6 +429,7 @@ def _run_job(
     quasi_rrho,
     parameters,
     spin_constants,
+    parameter_set,
 ):
     """
     Run one screening job and return its result record.
@@ -426,6 +448,7 @@ def _run_job(
     }
     try:
         atoms = ase.io.read(str(job.path))
+        record["formula"] = atoms.get_chemical_formula()
         if engine == "xtb-cli":
             thermo = xtb_cli_thermo(
                 atoms,
@@ -458,6 +481,7 @@ def _run_job(
                 directory=str(root / job.name),
                 spin=job.spin,
                 spin_constants=spin_constants,
+                parameter_set=parameter_set,
                 solvent=solvent,
                 dispersion=dispersion,
                 quasi_rrho=quasi_rrho,
@@ -574,7 +598,7 @@ def screen(
     spin_constants = None
     if engine == "dftb+":
         default_parameters, spin_constants = resolve_parameter_set(parameter_set)
-        parameters = default_parameters if parameters is None else parameters
+        parameters = default_parameters if parameters is None else dict(parameters)
 
     all_jobs = _load_jobs(source, charge, spin)
     root = Path(directory)
@@ -602,12 +626,21 @@ def screen(
         job_list = [all_jobs[index] for index in selected]
         out = _screen_shard_stem(out, shard["index"])
         root = root / "shards" / f"shard-{shard['index']:05d}"
-    provenance = [
-        _job_provenance(all_jobs[index], settings, input_index=index)
-        for index in selected
+    all_provenance = [
+        _job_provenance(job, settings, input_index=index)
+        for index, job in enumerate(all_jobs)
     ]
+    provenance = [all_provenance[index] for index in selected]
+    input_set_fingerprint = _payload_fingerprint(all_provenance)
     fingerprints = {item["name"]: item["fingerprint"] for item in provenance}
-    _write_screen_run_metadata(out, source, settings, provenance, shard=shard)
+    _write_screen_run_metadata(
+        out,
+        source,
+        settings,
+        provenance,
+        shard=shard,
+        input_set_fingerprint=input_set_fingerprint,
+    )
     completed = (
         _load_completed(out, expected_fingerprints=fingerprints) if resume else {}
     )
@@ -624,6 +657,7 @@ def screen(
         quasi_rrho=quasi_rrho,
         parameters=parameters,
         spin_constants=spin_constants,
+        parameter_set=parameter_set,
     )
 
     # records keyed by name; the returned list follows the input job order
@@ -701,16 +735,26 @@ def _read_json(path, expected_type):
     return payload
 
 
+def _shard_metadata_paths(shard_directory):
+    pattern = re.compile(r"shard-\d+-run\.json")
+    return sorted(
+        path
+        for path in Path(shard_directory).glob("shard-*-run.json")
+        if pattern.fullmatch(path.name)
+    )
+
+
 def collect_screen_shards(shard_directory, out="results"):
     """Validate and combine all shards from a distributed screen."""
     shard_directory = Path(shard_directory)
-    metadata_paths = sorted(shard_directory.glob("shard-*-run.json"))
+    metadata_paths = _shard_metadata_paths(shard_directory)
     if not metadata_paths:
         raise TSValueError(f"No screen shards found in '{shard_directory}'.")
 
     expected_count = None
     expected_settings = None
     expected_source = None
+    expected_input_set_fingerprint = None
     seen_shards = set()
     records_by_name = {}
     provenance_by_name = {}
@@ -731,14 +775,22 @@ def collect_screen_shards(shard_directory, out="results"):
 
         settings = metadata.get("settings")
         source = metadata.get("source")
+        input_set_fingerprint = metadata.get("input_set_fingerprint")
         if expected_count is None:
             expected_count = shard_count
             expected_settings = settings
             expected_source = source
+            expected_input_set_fingerprint = input_set_fingerprint
         elif shard_count != expected_count:
             raise TSValueError("Cluster shards disagree on shard_count.")
-        elif settings != expected_settings or source != expected_source:
-            raise TSValueError("Cluster shards were produced from different inputs or settings.")
+        elif (
+            settings != expected_settings
+            or source != expected_source
+            or input_set_fingerprint != expected_input_set_fingerprint
+        ):
+            raise TSValueError(
+                "Cluster shards were produced from different inputs or settings."
+            )
 
         result_name = metadata_path.name.removesuffix("-run.json") + ".json"
         result_path = metadata_path.with_name(result_name)
@@ -827,6 +879,7 @@ def collect_screen_shards(shard_directory, out="results"):
             "source": expected_source,
             "settings": expected_settings,
             "jobs": provenance,
+            "input_set_fingerprint": expected_input_set_fingerprint,
             "collection": {
                 "shard_count": expected_count,
                 "shard_directory": str(shard_directory),
@@ -1199,11 +1252,14 @@ def _write_redox_run_metadata(
     potential_scale,
     settings,
     max_conformers,
+    input_set_fingerprint,
+    candidate_indices=None,
+    shard=None,
 ):
-    def describe(job):
+    def describe(job, input_index=None):
         if job is None:
             return None
-        return {
+        description = {
             "name": job.name,
             "path": str(job.path),
             "structure_sha256": _file_sha256(job.path),
@@ -1213,6 +1269,12 @@ def _write_redox_run_metadata(
                 for state, _offset, index in _REDOX_STATES
             },
         }
+        if input_index is not None:
+            description["input_index"] = input_index
+        return description
+
+    if candidate_indices is None:
+        candidate_indices = range(len(candidates))
 
     payload = {
         "schema_version": 1,
@@ -1228,7 +1290,11 @@ def _write_redox_run_metadata(
             for state, offset, _index in _REDOX_STATES
         ],
         "settings": settings,
-        "candidates": [describe(job) for job in candidates],
+        "input_set_fingerprint": input_set_fingerprint,
+        "candidates": [
+            describe(job, input_index)
+            for job, input_index in zip(candidates, candidate_indices)
+        ],
         "reference": {
             "calculation": describe(reference_job),
             "experimental_E1_V": reference_e1,
@@ -1236,6 +1302,8 @@ def _write_redox_run_metadata(
             "potential_scale": potential_scale,
         },
     }
+    if shard is not None:
+        payload["shard"] = shard
     run_fingerprint = _payload_fingerprint(payload)
     payload["run_fingerprint"] = run_fingerprint
     _write_json(_sidecar_path(out, "-run.json"), payload)
@@ -1265,6 +1333,8 @@ def redox_screen(
     reference_charge=None,
     potential_scale=None,
     max_conformers=20,
+    shard_index=None,
+    shard_count=None,
 ):
     """
     Run a two-step molecular reduction screen from one starting geometry.
@@ -1275,6 +1345,10 @@ def redox_screen(
     potentials. Each electronic state is optimized independently, but this is
     not a charge-state conformer search or ensemble-free-energy calculation. A
     reference molecule and measured E1/E2 may calibrate both steps.
+
+    ``shard_index`` and ``shard_count`` select a deterministic candidate subset
+    for scheduler arrays. Use :func:`collect_redox_shards` to validate and
+    combine every shard.
     """
 
     calibration = (reference, reference_e1, reference_e2)
@@ -1307,6 +1381,8 @@ def redox_screen(
     if engine != "dftb+" and parameter_set is not None:
         raise TSValueError("parameter_set applies only to the DFTB+ engine.")
 
+    shard = _validate_shard(shard_index, shard_count)
+
     resolved_parameter_set = parameter_set or "3ob"
     resolved_method = method or "GFN2-xTB"
     charge = _integer_charge(charge, None, "charge")
@@ -1317,13 +1393,36 @@ def redox_screen(
     reference_e1 = _optional_float(reference_e1, None, "reference_e1")
     reference_e2 = _optional_float(reference_e2, None, "reference_e2")
     root = Path(directory)
+    if shard is not None:
+        out = _screen_shard_stem(out, shard["index"])
+        root = root / "shards" / f"shard-{shard['index']:05d}"
     generated_directory = root / "inputs"
-    candidates = _load_redox_jobs(
+    all_candidates = _load_redox_jobs(
         source,
         charge,
         spin,
         generated_directory,
         max_conformers,
+    )
+    if shard is None:
+        candidate_indices = list(range(len(all_candidates)))
+    else:
+        candidate_indices = [
+            index
+            for index in range(len(all_candidates))
+            if index % shard["count"] == shard["index"]
+        ]
+    candidates = [all_candidates[index] for index in candidate_indices]
+    input_set_fingerprint = _payload_fingerprint(
+        [
+            {
+                "name": job.name,
+                "structure_sha256": _file_sha256(job.path),
+                "oxidized_charge": job.charge,
+                "spins": job.spins,
+            }
+            for job in all_candidates
+        ]
     )
 
     reference_job = None
@@ -1331,7 +1430,7 @@ def redox_screen(
     if reference is not None:
         reference_job = _resolve_redox_reference(
             reference,
-            candidates,
+            all_candidates,
             reference_charge,
             generated_directory,
             max_conformers,
@@ -1379,27 +1478,34 @@ def redox_screen(
         potential_scale=scale,
         settings=redox_settings,
         max_conformers=max_conformers,
+        input_set_fingerprint=input_set_fingerprint,
+        candidate_indices=candidate_indices,
+        shard=shard,
     )
 
     state_manifest = root / "states.csv"
     mapping = _write_redox_state_manifest(calculation_jobs, state_manifest)
     state_out = f"{Path(str(out)).with_suffix('')}-states"
-    state_results = screen(
-        state_manifest,
-        out=state_out,
-        temperature=temperature,
-        pressure=pressure,
-        directory=root / "calculations",
-        parameters=parameters,
-        parameter_set=resolved_parameter_set,
-        solvent=solvent,
-        dispersion=dispersion,
-        quasi_rrho=quasi_rrho,
-        engine=engine,
-        method=resolved_method,
-        resume=resume,
-        jobs=jobs,
-    )
+    if calculation_jobs:
+        state_results = screen(
+            state_manifest,
+            out=state_out,
+            temperature=temperature,
+            pressure=pressure,
+            directory=root / "calculations",
+            parameters=parameters,
+            parameter_set=resolved_parameter_set,
+            solvent=solvent,
+            dispersion=dispersion,
+            quasi_rrho=quasi_rrho,
+            engine=engine,
+            method=resolved_method,
+            resume=resume,
+            jobs=jobs,
+        )
+    else:
+        _write_results([], state_out)
+        state_results = []
     records = {record["name"]: record for record in state_results}
 
     reference_error = ""
@@ -1460,3 +1566,243 @@ def redox_screen(
     csv_path, json_path = _write_redox_results(results, out)
     logger.info(f"Wrote {csv_path}, {json_path} and the per-state results")
     return results
+
+
+def _normalized_redox_metadata(metadata):
+    """Return shard-independent redox metadata for consistency checks."""
+    normalized = {
+        key: metadata.get(key)
+        for key in (
+            "schema_version",
+            "workflow",
+            "source",
+            "single_starting_geometry_approximation",
+            "smiles_embedding",
+            "states",
+            "settings",
+            "input_set_fingerprint",
+        )
+    }
+    reference = dict(metadata.get("reference") or {})
+    calculation = dict(reference.get("calculation") or {})
+    calculation.pop("path", None)
+    if calculation:
+        reference["calculation"] = calculation
+    normalized["reference"] = reference
+    return normalized
+
+
+def _state_record_value(record):
+    """Remove location-only fields before comparing duplicated reference states."""
+    return {
+        key: value
+        for key, value in record.items()
+        if key not in {"path", "fingerprint"}
+    }
+
+
+def collect_redox_shards(shard_directory, out="redox-results"):
+    """Validate and combine all shards from a distributed redox screen."""
+    shard_directory = Path(shard_directory)
+    metadata_paths = _shard_metadata_paths(shard_directory)
+    if not metadata_paths:
+        raise TSValueError(f"No redox shards found in '{shard_directory}'.")
+
+    expected_count = None
+    expected_metadata = None
+    template = None
+    seen_shards = set()
+    records_by_name = {}
+    candidates_by_name = {}
+    states_by_name = {}
+
+    for metadata_path in metadata_paths:
+        metadata = _read_json(metadata_path, dict)
+        if metadata.get("workflow") != "stepwise_reduction_screen":
+            raise TSValueError(f"'{metadata_path}' is not redox run metadata.")
+        shard = metadata.get("shard")
+        if not isinstance(shard, dict) or not {"index", "count"} <= set(shard):
+            raise TSValueError(f"'{metadata_path}' has no valid shard metadata.")
+        shard_index = shard["index"]
+        shard_count = shard["count"]
+        _validate_shard(shard_index, shard_count)
+        if shard_index in seen_shards:
+            raise TSValueError(f"Duplicate cluster shard index {shard_index}.")
+        seen_shards.add(shard_index)
+
+        common = _normalized_redox_metadata(metadata)
+        if expected_count is None:
+            expected_count = shard_count
+            expected_metadata = common
+            template = metadata
+        elif shard_count != expected_count:
+            raise TSValueError("Cluster shards disagree on shard_count.")
+        elif common != expected_metadata:
+            raise TSValueError(
+                "Redox shards were produced from different inputs or settings."
+            )
+
+        result_path = metadata_path.with_name(
+            metadata_path.name.removesuffix("-run.json") + ".json"
+        )
+        if not result_path.is_file():
+            raise TSValueError(f"Result file is missing for cluster shard {shard_index}.")
+        shard_records = _read_json(result_path, list)
+        candidates = metadata.get("candidates")
+        if not isinstance(candidates, list):
+            raise TSValueError(f"'{metadata_path}' has invalid candidate metadata.")
+        candidates_for_shard = {
+            candidate.get("name"): candidate
+            for candidate in candidates
+            if isinstance(candidate, dict)
+        }
+        shard_records_by_name = {
+            record.get("name"): record
+            for record in shard_records
+            if isinstance(record, dict)
+        }
+        if (
+            len(candidates_for_shard) != len(candidates)
+            or len(shard_records_by_name) != len(shard_records)
+            or set(candidates_for_shard) != set(shard_records_by_name)
+        ):
+            raise TSValueError(
+                f"Cluster shard {shard_index} results do not match its candidates."
+            )
+
+        run_fingerprint = metadata.get("run_fingerprint")
+        fingerprint_payload = dict(metadata)
+        fingerprint_payload.pop("run_fingerprint", None)
+        if _payload_fingerprint(fingerprint_payload) != run_fingerprint:
+            raise TSValueError(
+                f"Invalid redox run fingerprint for cluster shard {shard_index}."
+            )
+        for name, candidate in candidates_for_shard.items():
+            input_index = candidate.get("input_index")
+            if not isinstance(input_index, int):
+                raise TSValueError(f"Missing input index for {name!r}.")
+            if input_index % shard_count != shard_index:
+                raise TSValueError(
+                    f"Input position for {name!r} does not belong to "
+                    f"cluster shard {shard_index}."
+                )
+            record = shard_records_by_name[name]
+            if record.get("run_fingerprint") != run_fingerprint:
+                raise TSValueError(
+                    f"Run fingerprint mismatch for {name!r} in shard {shard_index}."
+                )
+            if name in records_by_name:
+                raise TSValueError(f"Duplicate molecule {name!r} across redox shards.")
+            records_by_name[name] = record
+            candidates_by_name[name] = candidate
+
+        state_path = metadata_path.with_name(
+            metadata_path.name.removesuffix("-run.json") + "-states.json"
+        )
+        if not state_path.is_file():
+            raise TSValueError(
+                f"State result file is missing for cluster shard {shard_index}."
+            )
+        shard_states = _read_json(state_path, list)
+        shard_states_by_name = {
+            record.get("name"): record
+            for record in shard_states
+            if isinstance(record, dict)
+        }
+        calculation_names = set(candidates_for_shard)
+        reference = metadata.get("reference") or {}
+        reference_calculation = reference.get("calculation") or {}
+        if reference_calculation.get("name"):
+            calculation_names.add(reference_calculation["name"])
+        expected_states = {
+            f"{name}--{state}"
+            for name in calculation_names
+            for state, _offset, _spin_index in _REDOX_STATES
+        }
+        if (
+            len(shard_states_by_name) != len(shard_states)
+            or set(shard_states_by_name) != expected_states
+        ):
+            raise TSValueError(
+                f"Cluster shard {shard_index} state results are incomplete."
+            )
+        for name, record in shard_states_by_name.items():
+            previous = states_by_name.get(name)
+            if (
+                previous is not None
+                and _state_record_value(previous) != _state_record_value(record)
+            ):
+                raise TSValueError(
+                    f"Duplicated reference state {name!r} differs across shards."
+                )
+            states_by_name.setdefault(name, record)
+
+    missing = sorted(set(range(expected_count)) - seen_shards)
+    if missing:
+        formatted = ", ".join(str(index) for index in missing)
+        raise TSValueError(f"Missing cluster shard(s): {formatted}.")
+
+    candidates = sorted(
+        candidates_by_name.values(), key=lambda candidate: candidate["input_index"]
+    )
+    input_indices = [candidate["input_index"] for candidate in candidates]
+    if input_indices != list(range(len(input_indices))):
+        raise TSValueError("Redox shards do not cover every input position.")
+
+    combined_metadata = {
+        key: value
+        for key, value in template.items()
+        if key not in {"candidates", "run_fingerprint", "shard"}
+    }
+    combined_metadata["candidates"] = candidates
+    combined_metadata["collection"] = {
+        "shard_count": expected_count,
+        "shard_directory": str(shard_directory),
+    }
+    run_fingerprint = _payload_fingerprint(combined_metadata)
+    combined_metadata["run_fingerprint"] = run_fingerprint
+
+    results = []
+    state_order = []
+    for candidate in candidates:
+        record = dict(records_by_name[candidate["name"]])
+        record["run_fingerprint"] = run_fingerprint
+        results.append(record)
+        state_order.extend(
+            f"{candidate['name']}--{state}"
+            for state, _offset, _spin_index in _REDOX_STATES
+        )
+    reference_calculation = (
+        (combined_metadata.get("reference") or {}).get("calculation") or {}
+    )
+    reference_name = reference_calculation.get("name")
+    if reference_name and reference_name not in candidates_by_name:
+        state_order.extend(
+            f"{reference_name}--{state}"
+            for state, _offset, _spin_index in _REDOX_STATES
+        )
+    combined_states = [states_by_name[name] for name in state_order]
+
+    csv_path, json_path = _write_redox_results(results, out)
+    _write_results(combined_states, f"{Path(str(out)).with_suffix('')}-states")
+    _write_json(_sidecar_path(out, "-run.json"), combined_metadata)
+    logger.info(f"Collected {len(results)} molecules into {csv_path} and {json_path}")
+    return results
+
+
+def collect_shards(shard_directory, out="results"):
+    """Detect the shard workflow and dispatch to its strict collector."""
+    metadata_paths = _shard_metadata_paths(shard_directory)
+    if not metadata_paths:
+        raise TSValueError(f"No screening shards found in '{shard_directory}'.")
+    workflows = {
+        _read_json(path, dict).get("workflow") for path in metadata_paths
+    }
+    if len(workflows) != 1:
+        raise TSValueError("Cluster shard directory mixes different workflows.")
+    workflow = workflows.pop()
+    if workflow == "thermochemistry_screen":
+        return collect_screen_shards(shard_directory, out)
+    if workflow == "stepwise_reduction_screen":
+        return collect_redox_shards(shard_directory, out)
+    raise TSValueError(f"Unsupported cluster workflow {workflow!r}.")
