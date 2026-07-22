@@ -73,8 +73,8 @@ Features
       :link: usage
       :link-type: doc
 
-      Reaction free energies and one-electron reduction potentials
-      (vs. SHE or a calibrated reference) from any two ``Thermo`` objects.
+      Reaction free energies, reference-calibrated reduction potentials, and
+      validated DFTB-to-DFT correction models for screening series.
 
    .. grid-item-card:: :octicon:`flame` Kinetics
       :link: usage
@@ -105,6 +105,7 @@ Features
 
    installation
    usage
+   redox_screening
    configuration
    api
 

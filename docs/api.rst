@@ -36,6 +36,17 @@ Reactions and redox
 .. autofunction:: ThermoScreening.thermo.reactions.reduction_potential
 .. autofunction:: ThermoScreening.thermo.reactions.calibrate_reduction_reference
 
+Dataset redox screening
+-----------------------
+
+.. autoclass:: ThermoScreening.thermo.redox_screening.DeltaRedoxModel
+   :members: fit, predict, correction_coefficients
+.. autofunction:: ThermoScreening.thermo.redox_screening.canonical_structure_identity
+.. autofunction:: ThermoScreening.thermo.redox_screening.audit_redox_dataset
+.. autofunction:: ThermoScreening.thermo.redox_screening.balanced_group_folds
+.. autofunction:: ThermoScreening.thermo.redox_screening.grouped_delta_validation
+.. autofunction:: ThermoScreening.thermo.redox_screening.pareto_front
+
 Acid dissociation (pKa)
 ------------------------
 

@@ -24,6 +24,7 @@ python -m sphinx -b html docs docs/_build/html   # open docs/_build/html/index.h
 - Thermochemistry calculations for molecular systems
 - DFTB+ geometry optimization, Hessian, and normal-mode integration
 - Stepwise and overall reference-calibrated reduction potentials
+- Structure-aware redox datasets, grouped delta-model validation, and Pareto selection
 - Readers for DFTB+ `.gen`, XYZ, and vibrational frequency files
 - Runtime type checking for public API calls
 - Test coverage for parsing, thermochemistry, and optional DFTB+ execution paths
