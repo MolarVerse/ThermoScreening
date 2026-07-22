@@ -30,7 +30,9 @@ def _conformer_to_atoms(mol, conformer_id):
     conformer = mol.GetConformer(conformer_id)
     symbols = [atom.GetSymbol() for atom in mol.GetAtoms()]
     positions = np.asarray(conformer.GetPositions(), dtype=float)
-    return Atoms(symbols=symbols, positions=positions)
+    atoms = Atoms(symbols=symbols, positions=positions)
+    atoms.info["formal_charge"] = sum(atom.GetFormalCharge() for atom in mol.GetAtoms())
+    return atoms
 
 
 def generate(

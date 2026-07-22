@@ -73,8 +73,8 @@ Features
       :link: usage
       :link-type: doc
 
-      Reaction free energies and one-electron reduction potentials
-      (vs. SHE or a calibrated reference) from any two ``Thermo`` objects.
+      Reaction free energies, one-electron reduction potentials, and a parallel
+      three-state workflow with physical reference calibration and provenance.
 
    .. grid-item-card:: :octicon:`flame` Kinetics
       :link: usage
@@ -87,9 +87,9 @@ Features
       :link: usage
       :link-type: doc
 
-      Screen a directory or CSV manifest in parallel (``--jobs``), with
-      per-molecule error isolation, ``--resume``, and ranking by Gibbs
-      free energy.
+      Screen a directory or CSV manifest with local processes or HPC job arrays,
+      per-molecule error isolation, validated collection, ``--resume``, and
+      ranking by Gibbs free energy.
 
    .. grid-item-card:: :octicon:`versions` Conformers & ensembles
       :link: usage

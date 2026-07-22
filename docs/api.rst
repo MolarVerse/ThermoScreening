@@ -18,6 +18,8 @@ Screening
 ---------
 
 .. autofunction:: ThermoScreening.thermo.screening.screen
+.. autofunction:: ThermoScreening.thermo.screening.collect_screen_shards
+.. autofunction:: ThermoScreening.thermo.screening.redox_screen
 .. autofunction:: ThermoScreening.thermo.screening.rank_by_gibbs
 .. autoclass:: ThermoScreening.thermo.screening.ScreeningJob
    :members:

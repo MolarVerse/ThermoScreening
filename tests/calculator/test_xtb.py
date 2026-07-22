@@ -44,12 +44,78 @@ def test_optimise_and_frequencies_with_emt(monkeypatch, tmp_path):
     assert frequencies[-1] > 0
 
 
+def test_optimise_and_frequencies_cleans_vibration_cache_on_failure(
+    monkeypatch, tmp_path
+):
+    from ase import Atoms
+    from ase.calculators.emt import EMT
+
+    clean_calls = []
+
+    class FakeOptimizer:
+        def __init__(self, atoms, logfile=None):
+            self.atoms = atoms
+
+        def run(self, fmax):
+            return None
+
+    class FakeVibrations:
+        def __init__(self, atoms, name):
+            self.name = name
+
+        def clean(self):
+            clean_calls.append(self.name)
+
+        def run(self):
+            raise RuntimeError("interrupted")
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("ase.optimize.BFGS", FakeOptimizer)
+    monkeypatch.setattr("ase.vibrations.Vibrations", FakeVibrations)
+
+    atoms = Atoms("Cu", positions=[[0.0, 0.0, 0.0]])
+    with pytest.raises(RuntimeError, match="interrupted"):
+        optimise_and_frequencies(atoms, EMT())
+
+    assert clean_calls == ["xtb_vib", "xtb_vib"]
+
+
 def test_xtb_thermo_has_no_solvation_parameter():
     # regression guard: xTB-side implicit solvation is intentionally not wired up
     import inspect
     from ThermoScreening.thermo.api import xtb_thermo
 
     assert "solvent" not in inspect.signature(xtb_thermo).parameters
+
+
+def test_xtb_thermo_passes_charge_and_unpaired_electrons_to_tblite(
+    monkeypatch, tmp_path
+):
+    from ase import Atoms
+    import ThermoScreening.thermo.api as api
+
+    captured = {}
+    sentinel = object()
+
+    def fake_optimise(atoms, calculator, fmax):
+        captured["charge"] = atoms.get_initial_charges().sum()
+        captured["unpaired"] = atoms.get_initial_magnetic_moments().sum()
+        return atoms, -1.0, np.array([100.0, 200.0, 300.0])
+
+    monkeypatch.setattr(api, "optimise_and_frequencies", fake_optimise)
+    monkeypatch.setattr(api, "xtb_calculator", lambda method: object())
+    monkeypatch.setattr(api, "run_thermo", lambda *args, **kwargs: sentinel)
+
+    result = api.xtb_thermo(
+        Atoms("H2", positions=[[0, 0, 0], [0, 0, 0.75]]),
+        charge=-1,
+        spin=0.5,
+        directory=tmp_path,
+    )
+
+    assert result is sentinel
+    assert captured["charge"] == pytest.approx(-1.0)
+    assert captured["unpaired"] == pytest.approx(1.0)
 
 
 tblite_available = importlib.util.find_spec("tblite") is not None

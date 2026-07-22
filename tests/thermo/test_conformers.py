@@ -30,6 +30,12 @@ def test_generate_returns_ase_conformers():
     assert all(atoms.get_chemical_formula() == "C4H10" for atoms in result)
 
 
+def test_generate_preserves_smiles_formal_charge():
+    result = conformers.generate("[NH4+]", max_conformers=1)
+
+    assert result[0].info["formal_charge"] == 1
+
+
 def test_generate_respects_max_conformers():
     result = conformers.generate("CCCCCCCC", max_conformers=3)
     assert len(result) <= 3

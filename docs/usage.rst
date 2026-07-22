@@ -4,7 +4,8 @@ Usage
 Command line
 ------------
 
-The ``thermo`` command has four subcommands.
+The ``thermo`` command provides calculation, setup, and batch-management
+subcommands.
 
 ``thermo doctor``
     Report which backends (dftb+, modes, DFTB_PREFIX + a Slater-Koster file, and
@@ -40,6 +41,55 @@ The ``thermo`` command has four subcommands.
 
        # run 4 molecules at a time (each in its own process/directory)
        thermo screen molecules/ --jobs 4
+
+       # submit 32 Slurm shards with 2 local workers per allocation
+       thermo slurm --tasks 32 --cpus-per-task 8 --submit -- \
+           screen molecules.csv -o results --jobs 2
+
+       # scheduler-neutral collection after all shards finish
+       thermo collect results-shards -o results
+
+``thermo redox``
+    Run input preparation, three successive charge states, thermochemistry, and
+    redox post-processing from one common starting geometry:
+
+    .. code-block:: bash
+
+       # A single molecule from SMILES; three states can run concurrently
+       thermo redox "O=C1C=CC(=O)C=C1" \
+           --engine xtb-cli --solvent acetonitrile --jobs 3
+
+       # A directory or mixed path/SMILES manifest
+       thermo redox molecules.csv -o aq-screen \
+           --parameter-set 3ob --solvent acetonitrile --quasi-rrho --jobs 12
+
+    Without an experimental reference, potentials are reported versus SHE using
+    the 4.44 V absolute convention. Semiempirical absolute redox potentials are
+    generally not quantitative. Calibrate both steps against one consistently
+    computed and measured reference molecule:
+
+    .. code-block:: bash
+
+       thermo redox molecules.csv -o aq-screen \
+           --reference AQ --reference-e1 -0.75 --reference-e2 -1.40 \
+           --potential-scale "chosen experimental scale" \
+           --parameter-set 3ob --solvent acetonitrile --jobs 12
+
+    ``--reference`` may be a candidate name, a structure path, or a SMILES. When
+    it names a candidate, its existing three calculations are reused. E1 and E2
+    receive separate physical reference calibrations; E2e is their arithmetic
+    mean. This is not a learned correction model.
+
+    For SMILES, the lowest of the sampled MMFF conformers is retained as the
+    common starting geometry and each charge state is optimized independently.
+    This is deliberately a single-starting-geometry screen. It does not replace
+    charge-state-specific conformer searches or ensemble free energies for
+    flexible molecules. The ``*-run.json`` files record input hashes, settings,
+    calibration values, and the fingerprints used by safe ``--resume``.
+
+    A result with ``potential_inversion=true`` has ``E2 >= E1``. Treat it as a
+    validation target: inspect conformers, minima, spin, and charge localization
+    before interpreting it as a merged two-electron wave.
 
 Python API
 ----------
