@@ -138,6 +138,18 @@ Run the full test suite:
 python -m pytest -q
 ```
 
+Reproduce the published DFTB/3ob/COSMO anthraquinone potentials from the raw
+Zenodo data:
+
+```bash
+python scripts/validate_anthraquinone_zenodo.py
+```
+
+The command verifies the downloaded archives, processes all 39 charge-state
+calculations, and compares 25 calibrated potentials. See the
+[anthraquinone reference benchmark](docs/benchmarks/anthraquinone_workflow.rst)
+for the data source, historical settings, and interpretation.
+
 Run linting:
 
 ```bash

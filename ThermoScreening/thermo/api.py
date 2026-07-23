@@ -350,6 +350,7 @@ def run_thermo(
     charge=0.0,
     atoms=None,
     spin=None,
+    symmetry_number=None,
     quasi_rrho=False,
     transition_state=False,
 ):
@@ -375,6 +376,11 @@ def run_thermo(
         The system charge.
     atoms : ase.Atoms, optional
         An optimized geometry to use directly instead of reading ``coord_file``.
+    spin : float, optional
+        Spin quantum number S. Defaults to the minimum-spin electron-count guess.
+    symmetry_number : int, optional
+        Rotational symmetry number used in the rotational entropy. Defaults to
+        automatic point-group analysis.
     quasi_rrho : bool
         If True, use Grimme's quasi-RRHO treatment for the vibrational entropy
         instead of the pure harmonic oscillator. Default False.
@@ -424,6 +430,7 @@ def run_thermo(
         pbc=pbc,
         charge=charge,
         spin=spin,
+        symmetry_number=symmetry_number,
     )
 
     thermo_setup = Thermo(
@@ -447,6 +454,7 @@ def orca_thermo(
     pressure=101325,
     charge=0.0,
     spin=None,
+    symmetry_number=None,
     quasi_rrho=False,
     transition_state=False,
 ):
@@ -475,6 +483,9 @@ def orca_thermo(
         System charge. Default 0.0.
     spin : float, optional
         Spin quantum number S. Defaults to the minimum-spin electron-count guess.
+    symmetry_number : int, optional
+        Rotational symmetry number used in the rotational entropy. Defaults to
+        automatic point-group analysis.
     quasi_rrho : bool
         If True, use Grimme's quasi-RRHO vibrational entropy. Default False.
     transition_state : bool
@@ -514,6 +525,7 @@ def orca_thermo(
         pressure=pressure,
         charge=charge,
         spin=spin,
+        symmetry_number=symmetry_number,
         engine="dftb+",
         quasi_rrho=quasi_rrho,
         transition_state=transition_state,
@@ -527,6 +539,7 @@ def cclib_thermo(
     pressure=101325,
     charge=0.0,
     spin=None,
+    symmetry_number=None,
     quasi_rrho=False,
     transition_state=False,
 ):
@@ -557,6 +570,9 @@ def cclib_thermo(
         System charge. Default 0.0.
     spin : float, optional
         Spin quantum number S. Defaults to the minimum-spin electron-count guess.
+    symmetry_number : int, optional
+        Rotational symmetry number used in the rotational entropy. Defaults to
+        automatic point-group analysis.
     quasi_rrho : bool
         If True, use Grimme's quasi-RRHO vibrational entropy. Default False.
     transition_state : bool
@@ -593,6 +609,7 @@ def cclib_thermo(
         pressure=pressure,
         charge=charge,
         spin=spin,
+        symmetry_number=symmetry_number,
         engine="dftb+",
         quasi_rrho=quasi_rrho,
         transition_state=transition_state,
@@ -626,6 +643,7 @@ def pyscf_thermo(
     pressure=101325,
     charge=0.0,
     spin=None,
+    symmetry_number=None,
     quasi_rrho=False,
     transition_state=False,
 ):
@@ -657,6 +675,9 @@ def pyscf_thermo(
         System charge. Default 0.0.
     spin : float, optional
         Spin quantum number S. Defaults to the minimum-spin electron-count guess.
+    symmetry_number : int, optional
+        Rotational symmetry number used in the rotational entropy. Defaults to
+        automatic point-group analysis.
     quasi_rrho : bool
         If True, use Grimme's quasi-RRHO vibrational entropy. Default False.
     transition_state : bool
@@ -704,6 +725,7 @@ def pyscf_thermo(
         pressure=pressure,
         charge=charge,
         spin=spin,
+        symmetry_number=symmetry_number,
         engine="dftb+",
         quasi_rrho=quasi_rrho,
         transition_state=transition_state,
@@ -796,6 +818,7 @@ def dftbplus_thermo(
         directory=None,
         parameter_set="3ob",
         spin=None,
+        symmetry_number=None,
         spin_constants=None,
         solvent=None,
         solvation_param_file=None,
@@ -829,6 +852,9 @@ def dftbplus_thermo(
         (even -> 0, odd -> 0.5). When S > 0 the DFTB+ steps run colinear
         spin-polarised (so radicals are treated open-shell automatically); S = 0
         keeps the restricted closed-shell calculation.
+    symmetry_number : int, optional
+        Rotational symmetry number used in the rotational entropy. Defaults to
+        automatic point-group analysis.
     spin_constants : dict, optional
         Element -> spin-constant mapping matching the Slater-Koster set in use.
         Defaults to the 3ob constants; pass ``SPIN_CONSTANTS_MIO`` (or the value
@@ -922,6 +948,7 @@ def dftbplus_thermo(
             engine='dftb+',
             charge=charge,
             spin=spin,
+            symmetry_number=symmetry_number,
             quasi_rrho=quasi_rrho,
         )
 
@@ -934,6 +961,7 @@ def xtb_thermo(
         pressure=101325,
         charge=0.0,
         spin=None,
+        symmetry_number=None,
         method="GFN2-xTB",
         directory=None,
         quasi_rrho=False,
@@ -961,6 +989,9 @@ def xtb_thermo(
         Spin quantum number S. Defaults to the minimum-spin electron-count guess
         (even -> 0, odd -> 0.5). ``round(2*S)`` unpaired electrons are passed to
         xTB, so radicals run open-shell automatically.
+    symmetry_number : int, optional
+        Rotational symmetry number used in the rotational entropy. Defaults to
+        automatic point-group analysis.
     method : str
         GFN-xTB parametrisation, ``"GFN2-xTB"`` (default) or ``"GFN1-xTB"``.
     directory : str, optional
@@ -1012,6 +1043,7 @@ def xtb_thermo(
             engine="xtb",
             charge=charge,
             spin=spin,
+            symmetry_number=symmetry_number,
             quasi_rrho=quasi_rrho,
         )
 
@@ -1024,6 +1056,7 @@ def xtb_cli_thermo(
         pressure=101325,
         charge=0.0,
         spin=None,
+        symmetry_number=None,
         method="GFN2-xTB",
         solvent=None,
         directory=None,
@@ -1052,6 +1085,9 @@ def xtb_cli_thermo(
         Spin quantum number S. Defaults to the minimum-spin electron-count guess
         (even -> 0, odd -> 0.5); ``round(2*S)`` unpaired electrons are passed to
         xtb, so radicals run open-shell automatically.
+    symmetry_number : int, optional
+        Rotational symmetry number used in the rotational entropy. Defaults to
+        automatic point-group analysis.
     method : str
         GFN parametrisation: ``"GFN2-xTB"`` (default), ``"GFN1-xTB"`` or
         ``"GFN0-xTB"``.
@@ -1088,6 +1124,7 @@ def xtb_cli_thermo(
             engine="xtb",
             charge=charge,
             spin=spin,
+            symmetry_number=symmetry_number,
             quasi_rrho=quasi_rrho,
         )
 

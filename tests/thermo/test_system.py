@@ -340,6 +340,40 @@ def test_system_rejects_negative_spin():
         )
              
 
+def test_system_accepts_explicit_symmetry_number():
+    atoms = [
+        Atom(symbol="H", position=np.array([0.0, 0.0, 0.0])),
+        Atom(symbol="H", position=np.array([0.0, 0.0, 0.74])),
+    ]
+
+    system = System(
+        atoms,
+        charge=0,
+        electronic_energy=-1.0,
+        vibrational_frequencies=np.array([4400.0]),
+        symmetry_number=1,
+    )
+
+    assert system.rotational_symmetry_number == 1
+
+
+@pytest.mark.parametrize("symmetry_number", [0, -1, True])
+def test_system_rejects_invalid_symmetry_number(symmetry_number):
+    atoms = [
+        Atom(symbol="H", position=np.array([0.0, 0.0, 0.0])),
+        Atom(symbol="H", position=np.array([0.0, 0.0, 0.74])),
+    ]
+
+    with pytest.raises(TSValueError, match="positive integer"):
+        System(
+            atoms,
+            charge=0,
+            electronic_energy=-1.0,
+            vibrational_frequencies=np.array([4400.0]),
+            symmetry_number=symmetry_number,
+        )
+
+
 def test_rotational_symmetry_number_accepts_property(monkeypatch):
     class FakePointGroupAnalyzer:
         get_rotational_symmetry_number = 7
