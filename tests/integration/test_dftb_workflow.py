@@ -44,7 +44,16 @@ def test_dftb_screen_end_to_end(tmp_path):
         check=False,
     )
 
-    assert completed.returncode == 0, completed.stdout + completed.stderr
+    if completed.returncode:
+        calculation_dir = tmp_path / "calculations" / "water"
+        diagnostics = [completed.stdout, completed.stderr]
+        for filename in ("dftb_in.hsd", "second_derivative.out", "detailed.out"):
+            path = calculation_dir / filename
+            if path.is_file():
+                diagnostics.append(
+                    f"\n--- {filename} ---\n{path.read_text(encoding='utf-8')}"
+                )
+        pytest.fail("".join(diagnostics))
     records = json.loads(out.with_suffix(".json").read_text(encoding="utf-8"))
     assert len(records) == 1
     record = records[0]
