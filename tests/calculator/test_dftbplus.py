@@ -485,6 +485,8 @@ def test_resolve_parameter_set_selects_hamiltonian_and_constants():
     # 3ob is DFTB3 (third order), mio is DFTB2 (no third order)
     assert params_3ob["Hamiltonian_ThirdOrderFull"] == "Yes"
     assert "Hamiltonian_ThirdOrderFull" not in params_mio
+    assert "Hamiltonian_Mixer" not in params_3ob
+    assert "Hamiltonian_Mixer" not in params_mio
     assert spin_3ob is dftbplus_module.SPIN_CONSTANTS_3OB
     assert spin_mio is dftbplus_module.SPIN_CONSTANTS_MIO
 

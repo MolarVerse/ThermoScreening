@@ -25,15 +25,27 @@ jobs:
       uses: actions/setup-python@v7
       with:
         python-version: "3.12"
+    - name: Cache DFTB+ parameters
+      uses: actions/cache@v6
+      with:
+        path: ~/.local/share/thermoscreening/slakos/3ob-3-1
+        key: dftbparams-3ob-3-1-v1
     - name: Add conda to system path
       run: |
         # $CONDA is an environment variable pointing to the root of the miniconda directory
         echo $CONDA/bin >> $GITHUB_PATH
     - name: Install dependencies
       run: |
-        conda install -y -c conda-forge python=3.12 gsl dftbplus
+        conda install -y -c conda-forge python=3.12 gsl 'dftbplus=25.1=nompi_*'
         python -m pip install --upgrade pip
         python -m pip install '.[test,lint]'
+    - name: Verify DFTB+ workflow
+      env:
+        THERMOSCREENING_REQUIRE_DFTB: "1"
+      run: |
+        thermo setup-dftb --parameter-set 3ob
+        thermo doctor --engine dftb+
+        python -m pytest tests/integration/test_dftb_workflow.py -q
     - name: Lint with Pylint
       run: python -m pylint ThermoScreening
     - name: Test with pytest

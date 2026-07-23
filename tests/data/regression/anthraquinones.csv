@@ -1,0 +1,4 @@
+name,smiles,charge
+anthraquinone,O=C1c2ccccc2C(=O)c2ccccc12,0
+1-hydroxyanthraquinone,O=C1c2ccccc2C(=O)c2cccc(O)c12,0
+2-hydroxyanthraquinone,O=C1c2ccccc2C(=O)c2ccc(O)cc12,0

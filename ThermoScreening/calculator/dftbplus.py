@@ -582,9 +582,6 @@ dftb_3ob_parameters = dict(
     Hamiltonian_Filling="Fermi {",
     Hamiltonian_Filling_empty="Temperature [Kelvin] = 300",
 
-    # Convergence helper
-    Hamiltonian_Mixer="DIIS{}",
-
     # Are guessed by ase
     Hamiltonian_MaxAngularMomentum_="",
 
@@ -631,9 +628,6 @@ dftb_mio_parameters = dict(
     # Fermi smearing
     Hamiltonian_Filling="Fermi {",
     Hamiltonian_Filling_empty="Temperature [Kelvin] = 300",
-
-    # Convergence helper
-    Hamiltonian_Mixer="DIIS{}",
 
     # Are guessed by ase
     Hamiltonian_MaxAngularMomentum_="",

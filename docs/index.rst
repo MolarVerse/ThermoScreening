@@ -107,6 +107,8 @@ Features
    usage
    configuration
    api
+   benchmarks/entropy_accuracy
+   benchmarks/anthraquinone_workflow
 
 Indices
 -------
