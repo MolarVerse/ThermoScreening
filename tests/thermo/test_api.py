@@ -326,6 +326,31 @@ class TestApi(unittest.TestCase):
             from_file.total_gibbs_free_energy("H")
         )
 
+    def test_run_thermo_uses_explicit_symmetry_number(self):
+        hydrogen = Atoms(
+            "H2",
+            positions=[[0.0, 0.0, 0.0], [0.0, 0.0, 0.74]],
+        )
+        frequencies = np.array([4400.0])
+
+        automatic = run_thermo(frequencies, atoms=hydrogen, energy=-1.0)
+        explicit = run_thermo(
+            frequencies,
+            atoms=hydrogen,
+            energy=-1.0,
+            symmetry_number=1,
+        )
+
+        assert automatic._system.rotational_symmetry_number == 2
+        assert explicit._system.rotational_symmetry_number == 1
+        entropy_difference = (
+            explicit.total_entropy("cal/(mol*K)")
+            - automatic.total_entropy("cal/(mol*K)")
+        )
+        assert entropy_difference == pytest.approx(
+            8.314462618 / 4.184 * np.log(2.0)
+        )
+
 
 def test_run_in_directory_isolates_and_restores(tmp_path):
     from ThermoScreening.thermo.api import _run_in_directory

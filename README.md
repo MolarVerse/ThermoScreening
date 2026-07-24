@@ -138,6 +138,26 @@ Run the full test suite:
 python -m pytest -q
 ```
 
+Reproduce the published DFTB/3ob/COSMO anthraquinone potentials from the raw
+Zenodo data:
+
+```bash
+python scripts/validate_anthraquinone_zenodo.py
+```
+
+Validate ideal-gas thermochemistry against a deterministic 1,000-molecule
+sample from QM9:
+
+```bash
+python scripts/validate_qm9.py
+```
+
+Both commands verify their downloaded archives and keep the external data out
+of the repository. See the
+[anthraquinone reference benchmark](docs/benchmarks/anthraquinone_workflow.rst)
+and [QM9 thermochemistry benchmark](docs/benchmarks/qm9_thermochemistry.rst)
+for their scope and interpretation.
+
 Run linting:
 
 ```bash

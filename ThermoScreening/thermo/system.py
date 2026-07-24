@@ -125,7 +125,7 @@ def linearity(atoms: List[Atom]) -> bool:
     eigenvalues = np.linalg.eigvalsh(inertia_tensor)
     # a linear molecule has exactly one vanishing principal moment of inertia
     # (the molecular axis); use a relative tolerance rather than an exact zero.
-    return bool(eigenvalues[0] <= 1e-6 * eigenvalues[-1])
+    return bool(eigenvalues[0] <= 1e-8 * eigenvalues[-1])
 
 
 def dimensionality(atoms: List[Atom]) -> int:
@@ -602,6 +602,7 @@ class System:
         electronic_energy: float | None = None,
         vibrational_frequencies: np.ndarray | None = None,
         spin: float | None = None,
+        symmetry_number: int | None = None,
     ) -> None:
         """
         Initializes the System with the given parameters.
@@ -626,6 +627,12 @@ class System:
             The electronic energy of the system.
         vibrational_frequencies : np.ndarray, optional, default=None
             The vibrational frequencies of the system.
+        spin : float, optional, default=None
+            Spin quantum number. Defaults to the minimum-spin electron-count
+            guess.
+        symmetry_number : int, optional, default=None
+            Rotational symmetry number used in the rotational entropy. Defaults
+            to automatic point-group analysis.
 
         Raises
         ------
@@ -644,6 +651,13 @@ class System:
         if vibrational_frequencies is None:
             raise TSValueError("Vibrational frequencies must be provided.")
 
+        if symmetry_number is not None and (
+            isinstance(symmetry_number, bool) or symmetry_number < 1
+        ):
+            raise TSValueError(
+                "The rotational symmetry number must be a positive integer."
+            )
+
         self._atoms = atoms
         self._charge = charge
         self._periodicity = periodicity
@@ -659,7 +673,11 @@ class System:
         self._dim = dim(atoms)
         self._mass = mass(atoms)
         self._center_of_mass = center_of_mass(atoms, self._mass)
-        self._symmetry_number = rotational_symmetry_number(atoms)
+        self._symmetry_number = (
+            rotational_symmetry_number(atoms)
+            if symmetry_number is None
+            else symmetry_number
+        )
         self._rotational_group = rotational_group_calc(atoms)
         if isinstance(self._cell, Cell):
             self._spacegroup_number = spacegroup_number(atoms, self._cell)
