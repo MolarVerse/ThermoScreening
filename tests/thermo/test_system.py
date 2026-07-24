@@ -304,6 +304,20 @@ def test_linearity_detects_off_axis_linear_molecule():
     assert linearity(_atoms_at(hcn, np.zeros(3))) is True
 
 
+def test_linearity_rejects_slightly_bent_near_linear_geometry():
+    atoms = _atoms(
+        [
+            ("N", (0.0174573422, -1.1613421749, -0.0041534236)),
+            ("C", (0.0025321236, -0.0034427793, 0.0017993915)),
+            ("C", (-0.0161141932, 1.3722098653, 0.0093487294)),
+            ("N", (-0.0326430226, 2.5300827589, 0.0160909027)),
+        ]
+    )
+
+    assert linearity(atoms) is False
+    assert dof(atoms) == 6
+
+
 @pytest.mark.parametrize(
     "symbols,charge,expected",
     [

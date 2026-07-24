@@ -109,6 +109,7 @@ Features
    api
    benchmarks/entropy_accuracy
    benchmarks/anthraquinone_workflow
+   benchmarks/qm9_thermochemistry
 
 Indices
 -------

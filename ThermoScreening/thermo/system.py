@@ -125,7 +125,7 @@ def linearity(atoms: List[Atom]) -> bool:
     eigenvalues = np.linalg.eigvalsh(inertia_tensor)
     # a linear molecule has exactly one vanishing principal moment of inertia
     # (the molecular axis); use a relative tolerance rather than an exact zero.
-    return bool(eigenvalues[0] <= 1e-6 * eigenvalues[-1])
+    return bool(eigenvalues[0] <= 1e-8 * eigenvalues[-1])
 
 
 def dimensionality(atoms: List[Atom]) -> int:
